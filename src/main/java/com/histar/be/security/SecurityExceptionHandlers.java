@@ -1,8 +1,6 @@
 package com.histar.be.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.histar.be.common.exception.ErrorCode;
-import com.histar.be.common.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -16,8 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class SecurityExceptionHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
-
-    private final ObjectMapper objectMapper;
 
     @Override
     public void commence(
@@ -36,6 +32,19 @@ public class SecurityExceptionHandlers implements AuthenticationEntryPoint, Acce
     private void writeError(HttpServletResponse response, int status, ErrorCode code, String message) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(), ErrorResponse.of(code, message));
+        String payload = "{"
+                + "\"success\":false,"
+                + "\"code\":\"" + safe(code.getCode()) + "\","
+                + "\"message\":\"" + safe(message) + "\","
+                + "\"timestamp\":\"" + java.time.Instant.now() + "\""
+                + "}";
+        response.getWriter().write(payload);
+    }
+
+    private static String safe(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

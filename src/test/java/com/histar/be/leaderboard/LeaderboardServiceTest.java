@@ -37,7 +37,7 @@ class LeaderboardServiceTest {
     @Test
     void allScope_ranksByPoints() {
         UUID user1 = UUID.randomUUID();
-        when(profileRepository.findLeaderboard(isNull(), isNull(), any(Pageable.class)))
+        when(profileRepository.findLeaderboard(isNull(), any(Pageable.class)))
                 .thenReturn(List.of(
                         Profile.builder().id(user1).displayName("A").totalPoints(500).build(),
                         Profile.builder().id(UUID.randomUUID()).displayName("B").totalPoints(100).build()));

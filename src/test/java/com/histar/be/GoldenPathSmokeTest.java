@@ -33,6 +33,7 @@ import com.histar.be.usercreation.service.UserCreationAppService;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -160,7 +161,9 @@ class GoldenPathSmokeTest {
         assertFalse(characterService.findByLocationId(location.getId()).isEmpty());
         assertFalse(panoramaService.findByLocationId(location.getId()).isEmpty());
         assertFalse(hotspotService.findByPanoramaId(panorama.getId()).isEmpty());
-        assertFalse(questProgressService.listByLocation(location.getId()).isEmpty());
+        assertFalse(questProgressService
+                .listByLocation(location.getId(), PageRequest.of(0, 20))
+                .isEmpty());
 
         questProgressService.startQuest(register.userId(), quest.getId());
         var checkin = gamificationService.processCheckin(
