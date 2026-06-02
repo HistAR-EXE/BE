@@ -2,13 +2,19 @@ package com.histar.be.auth.service.impl;
 
 import com.histar.be.auth.dto.AuthResponse;
 import com.histar.be.auth.dto.LoginRequest;
+import com.histar.be.auth.dto.LogoutRequest;
+import com.histar.be.auth.dto.RefreshTokenRequest;
 import com.histar.be.auth.dto.RegisterRequest;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.auth.service.AuthService;
 import com.histar.be.common.exception.ConflictException;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.service.ProfileService;
 import com.histar.be.security.JwtService;
 import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final Map<String, RefreshSession> refreshSessions = new ConcurrentHashMap<>();
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -40,8 +47,7 @@ public class AuthServiceImpl implements AuthService {
                 .createdAt(Instant.now())
                 .build();
         profileService.save(profile);
-        return new AuthResponse(
-                jwtService.generateToken(profile.getEmail()), profile.getId(), profile.getDisplayName());
+        return issueTokens(profile);
     }
 
     @Override
@@ -51,7 +57,40 @@ public class AuthServiceImpl implements AuthService {
         Profile profile = profileService
                 .findByEmail(request.email())
                 .orElseThrow(() -> new IllegalStateException("User not found after authentication"));
-        return new AuthResponse(
-                jwtService.generateToken(profile.getEmail()), profile.getId(), profile.getDisplayName());
+        return issueTokens(profile);
     }
+
+    @Override
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        RefreshSession session = refreshSessions.get(request.refreshToken());
+        if (session == null || session.expiresAt().isBefore(Instant.now()) || !jwtService.isValid(request.refreshToken())) {
+            throw new AuthException("Refresh token không hợp lệ hoặc đã hết hạn");
+        }
+        Profile profile = profileService.findById(session.userId());
+        refreshSessions.remove(request.refreshToken());
+        return issueTokens(profile);
+    }
+
+    @Override
+    public void logout(LogoutRequest request) {
+        refreshSessions.remove(request.refreshToken());
+    }
+
+    private AuthResponse issueTokens(Profile profile) {
+        String accessToken = jwtService.generateToken(profile.getEmail());
+        String refreshToken = jwtService.generateRefreshToken(profile.getEmail());
+        refreshSessions.put(
+                refreshToken,
+                new RefreshSession(profile.getId(), Instant.now().plusMillis(jwtService.getRefreshExpiration())));
+        return new AuthResponse(
+                accessToken,
+                accessToken,
+                jwtService.getAccessExpiration() / 1000,
+                refreshToken,
+                jwtService.getRefreshExpiration() / 1000,
+                profile.getId(),
+                profile.getDisplayName());
+    }
+
+    private record RefreshSession(UUID userId, Instant expiresAt) {}
 }

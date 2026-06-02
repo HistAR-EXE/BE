@@ -8,9 +8,9 @@ import lombok.Getter;
 @Builder
 public class PageResponse<T> {
 
-    private final List<T> content;
+    private final List<T> items;
     private final int page;
     private final int size;
-    private final long totalElements;
+    private final long totalItems;
     private final int totalPages;
 }

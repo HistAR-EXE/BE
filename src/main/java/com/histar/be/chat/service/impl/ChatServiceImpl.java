@@ -17,6 +17,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,16 +67,14 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<MessageResponse> getMessages(UUID userId, UUID conversationId) {
+    public Page<MessageResponse> getMessages(UUID userId, UUID conversationId, Pageable pageable) {
         Conversation conversation = conversationRepository
                 .findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found: " + conversationId));
         if (!conversation.getUserId().equals(userId)) {
             throw new AuthException("Forbidden");
         }
-        return messageRepository.findByConversationIdOrderByCreatedAt(conversationId).stream()
-                .map(MessageResponse::from)
-                .toList();
+        return messageRepository.findByConversationId(conversationId, pageable).map(MessageResponse::from);
     }
 
     private Conversation resolveConversation(UUID userId, ChatRequest request, UUID characterId) {

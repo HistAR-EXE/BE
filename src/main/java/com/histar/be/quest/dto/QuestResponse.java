@@ -9,7 +9,9 @@ public record QuestResponse(
         String title,
         String description,
         Integer pointsReward,
-        Integer requiredOrder) {
+        Integer stepsTotal,
+        Integer unlockLevel,
+        String coverImage) {
 
     public static QuestResponse from(Quest quest) {
         return new QuestResponse(
@@ -18,6 +20,8 @@ public record QuestResponse(
                 quest.getTitle(),
                 quest.getDescription(),
                 quest.getPointsReward(),
-                quest.getRequiredOrder());
+                1,
+                1,
+                null);
     }
 }

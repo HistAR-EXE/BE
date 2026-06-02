@@ -13,6 +13,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,18 +27,21 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     private final UserQuestProgressRepository userQuestProgressRepository;
 
     @Override
-    public List<QuestResponse> listByLocation(UUID locationId) {
-        return questService.findByLocationId(locationId).stream()
-                .map(QuestResponse::from)
-                .toList();
+    public Page<QuestResponse> listByLocation(UUID locationId, Pageable pageable) {
+        List<QuestResponse> quests = (locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
+                .stream().map(QuestResponse::from).toList();
+        return toPage(quests, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<QuestProgressResponse> listMyQuests(UUID userId, UUID locationId) {
-        return questService.findByLocationId(locationId).stream()
+    public Page<QuestProgressResponse> listMyQuests(UUID userId, UUID locationId, String status, Pageable pageable) {
+        List<QuestProgressResponse> items = (locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
+                .stream()
                 .map(quest -> toProgress(userId, quest))
+                .filter(progress -> status == null || status.isBlank() || status.equals(progress.status()))
                 .toList();
+        return toPage(items, pageable);
     }
 
     @Override
@@ -88,7 +94,15 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                 quest.getDescription(),
                 quest.getPointsReward(),
                 status,
+                QuestStatus.COMPLETED.equals(status) ? 1 : (QuestStatus.IN_PROGRESS.equals(status) ? 1 : 0),
+                1,
                 progress != null ? progress.getStartedAt() : null,
                 progress != null ? progress.getCompletedAt() : null);
+    }
+
+    private <T> Page<T> toPage(List<T> items, Pageable pageable) {
+        int start = Math.min((int) pageable.getOffset(), items.size());
+        int end = Math.min(start + pageable.getPageSize(), items.size());
+        return new PageImpl<>(items.subList(start, end), pageable, items.size());
     }
 }

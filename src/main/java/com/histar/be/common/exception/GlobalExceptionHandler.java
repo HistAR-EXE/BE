@@ -5,8 +5,10 @@ import com.histar.be.common.response.ValidationErrorResponse;
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Collectors;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,11 +31,38 @@ public class GlobalExceptionHandler {
                         (first, second) -> first));
         ValidationErrorResponse body = ValidationErrorResponse.builder()
                 .code(ErrorCode.VALIDATION_ERROR.getCode())
-                .message("Validation failed")
+                .message("Du lieu khong hop le")
                 .fieldErrors(fieldErrors)
                 .timestamp(Instant.now())
                 .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ValidationErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> fieldErrors = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        violation -> violation.getPropertyPath().toString(),
+                        violation -> violation.getMessage(),
+                        (first, second) -> first));
+        ValidationErrorResponse body = ValidationErrorResponse.builder()
+                .code(ErrorCode.VALIDATION_ERROR.getCode())
+                .message("Du lieu khong hop le")
+                .fieldErrors(fieldErrors)
+                .timestamp(Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ValidationErrorResponse> handleMissingParameter(MissingServletRequestParameterException ex) {
+        ValidationErrorResponse body = ValidationErrorResponse.builder()
+                .code(ErrorCode.VALIDATION_ERROR.getCode())
+                .message("Du lieu khong hop le")
+                .fieldErrors(Map.of(ex.getParameterName(), "Tham so bat buoc bi thieu"))
+                .timestamp(Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
 
     @ExceptionHandler(Exception.class)
@@ -47,7 +76,8 @@ public class GlobalExceptionHandler {
             case CONFLICT -> HttpStatus.CONFLICT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case VALIDATION_ERROR -> HttpStatus.UNPROCESSABLE_ENTITY;
             case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_ENTITY;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };

@@ -2,6 +2,8 @@ package com.histar.be.auth.controller;
 
 import com.histar.be.auth.dto.AuthResponse;
 import com.histar.be.auth.dto.LoginRequest;
+import com.histar.be.auth.dto.LogoutRequest;
+import com.histar.be.auth.dto.RefreshTokenRequest;
 import com.histar.be.auth.dto.RegisterRequest;
 import com.histar.be.auth.service.AuthService;
 import com.histar.be.common.response.ApiResponse;
@@ -27,5 +29,16 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthResponse> login(@RequestBody @Valid LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<AuthResponse> refresh(@RequestBody @Valid RefreshTokenRequest request) {
+        return ApiResponse.ok(authService.refresh(request));
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@RequestBody @Valid LogoutRequest request) {
+        authService.logout(request);
+        return ApiResponse.ok("Logged out", null);
     }
 }

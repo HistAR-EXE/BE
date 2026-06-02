@@ -10,5 +10,7 @@ public record QuestProgressResponse(
         String description,
         Integer pointsReward,
         String status,
+        Integer currentStep,
+        Integer stepsTotal,
         Instant startedAt,
         Instant completedAt) {}
