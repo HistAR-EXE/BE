@@ -16,4 +16,6 @@ public interface HotspotService {
     void deleteById(UUID id);
 
     long count();
+
+    List<Hotspot> findByPanoramaId(UUID panoramaId);
 }

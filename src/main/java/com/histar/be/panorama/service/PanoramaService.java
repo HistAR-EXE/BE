@@ -16,4 +16,6 @@ public interface PanoramaService {
     void deleteById(UUID id);
 
     long count();
+
+    List<Panorama> findByLocationId(UUID locationId);
 }

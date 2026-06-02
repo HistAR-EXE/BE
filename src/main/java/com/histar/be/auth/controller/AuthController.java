@@ -4,6 +4,7 @@ import com.histar.be.auth.dto.AuthResponse;
 import com.histar.be.auth.dto.LoginRequest;
 import com.histar.be.auth.dto.RegisterRequest;
 import com.histar.be.auth.service.AuthService;
+import com.histar.be.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,12 +20,12 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public AuthResponse register(@RequestBody @Valid RegisterRequest request) {
-        return authService.register(request);
+    public ApiResponse<AuthResponse> register(@RequestBody @Valid RegisterRequest request) {
+        return ApiResponse.ok(authService.register(request));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody @Valid LoginRequest request) {
-        return authService.login(request);
+    public ApiResponse<AuthResponse> login(@RequestBody @Valid LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
     }
 }

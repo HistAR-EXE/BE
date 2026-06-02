@@ -35,6 +35,8 @@ build/
 ### Environment ###
 .env
 
-### Docx extract temp ###
+### Docx / extract temp (không commit) ###
 _docx_extract/
+_docx_temp.zip
 temp.zip
+*.docx.tmp

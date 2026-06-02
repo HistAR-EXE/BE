@@ -38,7 +38,14 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/locations/**", "/api/characters/**")
+                        .requestMatchers(
+                                "/api/health",
+                                "/api/auth/**",
+                                "/api/locations/**",
+                                "/api/characters/**",
+                                "/api/photo-pairs/**",
+                                "/api/panoramas/**",
+                                "/api/hotspots/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

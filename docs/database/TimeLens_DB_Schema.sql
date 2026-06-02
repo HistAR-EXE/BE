@@ -238,3 +238,18 @@ INSERT INTO photo_frames (name, image_url, era, sort_order) VALUES
 ('Khung du kích', 'https://placehold.co/1080?text=Frame1', '1968', 1),
 ('Khung áo bà ba', 'https://placehold.co/1080?text=Frame2', 'Cổ điển', 2),
 ('Khung vintage Củ Chi', 'https://placehold.co/1080?text=Frame3', 'Vintage', 3);
+
+-- 1 panorama (360 tour pilot)
+INSERT INTO panoramas (id, location_id, image_url, title)
+VALUES (
+  '22222222-2222-2222-2222-222222222222',
+  '11111111-1111-1111-1111-111111111111',
+  'https://placehold.co/4096x2048?text=Cu+Chi+360',
+  'Địa đạo Củ Chi — góc nhìn 360°'
+);
+
+-- 3 hotspots
+INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label) VALUES
+('22222222-2222-2222-2222-222222222222', 0.5, 0.1, 'info', 'tunnel-entrance', 'Cửa hầm chính'),
+('22222222-2222-2222-2222-222222222222', -1.2, 0.0, 'info', 'kitchen', 'Bếp Hoàng Cầm'),
+('22222222-2222-2222-2222-222222222222', 2.0, -0.2, 'scene', 'meeting-room', 'Phòng họp dưới lòng đất');

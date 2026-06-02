@@ -41,4 +41,9 @@ public class PanoramaServiceImpl implements PanoramaService {
     public long count() {
         return repository.count();
     }
+
+    @Override
+    public List<Panorama> findByLocationId(UUID locationId) {
+        return repository.findByLocationId(locationId);
+    }
 }

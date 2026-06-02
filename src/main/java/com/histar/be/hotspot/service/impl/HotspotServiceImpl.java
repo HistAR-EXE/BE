@@ -41,4 +41,9 @@ public class HotspotServiceImpl implements HotspotService {
     public long count() {
         return repository.count();
     }
+
+    @Override
+    public List<Hotspot> findByPanoramaId(UUID panoramaId) {
+        return repository.findByPanoramaId(panoramaId);
+    }
 }

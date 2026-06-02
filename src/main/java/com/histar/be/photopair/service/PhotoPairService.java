@@ -3,7 +3,6 @@ package com.histar.be.photopair.service;
 import com.histar.be.photopair.entity.PhotoPair;
 import java.util.List;
 import java.util.UUID;
-import java.util.List;
 
 public interface PhotoPairService {
 

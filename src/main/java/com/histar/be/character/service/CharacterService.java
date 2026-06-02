@@ -3,7 +3,6 @@ package com.histar.be.character.service;
 import com.histar.be.character.entity.CharacterEntity;
 import java.util.List;
 import java.util.UUID;
-import java.util.List;
 
 public interface CharacterService {
 
