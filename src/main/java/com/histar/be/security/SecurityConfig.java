@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/locations/*/secret-story")
                         .authenticated()
                         .requestMatchers(
-                                "/api/health",
+                                "/api/health/**",
                                 "/api/auth/**",
                                 "/api/locations/**",
                                 "/api/characters/**",

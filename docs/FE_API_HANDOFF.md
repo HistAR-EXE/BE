@@ -727,3 +727,74 @@ curl -s -X POST http://localhost:8080/api/user-creations/<CREATION_ID>/record-sh
 | Photo frame | `GET /api/photo-frames`, `POST /api/user-creations`, `GET /api/me/user-creations` |
 | Share | `GET /api/share/prefill`, `POST .../record-share` |
 | Leaderboard | `GET /api/leaderboard?scope=` |
+
+---
+
+## Week 4 update (Demo + Production freeze)
+
+Scope week 4: no new product features. Backend focuses on stability, deploy readiness, and demo backup.
+
+### BE progress for FE
+
+| Item | Status |
+|------|--------|
+| Week 1-3 APIs | Done |
+| `GET /api/health/ready` | Done |
+| `POST /api/demo/checkin` | Done |
+| Dockerfile + `application-prod.yml` + `docs/DEPLOY.md` | Done |
+| Smoke script `docs/scripts/smoke-golden-path.ps1` | Done |
+| Sentry/full observability | Out of scope |
+
+### New API in week 4
+
+#### Readiness endpoint
+
+`GET /api/health/ready` (public)
+
+- `200`: DB is ready
+- `503`: DB is unavailable
+
+Example response:
+
+```json
+{ "status": "UP", "database": "UP" }
+```
+
+#### Demo backup check-in
+
+`POST /api/demo/checkin`
+
+Headers:
+
+- `Authorization: Bearer <token>`
+- `X-Demo-Secret: <DEMO_SECRET>`
+
+Body:
+
+```json
+{ "locationId": "11111111-1111-1111-1111-111111111111" }
+```
+
+Rules:
+
+- Endpoint is active only when `DEMO_ENABLED=true`
+- Keep production default as `DEMO_ENABLED=false`
+- Use this only as fallback when QR/GPS fails during demo
+
+### Guest vs Auth reminder
+
+Public APIs remain: locations, characters, photo-pairs, panoramas, hotspots, quests list, badges list, photo-frames, share prefill, leaderboard.
+
+JWT-required APIs: chat, profile, check-in, quest start/progress, secret story, user-creations upload/list/share, demo check-in.
+
+### Stable seed IDs for FE demo
+
+- Location Cu Chi: `11111111-1111-1111-1111-111111111111`
+- Panorama: `22222222-2222-2222-2222-222222222222`
+- Quest: `33333333-3333-3333-3333-333333333333`
+
+### Smoke command after deploy
+
+```powershell
+.\docs\scripts\smoke-golden-path.ps1 -BaseUrl https://<be-host>
+```

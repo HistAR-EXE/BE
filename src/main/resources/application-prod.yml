@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    com.histar.be: INFO
+
+server:
+  port: ${PORT:8080}
+
+demo:
+  enabled: ${DEMO_ENABLED:false}

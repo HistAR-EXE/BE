@@ -82,6 +82,27 @@ public class GamificationServiceImpl implements GamificationService {
                 .createdAt(Instant.now())
                 .build());
 
+        return applyCheckinRewards(userId, locationId, distance);
+    }
+
+    @Override
+    @Transactional
+    public CheckinResultDto processDemoCheckin(UUID userId, UUID locationId) {
+        Location location = locationService.findById(locationId);
+        checkinRepository.save(Checkin.builder()
+                .userId(userId)
+                .locationId(locationId)
+                .latitude(location.getLatitude())
+                .longitude(location.getLongitude())
+                .createdAt(Instant.now())
+                .build());
+        return applyCheckinRewards(userId, locationId, 0.0);
+    }
+
+    private CheckinResultDto applyCheckinRewards(UUID userId, UUID locationId, double distanceMeters) {
+        List<UUID> questsCompleted = new ArrayList<>();
+        List<BadgeEarnedDto> allBadges = new ArrayList<>();
+
         List<Quest> quests = questRepository.findByLocationId(locationId);
         for (Quest quest : quests) {
             userQuestProgressRepository
@@ -95,7 +116,7 @@ public class GamificationServiceImpl implements GamificationService {
         }
 
         allBadges.addAll(badgeAwardService.evaluateAndAward(userId));
-        return new CheckinResultDto(true, distance, questsCompleted, dedupeBadges(allBadges), false);
+        return new CheckinResultDto(true, distanceMeters, questsCompleted, dedupeBadges(allBadges), false);
     }
 
     @Override
