@@ -69,14 +69,15 @@ public class LeaderboardServiceImpl implements LeaderboardService {
     private List<Profile> loadProfiles(String scope, String city) {
         int limit = viralProperties.getLeaderboardLimit();
         PageRequest page = PageRequest.of(0, limit);
-        return switch (scope) {
-            case "city" -> profileRepository.findLeaderboard(city, null, page);
-            case "week" -> profileRepository.findLeaderboard(
-                    city != null && !city.isBlank() ? city : null,
-                    Instant.now().minus(7, ChronoUnit.DAYS),
-                    page);
-            default -> profileRepository.findLeaderboard(null, null, page);
+        Instant weekStart = "week".equals(scope) ? Instant.now().minus(7, ChronoUnit.DAYS) : null;
+        String cityParam = switch (scope) {
+            case "city" -> city;
+            case "week" -> (city != null && !city.isBlank() ? city : null);
+            default -> null;
         };
+        return "week".equals(scope)
+                ? profileRepository.findLeaderboardSince(cityParam, weekStart, page)
+                : profileRepository.findLeaderboard(cityParam, page);
     }
 
     private LeaderboardResponse applyCurrentUserHighlight(LeaderboardResponse source, UUID currentUserId) {

@@ -22,13 +22,24 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
             SELECT DISTINCT p FROM Profile p
             WHERE p.totalPoints IS NOT NULL
             AND (:city IS NULL OR p.city = :city)
+            ORDER BY p.totalPoints DESC
+            """)
+    List<Profile> findLeaderboard(
+            @Param("city") String city, org.springframework.data.domain.Pageable pageable);
+
+    @Query(
+            """
+            SELECT DISTINCT p FROM Profile p
+            WHERE p.totalPoints IS NOT NULL
+            AND (:city IS NULL OR p.city = :city)
             AND (
-              :weekStart IS NULL
-              OR EXISTS (SELECT 1 FROM Checkin c WHERE c.userId = p.id AND c.createdAt >= :weekStart)
+              EXISTS (SELECT 1 FROM Checkin c WHERE c.userId = p.id AND c.createdAt >= :weekStart)
               OR EXISTS (SELECT 1 FROM UserCreation uc WHERE uc.userId = p.id AND uc.createdAt >= :weekStart)
             )
             ORDER BY p.totalPoints DESC
             """)
-    List<Profile> findLeaderboard(
-            @Param("city") String city, @Param("weekStart") Instant weekStart, org.springframework.data.domain.Pageable pageable);
+    List<Profile> findLeaderboardSince(
+            @Param("city") String city,
+            @Param("weekStart") Instant weekStart,
+            org.springframework.data.domain.Pageable pageable);
 }
