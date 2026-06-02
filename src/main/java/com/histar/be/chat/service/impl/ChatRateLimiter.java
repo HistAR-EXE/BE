@@ -1,11 +1,11 @@
 package com.histar.be.chat.service.impl;
 
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.message.repository.MessageRepository;
 import java.time.LocalDate;
-import java.util.Map;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,17 +13,22 @@ import org.springframework.stereotype.Component;
 public class ChatRateLimiter {
 
     private final int dailyLimit;
-    private final Map<String, AtomicInteger> counts = new ConcurrentHashMap<>();
+    private final MessageRepository messageRepository;
 
-    public ChatRateLimiter(@Value("${gemini.daily-message-limit}") int dailyLimit) {
+    public ChatRateLimiter(
+            @Value("${gemini.daily-message-limit}") int dailyLimit, MessageRepository messageRepository) {
         this.dailyLimit = dailyLimit;
+        this.messageRepository = messageRepository;
     }
 
     public void checkAndIncrement(UUID userId) {
-        String key = userId + ":" + LocalDate.now();
-        AtomicInteger counter = counts.computeIfAbsent(key, k -> new AtomicInteger(0));
-        int current = counter.incrementAndGet();
-        if (current > dailyLimit) {
+        LocalDate utcDay = LocalDate.now(ZoneOffset.UTC);
+        ZonedDateTime startUtc = utcDay.atStartOfDay(ZoneOffset.UTC);
+        ZonedDateTime endUtc = startUtc.plusDays(1);
+
+        long currentCount = messageRepository.countUserMessagesByUserIdAndCreatedAtBetween(
+                userId, startUtc.toInstant(), endUtc.toInstant());
+        if (currentCount >= dailyLimit) {
             throw new BusinessRuleException("Đã đạt giới hạn " + dailyLimit + " tin nhắn/ngày");
         }
     }

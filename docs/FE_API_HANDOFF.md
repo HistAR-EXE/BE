@@ -2,7 +2,7 @@
 
 Base URL (local): `http://localhost:8080`
 
-CORS: origins from env `CORS_ALLOWED_ORIGINS` (default `http://localhost:5173`). Send credentials if using cookies; JWT is sent via header (see below).
+CORS: origins from env `CORS_ALLOWED_ORIGINS` (default `http://localhost:5173`). Auth uses stateless JWT via `Authorization` header.
 
 ---
 
@@ -39,6 +39,7 @@ Validation (`400`):
 
 ```json
 {
+  "success": false,
   "code": "VALIDATION_ERROR",
   "message": "Validation failed",
   "fieldErrors": { "email": "must be a well-formed email address" },
@@ -65,17 +66,19 @@ Register or login → read `data.token` → attach to protected routes:
 Authorization: Bearer <jwt>
 ```
 
-JWT payload includes user id (used server-side for profile/chat).
+JWT contains `sub = email` (subject email). FE must use `data.userId` from login/register response, do not assume token includes a separate `userId` claim.
 
 | Endpoint | Auth |
 |----------|------|
-| `GET /api/health` | Public |
+| `GET /api/health`, `GET /api/health/ready` | Public |
 | `POST /api/auth/register`, `POST /api/auth/login` | Public |
-| `GET /api/locations/**`, `characters/**`, `photo-pairs/**`, `panoramas/**`, `hotspots/**` | Public |
+| `GET /api/locations/**`, `GET /api/characters/**`, `GET /api/photo-pairs/**`, `GET /api/panoramas/**`, `GET /api/hotspots/**` | Public |
 | `GET /api/profile/me`, `POST /api/chat`, `GET /api/chat/conversations/{id}/messages` | **JWT required** |
-| `POST /api/checkins`, `GET /api/me/**`, `POST /api/quests/{id}/start`, `GET /api/quests/{id}/progress`, `GET /api/locations/{id}/secret-story` | **JWT required** |
+| `POST /api/checkins`, `GET /api/me/**`, `POST /api/quests/{id}/start`, `GET /api/quests/{id}/progress`, `GET /api/locations/{id}/secret-story`, `POST /api/demo/checkin` | **JWT required** |
 | `POST /api/user-creations`, `POST /api/user-creations/{id}/record-share` | **JWT required** |
 | `GET /api/quests`, `GET /api/badges`, `GET /api/photo-frames`, `GET /api/leaderboard`, `GET /api/share/prefill` | Public |
+
+`/api/locations/{id}/secret-story` is a protected exception under `/api/locations/**`.
 
 ---
 
@@ -110,6 +113,11 @@ Photo pairs, hotspots: IDs are dynamic; load via list endpoints below.
   "data": { "status": "UP", "service": "timelens-be" }
 }
 ```
+
+`GET /api/health/ready` returns raw JSON (not `ApiResponse`) and uses HTTP code to indicate readiness:
+
+- `200`: `{ "status": "UP", "database": "UP" }`
+- `503`: `{ "status": "DOWN", "database": "DOWN" }`
 
 ---
 
@@ -278,7 +286,7 @@ Example panorama: `22222222-2222-2222-2222-222222222222`
 
 ### Chat (JWT + Gemini)
 
-Requires `GEMINI_API_KEY` on the server. Daily cap: `GEMINI_DAILY_MESSAGE_LIMIT` (default `50`) per user.
+Requires `GEMINI_API_KEY` on the server. Daily cap: `GEMINI_DAILY_MESSAGE_LIMIT` (default `50`) per user, counted from persisted user chat messages in DB (UTC day window).
 
 #### `POST /api/chat`
 
@@ -661,6 +669,17 @@ JWT **tùy chọn** — nếu có token, entry của user có `currentUser: true
 ```
 
 Cache server ~60s (`VIRAL_LEADERBOARD_CACHE_SECONDS`).
+
+### Common `422 BUSINESS_RULE` cases FE should handle
+
+| API | Case | Example message |
+|-----|------|-----------------|
+| `POST /api/chat` | Daily chat limit exceeded | `Đã đạt giới hạn 50 tin nhắn/ngày` |
+| `POST /api/checkins` | GPS too far | `Bạn đang cách địa điểm quá xa...` |
+| `POST /api/checkins` | QR payload mismatch | `Mã QR không khớp địa điểm` |
+| `GET /api/leaderboard` | Invalid `scope` or missing `city` when `scope=city` | `scope phải là all, city hoặc week` |
+| `POST /api/user-creations` | Empty file / invalid MIME / invalid variant | `Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP` |
+| `POST /api/demo/checkin` | Demo secret missing/invalid | `Invalid demo secret` |
 
 ### MinIO URLs
 
