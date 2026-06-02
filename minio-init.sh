@@ -8,4 +8,5 @@ done
 
 echo "Creating bucket: ${MINIO_BUCKET_NAME}"
 mc mb --ignore-existing "local/${MINIO_BUCKET_NAME}"
+mc anonymous set download "local/${MINIO_BUCKET_NAME}"
 echo "MinIO init done."

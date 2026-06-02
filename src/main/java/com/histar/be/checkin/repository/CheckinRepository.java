@@ -5,4 +5,8 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
+
+    long countByUserId(UUID userId);
+
+    boolean existsByUserIdAndLocationId(UUID userId, UUID locationId);
 }

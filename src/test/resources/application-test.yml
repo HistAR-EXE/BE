@@ -10,11 +10,30 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        globally_quoted_identifiers: true
+        globally_quoted_identifiers: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
 
 jwt:
   secret: test-jwt-secret-at-least-32-characters-long
   expiration: 86400000
+
+gamification:
+  checkin-radius-meters: 100
+  level-thresholds: 0,100,300,700
+
+minio:
+  endpoint: http://localhost:9000
+  public-url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: timelens-media
+
+viral:
+  share-bonus-points: 15
+  leaderboard-limit: 10
+  leaderboard-cache-seconds: 60
 
 cors:
   allowed-origins: http://localhost:5173

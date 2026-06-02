@@ -16,4 +16,6 @@ public interface PhotoFrameService {
     void deleteById(UUID id);
 
     long count();
+
+    List<PhotoFrame> findAllOrdered();
 }

@@ -33,5 +33,7 @@ public class UserCreation {
     @Column(columnDefinition = "text")
     private String outputUrl;
 
+    private String variant;
+    private Instant sharedAt;
     private Instant createdAt;
 }

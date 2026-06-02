@@ -41,4 +41,9 @@ public class PhotoFrameServiceImpl implements PhotoFrameService {
     public long count() {
         return repository.count();
     }
+
+    @Override
+    public List<PhotoFrame> findAllOrdered() {
+        return repository.findAllByOrderBySortOrderAsc();
+    }
 }

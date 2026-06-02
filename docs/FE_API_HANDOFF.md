@@ -73,6 +73,9 @@ JWT payload includes user id (used server-side for profile/chat).
 | `POST /api/auth/register`, `POST /api/auth/login` | Public |
 | `GET /api/locations/**`, `characters/**`, `photo-pairs/**`, `panoramas/**`, `hotspots/**` | Public |
 | `GET /api/profile/me`, `POST /api/chat`, `GET /api/chat/conversations/{id}/messages` | **JWT required** |
+| `POST /api/checkins`, `GET /api/me/**`, `POST /api/quests/{id}/start`, `GET /api/quests/{id}/progress`, `GET /api/locations/{id}/secret-story` | **JWT required** |
+| `POST /api/user-creations`, `POST /api/user-creations/{id}/record-share` | **JWT required** |
+| `GET /api/quests`, `GET /api/badges`, `GET /api/photo-frames`, `GET /api/leaderboard`, `GET /api/share/prefill` | Public |
 
 ---
 
@@ -422,6 +425,270 @@ docker compose up -d
 
 ---
 
+## Week 2 — Gamification (BE progress)
+
+```text
+[x] T1 APIs  [x] check-in  [x] quest  [x] XP/level  [x] badge  [x] secret unlock
+```
+
+**Scope MVP:** Quest hoàn thành khi **check-in** đúng location (1 bước). FE vẫn có thể hiển thị 3 objective UI; BE chỉ validate check-in.
+
+### Seed IDs (Củ Chi)
+
+| Resource | UUID |
+|----------|------|
+| Location | `11111111-1111-1111-1111-111111111111` |
+| Quest — Hành trình dưới lòng đất | `33333333-3333-3333-3333-333333333333` |
+| Badge — Người khám phá | `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` |
+| Badge — Nhà sử học nhí | `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` |
+| Badge — Lần đầu check-in | `cccccccc-cccc-cccc-cccc-cccccccccccc` |
+
+### QR format
+
+| Loại | Payload mẫu |
+|------|-------------|
+| Check-in | `timelens:location:11111111-1111-1111-1111-111111111111` hoặc raw UUID |
+| Secret unlock | `timelens:secret:11111111-1111-1111-1111-111111111111` (sau khi hoàn thành quest) |
+
+GPS phụ: server từ chối nếu xa hơn **100m** (config `GAMIFICATION_CHECKIN_RADIUS_METERS`).
+
+### Level thresholds
+
+| Level | Tên | Điểm tối thiểu |
+|-------|-----|----------------|
+| 1 | Explorer | 0 |
+| 2 | Time Traveler | 100 |
+| 3 | History Hunter | 300 |
+| 4 | Legend | 700 |
+
+---
+
+### Check-in (JWT)
+
+`POST /api/checkins`
+
+```json
+{
+  "locationId": "11111111-1111-1111-1111-111111111111",
+  "latitude": 11.143,
+  "longitude": 106.461,
+  "qrCode": "timelens:location:11111111-1111-1111-1111-111111111111"
+}
+```
+
+Response `data`:
+
+```json
+{
+  "success": true,
+  "distanceMeters": 12.5,
+  "questsCompleted": ["33333333-3333-3333-3333-333333333333"],
+  "badgesEarned": [{ "id": "...", "name": "...", "iconUrl": "..." }],
+  "secretUnlocked": false
+}
+```
+
+Secret QR: cùng body nhưng `qrCode` dùng prefix `timelens:secret:` — **không** ghi check-in mới, chỉ unlock nếu quest đã `completed`.
+
+---
+
+### Quest
+
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/quests?locationId=` | Public |
+| GET | `/api/me/quests?locationId=` | JWT |
+| POST | `/api/quests/{id}/start` | JWT |
+| GET | `/api/quests/{id}/progress` | JWT |
+
+Status: `not_started` → `in_progress` → `completed` (không nhảy cóc).
+
+`QuestProgressResponse`: `questId`, `locationId`, `title`, `description`, `pointsReward`, `status`, `startedAt`, `completedAt`.
+
+**Flow FE:** `start` → user check-in → quest `completed` + points trong response check-in.
+
+---
+
+### Badges
+
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/badges` | Public (catalog) |
+| GET | `/api/me/badges` | JWT (`earned` true/false) |
+
+---
+
+### Secret story (JWT)
+
+`GET /api/locations/{locationId}/secret-story`
+
+```json
+{
+  "locked": true,
+  "title": "Câu chuyện bí mật",
+  "story": null
+}
+```
+
+Khi đã unlock: `locked: false`, `story` = nội dung từ quest seed.
+
+---
+
+### Profile (mở rộng T2)
+
+`GET /api/profile/me` thêm: `levelName`, `pointsToNextLevel`, `levelProgressPercent`.
+
+---
+
+### cURL smoke (week 2)
+
+```bash
+TOKEN="..." # từ register/login
+LOC=11111111-1111-1111-1111-111111111111
+QUEST=33333333-3333-3333-3333-333333333333
+
+curl -s -X POST http://localhost:8080/api/quests/$QUEST/start \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -X POST http://localhost:8080/api/checkins \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"locationId\":\"$LOC\",\"latitude\":11.143,\"longitude\":106.461,\"qrCode\":\"timelens:location:$LOC\"}"
+
+curl -s http://localhost:8080/api/profile/me -H "Authorization: Bearer $TOKEN"
+
+curl -s -X POST http://localhost:8080/api/checkins \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"locationId\":\"$LOC\",\"latitude\":11.143,\"longitude\":106.461,\"qrCode\":\"timelens:secret:$LOC\"}"
+
+curl -s http://localhost:8080/api/locations/$LOC/secret-story -H "Authorization: Bearer $TOKEN"
+```
+
+**DB migration:** Nếu DB cũ thiếu bảng `user_secret_unlocks` / quest UUID cố định → `docker compose down -v && docker compose up -d`.
+
+---
+
+## Week 3 — Viral loop (BE progress)
+
+```text
+[x] T1  [x] T2 gamification  [x] photo-frames  [x] upload/creations  [x] share prefill  [x] leaderboard
+```
+
+**Scope MVP:** FE composite canvas + watermark; BE lưu ảnh export lên **MinIO**, catalog frame, leaderboard theo điểm T2. Social share = **Web Share API trên FE** (+ API ghi nhận share để cộng điểm).
+
+### Photo frames (public)
+
+`GET /api/photo-frames`
+
+```json
+{
+  "id": "<uuid>",
+  "name": "Khung du kích",
+  "imageUrl": "https://...",
+  "era": "1968",
+  "sortOrder": 1
+}
+```
+
+Load `imageUrl` với `crossOrigin="anonymous"` để `canvas.toBlob()` không bị taint.
+
+### Upload creation (JWT, multipart)
+
+`POST /api/user-creations` — `Content-Type: multipart/form-data`
+
+| Field | Type | Mô tả |
+|-------|------|--------|
+| `file` | file | Ảnh đã composite (JPEG/PNG/WebP, max 8MB) |
+| `frameId` | UUID | Khung đã chọn |
+| `variant` | string | `square` (1080×1080) hoặc `story` (9:16) — metadata |
+
+Response `data`:
+
+```json
+{
+  "id": "<uuid>",
+  "frameId": "...",
+  "outputUrl": "http://localhost:9000/timelens-media/creations/{userId}/{file}.jpg",
+  "variant": "story",
+  "createdAt": "...",
+  "shared": false
+}
+```
+
+`GET /api/me/user-creations` — lịch sử ảnh đã tạo (JWT).
+
+### Share (FE + optional bonus)
+
+`GET /api/share/prefill` (public) — caption/hashtag gợi ý cho `navigator.share()`.
+
+```json
+{
+  "caption": "Khám phá di sản Việt cùng TimeLens! #TimeLens #DiSanVietNam",
+  "hashtags": ["#TimeLens", "#DiSanVietNam"]
+}
+```
+
+Sau khi user share (Web Share API hoặc fallback download), gọi:
+
+`POST /api/user-creations/{id}/record-share` (JWT) — cộng **15 điểm** một lần/creation (`VIRAL_SHARE_BONUS_POINTS`).
+
+### Leaderboard
+
+`GET /api/leaderboard?scope=all|city|week&city=TP.HCM`
+
+- `scope=all` — toàn bộ user theo `total_points`
+- `scope=city` — lọc `profiles.city` (bắt buộc `city`)
+- `scope=week` — user có check-in hoặc creation trong **7 ngày** gần nhất
+
+JWT **tùy chọn** — nếu có token, entry của user có `currentUser: true`. Chỉ trả `displayName`, **không** trả email.
+
+```json
+{
+  "scope": "all",
+  "city": null,
+  "entries": [
+    {
+      "rank": 1,
+      "userId": "...",
+      "displayName": "Minh",
+      "avatarUrl": null,
+      "totalPoints": 250,
+      "currentUser": false
+    }
+  ]
+}
+```
+
+Cache server ~60s (`VIRAL_LEADERBOARD_CACHE_SECONDS`).
+
+### MinIO URLs
+
+Ảnh upload public-read (dev): `http://localhost:9000/timelens-media/creations/...`
+
+Production: set `MINIO_PUBLIC_URL` trỏ domain CDN/public gateway.
+
+### cURL smoke (week 3)
+
+```bash
+curl -s http://localhost:8080/api/photo-frames
+curl -s http://localhost:8080/api/share/prefill
+curl -s "http://localhost:8080/api/leaderboard?scope=all"
+
+curl -s -X POST http://localhost:8080/api/user-creations \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "frameId=<FRAME_UUID>" \
+  -F "variant=story" \
+  -F "file=@export.jpg"
+
+curl -s -X POST http://localhost:8080/api/user-creations/<CREATION_ID>/record-share \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**DB migration T3:** Cột `user_creations.variant`, `user_creations.shared_at` — `docker compose down -v` nếu DB cũ.
+
+---
+
 ## Backend package conventions (SaaS)
 
 | Package | Vai trò |
@@ -433,14 +700,13 @@ docker compose up -d
 | `health/` | Health check (`GET /api/health`) |
 | `chat/config/` | WebClient Gemini (config gắn module chat) |
 
-Tuần 2+ mới thêm API: quest, badge, check-in, photo-frame upload, leaderboard.
-
 ---
 
 ## Week 1 scope notes (FE)
 
 - **In scope:** auth, location detail, photo slider, 360 panorama + hotspots, AI chat, profile me.
-- **Not in week-1 APIs yet:** quests, badges, check-ins, leaderboard, MinIO upload, photo frames.
+- **Week 2 (done):** check-in, quest, badges, XP/level on profile, secret story.
+- **Week 3 (done):** photo frames catalog, upload creations (MinIO), share prefill + record-share bonus, leaderboard.
 - **Deploy:** Railway/hosting is backend team follow-up; point `VITE_API_URL` to deployed URL when ready.
 
 ---
@@ -454,4 +720,10 @@ Tuần 2+ mới thêm API: quest, badge, check-in, photo-frame upload, leaderboa
 | Location detail | `GET /api/locations/{id}`, `photo-pairs/by-location/{id}`, `characters/by-location/{id}` |
 | 360 tour | `panoramas/by-location/{id}`, `hotspots/by-panorama/{panoramaId}` |
 | Chat | `POST /api/chat`, `GET .../messages` |
-| Profile | `GET /api/profile/me` |
+| Profile | `GET /api/profile/me`, `GET /api/me/badges` |
+| QR check-in | `POST /api/checkins` |
+| Quests | `GET /api/quests`, `/api/me/quests`, `POST .../start` |
+| Secret | `GET /api/locations/{id}/secret-story` |
+| Photo frame | `GET /api/photo-frames`, `POST /api/user-creations`, `GET /api/me/user-creations` |
+| Share | `GET /api/share/prefill`, `POST .../record-share` |
+| Leaderboard | `GET /api/leaderboard?scope=` |

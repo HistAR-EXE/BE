@@ -12,6 +12,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 10MB
 
 jwt:
   secret: ${JWT_SECRET:change-me-to-at-least-32-characters-long}
@@ -22,16 +26,25 @@ gemini:
   model: ${GEMINI_MODEL:gemini-2.0-flash}
   daily-message-limit: ${GEMINI_DAILY_MESSAGE_LIMIT:50}
 
+gamification:
+  checkin-radius-meters: ${GAMIFICATION_CHECKIN_RADIUS_METERS:100}
+  level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,700}
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   access-key: ${MINIO_ROOT_USER:minioadmin}
   secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
   bucket: ${MINIO_BUCKET_NAME:timelens-media}
 
+viral:
+  share-bonus-points: ${VIRAL_SHARE_BONUS_POINTS:15}
+  share-caption: ${VIRAL_SHARE_CAPTION:Khám phá di sản Việt cùng TimeLens! #TimeLens #DiSanVietNam}
+  leaderboard-limit: ${VIRAL_LEADERBOARD_LIMIT:50}
+  leaderboard-cache-seconds: ${VIRAL_LEADERBOARD_CACHE_SECONDS:60}
+
 server:
   port: 8080
-
-kind: Application

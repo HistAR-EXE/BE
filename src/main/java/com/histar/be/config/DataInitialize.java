@@ -1,10 +1,12 @@
 package com.histar.be.config;
 
+import com.histar.be.badge.service.BadgeService;
 import com.histar.be.character.service.CharacterService;
 import com.histar.be.hotspot.service.HotspotService;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.panorama.service.PanoramaService;
 import com.histar.be.photopair.service.PhotoPairService;
+import com.histar.be.quest.service.QuestService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -23,6 +25,8 @@ public class DataInitialize implements ApplicationRunner {
     private final PhotoPairService photoPairService;
     private final PanoramaService panoramaService;
     private final HotspotService hotspotService;
+    private final QuestService questService;
+    private final BadgeService badgeService;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -31,14 +35,18 @@ public class DataInitialize implements ApplicationRunner {
         long photoPairs = photoPairService.count();
         long panoramas = panoramaService.count();
         long hotspots = hotspotService.count();
+        long quests = questService.count();
+        long badges = badgeService.count();
 
         log.info(
-                "TimeLens seed check — locations: {}, characters: {}, photo_pairs: {}, panoramas: {}, hotspots: {}",
+                "TimeLens seed check — locations: {}, characters: {}, photo_pairs: {}, panoramas: {}, hotspots: {}, quests: {}, badges: {}",
                 locations,
                 characters,
                 photoPairs,
                 panoramas,
-                hotspots);
+                hotspots,
+                quests,
+                badges);
 
         if (locations == 0) {
             log.warn("No locations in DB. Run docs/database/TimeLens_DB_Schema.sql or docker compose up -d");

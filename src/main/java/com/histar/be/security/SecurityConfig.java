@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -38,6 +39,8 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/locations/*/secret-story")
+                        .authenticated()
                         .requestMatchers(
                                 "/api/health",
                                 "/api/auth/**",
@@ -45,7 +48,12 @@ public class SecurityConfig {
                                 "/api/characters/**",
                                 "/api/photo-pairs/**",
                                 "/api/panoramas/**",
-                                "/api/hotspots/**")
+                                "/api/hotspots/**",
+                                "/api/quests",
+                                "/api/badges",
+                                "/api/photo-frames",
+                                "/api/leaderboard",
+                                "/api/share/prefill")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

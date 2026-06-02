@@ -5,4 +5,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PhotoFrameRepository extends JpaRepository<PhotoFrame, UUID> {
+
+    java.util.List<PhotoFrame> findAllByOrderBySortOrderAsc();
 }

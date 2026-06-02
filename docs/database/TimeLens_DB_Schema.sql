@@ -1,5 +1,5 @@
 -- ============================================================
--- TimeLens — PostgreSQL Schema (16 bảng) + Seed data Củ Chi
+-- TimeLens — PostgreSQL Schema (17 bảng) + Seed data Củ Chi
 -- Chạy trên Supabase SQL Editor / Railway / Render Postgres
 -- ============================================================
 
@@ -164,7 +164,17 @@ CREATE TABLE user_creations (
     user_id    UUID REFERENCES profiles(id)     ON DELETE CASCADE,
     frame_id   UUID REFERENCES photo_frames(id) ON DELETE SET NULL,
     output_url TEXT,
+    variant    VARCHAR(20) DEFAULT 'square',
+    shared_at  TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ---------- 17. user_secret_unlocks (gamification week 2) ----------
+CREATE TABLE user_secret_unlocks (
+    user_id     UUID REFERENCES profiles(id)  ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
+    unlocked_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, location_id)
 );
 
 -- ============================================================
@@ -180,7 +190,11 @@ CREATE INDEX idx_userbadges_user       ON user_badges(user_id);
 CREATE INDEX idx_conversations_user    ON conversations(user_id);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_checkins_user         ON checkins(user_id);
+CREATE INDEX idx_checkins_location     ON checkins(location_id);
 CREATE INDEX idx_profiles_points       ON profiles(total_points DESC); -- leaderboard
+CREATE INDEX idx_profiles_city_points  ON profiles(city, total_points DESC);
+CREATE INDEX idx_user_creations_user   ON user_creations(user_id, created_at DESC);
+CREATE INDEX idx_secret_unlocks_user   ON user_secret_unlocks(user_id);
 
 -- ============================================================
 -- SEED DATA — Địa đạo Củ Chi (pilot)
@@ -218,20 +232,22 @@ INSERT INTO photo_pairs (location_id, historical_image, current_image, year, cap
 ('11111111-1111-1111-1111-111111111111','https://placehold.co/800x600?text=1972','https://placehold.co/800x600?text=Nowd',1972,'Hệ thống thông gió',4),
 ('11111111-1111-1111-1111-111111111111','https://placehold.co/800x600?text=1975','https://placehold.co/800x600?text=Nowe',1975,'Giếng nước trong địa đạo',5);
 
--- 1 quest
-INSERT INTO quests (location_id, title, description, story, points_reward, required_order)
+-- 1 quest (fixed UUID for FE/docs)
+INSERT INTO quests (id, location_id, title, description, story, points_reward, required_order)
 VALUES (
+  '33333333-3333-3333-3333-333333333333',
   '11111111-1111-1111-1111-111111111111',
   'Hành trình dưới lòng đất',
-  'Khám phá 4 điểm chính của địa đạo và trò chuyện với Chị Năm.',
-  'Năm 1968, giữa lòng đất Củ Chi...',
+  'Khám phá địa đạo và check-in tại Củ Chi.',
+  'Năm 1968, giữa lòng đất Củ Chi, những con đường bí mật đã nuôi dưỡng niềm tin của một dân tộc. Câu chuyện bí mật chỉ mở khi bạn hoàn thành hành trình và quét mã QR ẩn.',
   100, 1
 );
 
--- 2 badges
-INSERT INTO badges (name, description, icon_url, condition_type, condition_value) VALUES
-('Người khám phá', 'Hoàn thành nhiệm vụ đầu tiên', 'https://placehold.co/200?text=Badge1', 'quest_complete', 1),
-('Nhà sử học nhí', 'Đạt 300 điểm', 'https://placehold.co/200?text=Badge2', 'points', 300);
+-- 3 badges
+INSERT INTO badges (id, name, description, icon_url, condition_type, condition_value) VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Người khám phá', 'Hoàn thành nhiệm vụ đầu tiên', 'https://placehold.co/200?text=Badge1', 'quest_complete', 1),
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Nhà sử học nhí', 'Đạt 300 điểm', 'https://placehold.co/200?text=Badge2', 'points', 300),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Lần đầu check-in', 'Check-in tại di tích lần đầu', 'https://placehold.co/200?text=Badge3', 'checkin', 1);
 
 -- 3 photo_frames
 INSERT INTO photo_frames (name, image_url, era, sort_order) VALUES
