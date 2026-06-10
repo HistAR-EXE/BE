@@ -1,5 +1,6 @@
 package com.histar.be.chat.service.impl;
 
+import com.histar.be.character.entity.CharacterEntity;
 import com.histar.be.character.service.CharacterService;
 import com.histar.be.chat.dto.ChatRequest;
 import com.histar.be.chat.dto.ChatResponse;
@@ -10,9 +11,10 @@ import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
+import com.histar.be.location.entity.Location;
+import com.histar.be.location.service.LocationService;
 import com.histar.be.message.entity.Message;
 import com.histar.be.message.repository.MessageRepository;
-import com.histar.be.character.entity.CharacterEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -26,10 +28,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private static final String GUARDRAIL =
-            "QUAN TRỌNG: Chỉ trả lời dựa trên dữ kiện lịch sử có thật. Nếu không chắc, hãy nói thật là không rõ, TUYỆT ĐỐI không bịa.";
+    private static final String OUT_OF_SCOPE_REPLY =
+            "Mình chưa có thông tin chính xác về điều này. Bạn nên tham khảo tài liệu chính thức từ Ban quản lý di tích.";
 
     private final CharacterService characterService;
+    private final LocationService locationService;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final GeminiClient geminiClient;
@@ -53,7 +56,8 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build());
 
-        String prompt = buildPrompt(character.getPersonaPrompt(), conversation.getId());
+        Location location = resolveLocation(character.getLocationId());
+        String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
         String reply = geminiClient.generate(prompt);
 
         messageRepository.save(Message.builder()
@@ -77,6 +81,13 @@ public class ChatServiceImpl implements ChatService {
         return messageRepository.findByConversationId(conversationId, pageable).map(MessageResponse::from);
     }
 
+    private Location resolveLocation(UUID locationId) {
+        if (locationId == null) {
+            return Location.builder().name("di tích lịch sử").build();
+        }
+        return locationService.findById(locationId);
+    }
+
     private Conversation resolveConversation(UUID userId, ChatRequest request, UUID characterId) {
         if (request.conversationId() != null) {
             Conversation existing = conversationRepository
@@ -96,8 +107,32 @@ public class ChatServiceImpl implements ChatService {
                         .build()));
     }
 
-    private String buildPrompt(String personaPrompt, UUID conversationId) {
-        StringBuilder prompt = new StringBuilder(personaPrompt).append("\n\n").append(GUARDRAIL);
+    private String buildPrompt(String personaPrompt, Location location, UUID conversationId) {
+        String locationName = location.getName() != null ? location.getName() : "di tích lịch sử";
+        String citeSources = resolveCiteSources(location);
+
+        StringBuilder prompt = new StringBuilder(personaPrompt)
+                .append("\n\n")
+                .append("Bạn là hướng dẫn viên lịch sử tại ")
+                .append(locationName)
+                .append(". Chỉ trả lời trong phạm vi lịch sử liên quan đến ")
+                .append(locationName)
+                .append(" và nhân vật bạn đang đóng.\n\n")
+                .append("QUY TẮC BẮT BUỘC:\n")
+                .append("1. Cuối MỖI câu trả lời, thêm một dòng riêng bắt đầu bằng \"Nguồn: \" và chọn một trong các nguồn hợp lệ sau: ")
+                .append(citeSources)
+                .append(".\n")
+                .append("2. Nếu câu hỏi NGOÀI phạm vi dữ kiện được cung cấp hoặc bạn không chắc chắn, trả lời chính xác: \"")
+                .append(OUT_OF_SCOPE_REPLY)
+                .append("\" — TUYỆT ĐỐI KHÔNG bịa số liệu, ngày tháng hay sự kiện.\n")
+                .append("3. Giữ giọng nhân vật trong persona ở trên (thân thiện, xưng hô phù hợp).\n")
+                .append("4. Chỉ dựa trên dữ kiện lịch sử có thật; nếu không rõ, nói thật là không rõ.");
+
+        if (location.getKnowledgeContext() != null && !location.getKnowledgeContext().isBlank()) {
+            prompt.append("\n\nDỮ KIỆN ĐÃ XÁC MINH (ưu tiên, trả lời ngắn gọn):\n")
+                    .append(location.getKnowledgeContext().trim());
+        }
+
         List<Message> history = messageRepository.findByConversationIdOrderByCreatedAt(conversationId);
         int start = Math.max(0, history.size() - 10);
         if (!history.isEmpty()) {
@@ -109,5 +144,13 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return prompt.toString();
+    }
+
+    private String resolveCiteSources(Location location) {
+        if (location.getSources() != null && !location.getSources().isBlank()) {
+            return location.getSources();
+        }
+        String name = location.getName() != null ? location.getName() : "di tích lịch sử";
+        return "Khu di tích lịch sử " + name;
     }
 }

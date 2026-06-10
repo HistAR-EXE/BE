@@ -39,10 +39,8 @@ public class GeminiClient {
         try {
             Map<String, Object> response = geminiWebClient
                     .post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/{model}:generateContent")
-                            .queryParam("key", apiKey)
-                            .build(model))
+                    .uri("/v1beta/models/{model}:generateContent", model)
+                    .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
@@ -57,6 +55,10 @@ public class GeminiClient {
             }
             return text;
         } catch (WebClientResponseException ex) {
+            if (ex.getStatusCode().value() == 429) {
+                throw new BusinessRuleException(
+                        "Gemini quá tải (429). Đợi vài phút rồi thử lại — key vẫn hợp lệ.");
+            }
             throw new BusinessRuleException("Gọi Gemini thất bại: " + ex.getStatusCode());
         }
     }

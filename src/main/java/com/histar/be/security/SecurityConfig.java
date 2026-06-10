@@ -42,13 +42,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/locations/*/secret-story")
                         .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/panoramas/**")
+                        .permitAll()
                         .requestMatchers(
                                 "/api/health/**",
                                 "/api/auth/**",
                                 "/api/locations/**",
                                 "/api/characters/**",
                                 "/api/photo-pairs/**",
-                                "/api/panoramas/**",
                                 "/api/hotspots/**",
                                 "/api/quests",
                                 "/api/badges",

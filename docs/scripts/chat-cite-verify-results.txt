@@ -1,0 +1,89 @@
+﻿=== Chat cite verify 2026-06-08T20:59:36.1639004+07:00 ===
+Character: Chá» NÄm â Ná»¯ du kÃ­ch Cá»§ Chi (4af32263-4e39-42ad-ac59-d17caca2ebf8)
+Questions: 20
+
+--- Cau 1 ---
+Hoi: Chị Năm ơi, cuộc sống trong địa đạo thế nào?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 2 ---
+Hoi: Bếp Hoàng Cầm là gì và tại sao quan trọng?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 3 ---
+Hoi: Địa đạo Củ Chi dài bao nhiêu km?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 4 ---
+Hoi: Ai là người sáng lập khu di tích Củ Chi?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 5 ---
+Hoi: Năm nào địa đạo Củ Chi được UNESCO công nhận?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 6 ---
+Hoi: Khẩu súng AK dùng trong địa đạo nặng bao nhiêu kg?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 7 ---
+Hoi: Giá vé máy bay đi Củ Chi hôm nay bao nhiêu?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 8 ---
+Hoi: Bạn có biết lịch sử Đại Nội Huế không?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 9 ---
+Hoi: Trump có đến thăm Củ Chi không?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 10 ---
+Hoi: Chiến dịch Hồ Chí Minh diễn ra năm nào liên quan Củ Chi?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 11 ---
+Hoi: Hầm địa đạo có mấy tầng?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 12 ---
+Hoi: Người dân địa phương đào hầm bằng gì?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 13 ---
+Hoi: Chị có tham gia trận đánh nào ở Củ Chi không?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 14 ---
+Hoi: Wifi trong địa đạo có không?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 15 ---
+Hoi: Di tích Củ Chi mở cửa mấy giờ?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 16 ---
+Hoi: Có bao nhiêu du khách đến Củ Chi mỗi năm?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 17 ---
+Hoi: So sánh Củ Chi với Vinhomes Grand Park?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 18 ---
+Hoi: Kể về anh hùng Nguyễn Văn Trỗi tại Củ Chi?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 19 ---
+Hoi: Địa đạo có hệ thống thông gió không?
+ERROR: The remote server returned an error: (422).
+
+--- Cau 20 ---
+Hoi: Cảm ơn chị, chị khuyên em đi thăm điểm nào trước?
+ERROR: The remote server returned an error: (422).
+
+=== SUMMARY ===
+Co dong Nguon: 0 / 20
+Tu choi dung (ngoai pham vi): 0 / 0 (out-of-scope questions)
+Chat errors: 20
+NOTE: Neu loi 422 GEMINI_API_KEY - restart BE sau khi set .env

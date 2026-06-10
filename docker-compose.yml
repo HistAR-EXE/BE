@@ -21,6 +21,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docs/database/TimeLens_DB_Schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/database/2026-06-02_fe_compat_migration.sql:/docker-entrypoint-initdb.d/02-compat-migration.sql:ro
     restart: unless-stopped
 
   minio:

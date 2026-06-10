@@ -242,6 +242,18 @@ Ordered by `sortOrder`. `data` item:
 }
 ```
 
+#### `POST /api/panoramas` (JWT, multipart) — CP3 Tuần 3
+
+Upload ảnh equirectangular 2:1 lên MinIO + tạo record DB.
+
+```
+locationId, title, file (image/jpeg|png|webp, max 8MB)
+```
+
+#### `PUT /api/panoramas/{id}/image` (JWT, multipart)
+
+Thay ảnh scene hiện có. Response: cùng shape `PanoramaResponse`.
+
 ---
 
 ### Hotspots
@@ -262,7 +274,7 @@ Example panorama: `22222222-2222-2222-2222-222222222222`
 }
 ```
 
-`type`: `info` | `scene` (string from DB). `contentRef` is an opaque key for FE routing.
+`type`: `info` | `scene`. Với `scene`, `contentRef` = **UUID panorama đích** (virtual tour chuyển scene). Với `info`, `contentRef` là key nội dung UI.
 
 ---
 

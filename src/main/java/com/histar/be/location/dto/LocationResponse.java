@@ -30,9 +30,9 @@ public record LocationResponse(
                 location.getLongitude(),
                 location.getCity(),
                 location.getCoverImage(),
-                0.0,
+                location.getRating() != null ? location.getRating() : 0.0,
                 distanceKm,
-                false,
+                Boolean.TRUE.equals(location.getIsArAvailable()),
                 location.getCreatedAt());
     }
 }

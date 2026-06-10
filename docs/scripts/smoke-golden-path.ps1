@@ -17,9 +17,17 @@ $token = $register.data.token
 $userId = $register.data.userId
 Assert-True ($null -ne $token -and $token.Length -gt 10) "Register failed: missing token"
 
-$locations = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/locations"
-$locationId = $locations.data[0].id
-Assert-True ($null -ne $locationId) "No location found"
+# Củ Chi — golden path demo location (có photo pairs, panoramas, quests)
+$cuChiId = "11111111-1111-1111-1111-111111111111"
+$locations = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/locations?size=50"
+$locationId = ($locations.data.items | Where-Object { $_.id -eq $cuChiId } | Select-Object -First 1).id
+if (-not $locationId) {
+  foreach ($loc in $locations.data.items) {
+    $pairs = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/photo-pairs/by-location/$($loc.id)"
+    if ($pairs.data.Count -ge 1) { $locationId = $loc.id; break }
+  }
+}
+Assert-True ($null -ne $locationId) "No location with photo pairs found"
 
 $photoPairs = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/photo-pairs/by-location/$locationId"
 Assert-True ($photoPairs.data.Count -ge 1) "No photo pairs"
@@ -35,7 +43,7 @@ $hotspots = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/hotspots/by-panoram
 Assert-True ($hotspots.data.Count -ge 1) "No hotspots"
 
 $quests = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/quests?locationId=$locationId"
-$questId = $quests.data[0].id
+$questId = $quests.data.items[0].id
 Assert-True ($null -ne $questId) "No quests"
 
 $headers = @{ Authorization = "Bearer $token" }

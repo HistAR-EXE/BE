@@ -73,10 +73,10 @@ User phải đã `POST /api/quests/{questId}/start` trước. Chi tiết FE: [`F
 ## 8. Smoke test sau deploy
 
 ```powershell
-.\docs\scripts\smoke-golden-path.ps1 -BaseUrl https://<be-host>
+.\docs\scripts\smoke-production.ps1 -BaseUrl https://<be-host>
 ```
 
-Hoặc local: `.\docs\scripts\smoke-golden-path.ps1`
+(Gồm golden path + week-2 screens.) Hoặc từng script riêng. Chi tiết CP3: [week-3/05-DEPLOY-PRODUCTION.md](./week-3/05-DEPLOY-PRODUCTION.md).
 
 ## 9. Checklist trước demo
 

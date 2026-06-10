@@ -39,5 +39,17 @@ public class Location {
     @Column(columnDefinition = "text")
     private String coverImage;
 
+    @Column(columnDefinition = "numeric(2,1)")
+    private Double rating;
+
+    @Column(name = "is_ar_available")
+    private Boolean isArAvailable;
+
+    @Column(columnDefinition = "text")
+    private String sources;
+
+    @Column(name = "knowledge_context", columnDefinition = "text")
+    private String knowledgeContext;
+
     private Instant createdAt;
 }
