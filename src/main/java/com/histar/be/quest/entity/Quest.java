@@ -36,5 +36,12 @@ public class Quest {
     private String story;
 
     private Integer pointsReward;
+
+    /** Reserved for future step ordering; evaluator does not enforce (BR-QST-06). */
     private Integer requiredOrder;
+    private String completionTrigger;
+
+    /** Comma-separated discovery unlock_keys required before check-in completes quest. */
+    @Column(name = "step_discovery_keys", columnDefinition = "text")
+    private String stepDiscoveryKeys;
 }

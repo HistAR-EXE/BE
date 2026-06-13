@@ -1,7 +1,10 @@
 package com.histar.be.chat.controller;
 
+import com.histar.be.chat.dto.ChatContextResponse;
+import com.histar.be.chat.dto.ChatMessageRequest;
 import com.histar.be.chat.dto.ChatRequest;
 import com.histar.be.chat.dto.ChatResponse;
+import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.common.response.ApiResponse;
@@ -34,6 +37,32 @@ public class ChatController {
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
         return ApiResponse.ok(chatService.chat(userId, request));
+    }
+
+    @GetMapping("/context")
+    public ApiResponse<ChatContextResponse> getContext(
+            @RequestParam UUID characterId, @RequestParam(required = false) UUID conversationId) {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        return ApiResponse.ok(chatService.getContext(userId, characterId, conversationId));
+    }
+
+    /** BE-orchestrated chat (RAG AI). Legacy: GET /context + FE→AI + POST /sync. */
+    @PostMapping("/messages")
+    public ApiResponse<ChatResponse> sendMessage(@RequestBody @Valid ChatMessageRequest request) {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        return ApiResponse.ok(chatService.sendOrchestrated(userId, request));
+    }
+
+    @PostMapping("/sync")
+    public ApiResponse<ChatResponse> sync(@RequestBody @Valid ChatSyncRequest request) {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        return ApiResponse.ok(chatService.sync(userId, request));
     }
 
     @GetMapping("/conversations/{conversationId}/messages")

@@ -3,6 +3,7 @@ package com.histar.be.gamification.service;
 import com.histar.be.gamification.dto.CheckinResultDto;
 import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.secret.dto.SecretStoryResponse;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface GamificationService {
@@ -13,6 +14,8 @@ public interface GamificationService {
     CheckinResultDto processDemoCheckin(UUID userId, UUID locationId);
 
     QuestCompletedDto completeQuest(UUID userId, UUID questId);
+
+    Optional<QuestCompletedDto> completeQuestIfInProgress(UUID userId, UUID questId);
 
     SecretStoryResponse getSecretStory(UUID userId, UUID locationId);
 }

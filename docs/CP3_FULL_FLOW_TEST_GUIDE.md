@@ -70,7 +70,13 @@ powershell -ExecutionPolicy Bypass -File docs\scripts\cp3-full-flow-test.ps1 -Ru
 |---------|--------|----------|---------|
 | Explore list | GET | `/api/locations?page=0&size=20` → `data.items` | ✅ |
 | Location detail | GET | `/api/locations/{id}` | ✅ |
-| Photo slider | GET | `/api/photo-pairs/by-location/{id}` | ✅ 5 pairs |
+| Photo slider | GET | `/api/photo-pairs/by-location/{id}` | ✅ 5 pairs (fallback) |
+| Photo scenes (3 era) | GET | `/api/photo-scenes/by-location/{id}` | ✅ CP3 upgrade |
+| Cổ vật catalog | GET | `/api/artifacts?locationId={id}` | ✅ 17 items |
+| Map POI | GET | `/api/discovery-points/by-location/{id}` | ✅ 12 điểm |
+| Tiến trình map | GET | `/api/me/discoveries/summary?locationId=` (JWT) | ✅ |
+| Unlock discovery | POST | `/api/me/discoveries` body `{ unlockKey }` (JWT) | ✅ |
+| Pokédex user | GET | `/api/me/artifacts?locationId=` (JWT) | ✅ |
 | Tour 360 list | GET | `/api/panoramas/by-location/{id}` | ✅ 3 scenes |
 | Hotspots | GET | `/api/hotspots/by-panorama/{panoramaId}` | ✅ scene UUID |
 | Chọn nhân vật | GET | `/api/characters/by-location/{id}` | ✅ 2 chars |
@@ -96,7 +102,7 @@ powershell -ExecutionPolicy Bypass -File docs\scripts\cp3-full-flow-test.ps1 -Ru
 |----------|---------|---------|
 | 5 màn API | `smoke-week2-screens.ps1` ✅ | Polish UI Stitch |
 | Loading/error/empty | API trả `[]` OK | Skeleton + toast |
-| Focus Group | BE local ổn | 10–16 users, script `week-2/04-FOCUS-GROUP-SCRIPT.md` |
+| Focus Group | BE local ổn | 10–16 users, checklist trong guide này |
 
 ### Tuần 3 — 360 thật + deploy
 

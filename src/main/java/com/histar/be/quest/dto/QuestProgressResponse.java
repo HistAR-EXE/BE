@@ -12,5 +12,7 @@ public record QuestProgressResponse(
         String status,
         Integer currentStep,
         Integer stepsTotal,
+        boolean discoveryStepsComplete,
+        boolean hasCheckinAtLocation,
         Instant startedAt,
         Instant completedAt) {}

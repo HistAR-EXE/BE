@@ -8,6 +8,7 @@ public class GamificationProperties {
 
     private int checkinRadiusMeters = 100;
     private String levelThresholds = "0,100,300,700";
+    private boolean rulesEngineEnabled = false;
 
     public int getCheckinRadiusMeters() {
         return checkinRadiusMeters;
@@ -30,5 +31,13 @@ public class GamificationProperties {
                 .map(String::trim)
                 .mapToInt(Integer::parseInt)
                 .toArray();
+    }
+
+    public boolean isRulesEngineEnabled() {
+        return rulesEngineEnabled;
+    }
+
+    public void setRulesEngineEnabled(boolean rulesEngineEnabled) {
+        this.rulesEngineEnabled = rulesEngineEnabled;
     }
 }

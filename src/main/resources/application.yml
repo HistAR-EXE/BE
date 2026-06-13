@@ -22,6 +22,21 @@ jwt:
   expiration: 86400000
   refresh-expiration: 604800000
 
+chat:
+  provider: ${CHAT_PROVIDER:hybrid}
+  hybrid-order: ${CHAT_HYBRID_ORDER:history-ai,ollama,gemini}
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${OLLAMA_MODEL:qwen2.5:3b-instruct}
+    timeout-seconds: ${OLLAMA_TIMEOUT_SECONDS:120}
+  history-ai:
+    base-url: ${HISTORY_AI_BASE_URL:http://localhost:8000}
+    enabled: ${HISTORY_AI_ENABLED:true}
+    timeout-seconds: ${HISTORY_AI_TIMEOUT_SECONDS:120}
+  rag-ai:
+    base-url: ${RAG_AI_BASE_URL:http://localhost:8100}
+    timeout-seconds: ${RAG_AI_TIMEOUT_SECONDS:120}
+
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-2.0-flash}
@@ -30,6 +45,11 @@ gemini:
 gamification:
   checkin-radius-meters: ${GAMIFICATION_CHECKIN_RADIUS_METERS:100}
   level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,700}
+  rules-engine-enabled: ${GAMIFICATION_RULES_ENGINE_ENABLED:false}
+
+visit:
+  session:
+    idle-timeout-minutes: ${VISIT_SESSION_IDLE_TIMEOUT_MINUTES:30}
 
 demo:
   enabled: ${DEMO_ENABLED:false}

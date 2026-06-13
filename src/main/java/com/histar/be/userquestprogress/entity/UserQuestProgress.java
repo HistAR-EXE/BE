@@ -28,7 +28,10 @@ public class UserQuestProgress {
 
     private UUID userId;
     private UUID questId;
+    private UUID locationId;
     private String status;
+    private Integer currentStep;
+    private Integer stepsTotal;
     private Instant startedAt;
     private Instant completedAt;
 }

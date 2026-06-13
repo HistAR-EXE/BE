@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.histar.be.badge.repository.BadgeRepository;
 import com.histar.be.common.gamification.QuestStatus;
+import com.histar.be.discovery.entity.DiscoveryPoint;
+import com.histar.be.discovery.repository.DiscoveryPointRepository;
+import java.math.BigDecimal;
 import com.histar.be.gamification.service.GamificationService;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
@@ -17,6 +20,7 @@ import com.histar.be.quest.service.QuestProgressService;
 import com.histar.be.userbadge.repository.UserBadgeRepository;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +58,9 @@ class GamificationFlowTest {
     @Autowired
     private BadgeRepository badgeRepository;
 
+    @Autowired
+    private DiscoveryPointRepository discoveryPointRepository;
+
     private UUID userId;
     private UUID questId;
     private UUID locationId;
@@ -68,6 +75,17 @@ class GamificationFlowTest {
                 .createdAt(Instant.now())
                 .build());
         locationId = location.getId();
+
+        for (String key : List.of("era:2026", "photo:cua-ham", "photo:gieng")) {
+            discoveryPointRepository.save(DiscoveryPoint.builder()
+                    .locationId(locationId)
+                    .name(key)
+                    .mapXPct(BigDecimal.TEN)
+                    .mapYPct(BigDecimal.TEN)
+                    .unlockKey(key)
+                    .sortOrder(1)
+                    .build());
+        }
 
         Quest quest = questRepository.save(Quest.builder()
                 .locationId(locationId)
@@ -115,6 +133,58 @@ class GamificationFlowTest {
 
         var progress = userQuestProgressRepository.findByUserIdAndQuestId(userId, questId).orElseThrow();
         assertEquals(QuestStatus.COMPLETED, progress.getStatus());
+    }
+
+    @Test
+    void repeatCheckin_evaluatesCheckinBadges() {
+        badgeRepository.save(com.histar.be.badge.entity.Badge.builder()
+                .name("Hai lan check-in")
+                .conditionType("checkin")
+                .conditionValue(2)
+                .build());
+
+        gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+        var second = gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+
+        assertTrue(second.success());
+        assertTrue(second.questsCompleted().isEmpty());
+        assertTrue(second.badgesEarned().stream().anyMatch(b -> "Hai lan check-in".equals(b.name())));
+    }
+
+    @Test
+    void repeatCheckin_logsVisitWithoutExtraRewards() {
+        questProgressService.startQuest(userId, questId);
+        gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+
+        Profile afterFirst = profileRepository.findById(userId).orElseThrow();
+        int pointsAfterFirst = afterFirst.getTotalPoints();
+
+        var second = gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+        assertTrue(second.success());
+        assertTrue(second.questsCompleted().isEmpty());
+
+        Profile afterSecond = profileRepository.findById(userId).orElseThrow();
+        assertEquals(pointsAfterFirst, afterSecond.getTotalPoints());
+    }
+
+    @Test
+    void checkinBeforeStart_thenStartQuest_selfHealsToCompleted() {
+        gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+
+        questProgressService.startQuest(userId, questId);
+
+        var progress = userQuestProgressRepository.findByUserIdAndQuestId(userId, questId).orElseThrow();
+        assertEquals(QuestStatus.COMPLETED, progress.getStatus());
+
+        var second = gamificationService.processCheckin(
+                userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
+        assertTrue(second.success());
+        assertTrue(second.questsCompleted().isEmpty());
     }
 
     @Test

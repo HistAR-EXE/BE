@@ -1,6 +1,7 @@
 package com.histar.be.security;
 
 import com.histar.be.profile.entity.Profile;
+import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.User;
@@ -23,7 +24,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return User.builder()
                 .username(profile.getEmail())
                 .password(profile.getPasswordHash() == null ? "" : profile.getPasswordHash())
-                .authorities("ROLE_" + (profile.getRole() == null ? "USER" : profile.getRole()))
+                .authorities(UserRole.fromStored(profile.getRole()).authority())
                 .build();
     }
 }

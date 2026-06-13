@@ -13,6 +13,10 @@ import com.histar.be.badge.repository.BadgeRepository;
 import com.histar.be.character.entity.CharacterEntity;
 import com.histar.be.character.service.CharacterService;
 import com.histar.be.config.ViralProperties;
+import com.histar.be.discovery.entity.DiscoveryPoint;
+import com.histar.be.discovery.repository.DiscoveryPointRepository;
+import java.math.BigDecimal;
+import java.util.List;
 import com.histar.be.gamification.service.GamificationService;
 import com.histar.be.hotspot.entity.Hotspot;
 import com.histar.be.hotspot.service.HotspotService;
@@ -90,6 +94,9 @@ class GoldenPathSmokeTest {
     @Autowired
     private ViralProperties viralProperties;
 
+    @Autowired
+    private DiscoveryPointRepository discoveryPointRepository;
+
     @Test
     void goldenPath_week1ToWeek3_shouldRunWithoutBreak() {
         Location location = locationService.save(Location.builder()
@@ -124,6 +131,17 @@ class GoldenPathSmokeTest {
                 .contentRef("hut-1")
                 .label("Tunnel entry")
                 .build());
+
+        for (String key : List.of("era:2026", "photo:cua-ham", "photo:gieng")) {
+            discoveryPointRepository.save(DiscoveryPoint.builder()
+                    .locationId(location.getId())
+                    .name(key)
+                    .mapXPct(BigDecimal.TEN)
+                    .mapYPct(BigDecimal.TEN)
+                    .unlockKey(key)
+                    .sortOrder(1)
+                    .build());
+        }
 
         Quest quest = questRepository.save(Quest.builder()
                 .locationId(location.getId())

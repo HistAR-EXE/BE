@@ -1,8 +1,6 @@
 # HistAR / TimeLens BE — Tổng hợp trạng thái & hướng dẫn FE
 
-> **Mục đích file này:** Gộp `FE_API_HANDOFF.md` (Week 1–4) + `FE_BE_COMPAT_HANDOFF_2026-06-02.md` (sprint tương thích FE) thành **một nguồn sự thật duy nhất** cho team FE và AI (Claude) khi làm việc với BE.
->
-> **CP3 3 tuần:** xem audit trạng thái tại [CP3_AUDIT_STATUS.md](./CP3_AUDIT_STATUS.md).
+> **Mục đích file này:** Nguồn sự thật duy nhất cho team FE khi làm việc với BE (gộp handoff API + sprint compat).
 >
 > **Base URL local:** `http://localhost:8080`  
 > **CORS:** `CORS_ALLOWED_ORIGINS` (mặc định `http://localhost:5173`)  
@@ -305,7 +303,7 @@ Chat cần `GEMINI_API_KEY` trong `.env`.
 | Media placeholder/fallback tập trung | Chưa có service chung | `MediaUrlResolver` + URL mặc định khi null |
 | Refresh token persistent | In-memory | Dùng bảng `refresh_tokens` + revoke thật (post-CP3) |
 | `rating` / `is_ar_available` | **Đã map** từ `Location` entity | Cần chạy `fe_compat_migration.sql` |
-| Upload panorama 360 | **`POST /api/panoramas`** (JWT) | Xem [week-3/04-HUONG-DAN-360-UPLOAD.md](./week-3/04-HUONG-DAN-360-UPLOAD.md) |
+| Upload panorama 360 | **`POST /api/panoramas`** (JWT) | Xem [HUONG_DAN_360_UPLOAD.md](./HUONG_DAN_360_UPLOAD.md) |
 | `FORBIDDEN` code | Đã có trong handler | FE map toast |
 | Sentry / full APM | Out of scope Week 4 | Tùy production |
 | Leaderboard bug PostgreSQL null weekStart | **Đã fix** (tách `findLeaderboard` / `findLeaderboardSince`) | — |
@@ -391,8 +389,7 @@ PowerShell full path: `docs/scripts/smoke-golden-path.ps1`
 
 | File | Vai trò |
 |------|---------|
-| `docs/FE_API_HANDOFF.md` | API reference Week 1–4 (một số phần đã lỗi thời — ưu tiên file này) |
-| `docs/FE_BE_COMPAT_HANDOFF_2026-06-02.md` | Tóm tắt sprint compat + 34 files |
+| `docs/FE_API_HANDOFF.md` | API reference Week 1–4 |
 | **`docs/BE_PROJECT_STATUS_AND_FE_GUIDE.md`** | **File tổng hợp chính thức (file này)** |
 | `docs/DEPLOY.md` | Deploy production |
 | `docs/database/*.sql` | Schema + migration + seed |
@@ -400,8 +397,6 @@ PowerShell full path: `docs/scripts/smoke-golden-path.ps1`
 ### 34 files đã sửa trong sprint compat (2026-06-02)
 
 `pom.xml`, `application.yml`, auth (controller/dto/service), chat, common (exception/PageResponse/RequestTracingFilter), location, message repo, profile, quest, security, và 3 file SQL trong `docs/database/`.
-
-Chi tiết từng file: xem `FE_BE_COMPAT_HANDOFF_2026-06-02.md` mục 4.
 
 ---
 
@@ -417,4 +412,4 @@ Khi hỗ trợ FE hoặc review BE:
 
 ---
 
-*Cập nhật: 2026-06-02 — gộp từ FE_API_HANDOFF + FE_BE_COMPAT_HANDOFF.*
+*Cập nhật: 2026-06-02 — gộp handoff API + sprint compat FE.*

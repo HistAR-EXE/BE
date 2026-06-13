@@ -9,4 +9,5 @@ public record AuthResponse(
         String refreshToken,
         Long refreshExpiresIn,
         UUID userId,
-        String displayName) {}
+        String displayName,
+        String role) {}

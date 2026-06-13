@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$BaseUrl = "http://localhost:8080"
 )
 
@@ -32,6 +32,15 @@ Assert-True ($null -ne $locationId) "No location with photo pairs found"
 $photoPairs = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/photo-pairs/by-location/$locationId"
 Assert-True ($photoPairs.data.Count -ge 1) "No photo pairs"
 
+$photoScenes = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/photo-scenes/by-location/$locationId"
+Assert-True ($photoScenes.data.Count -ge 1) "No photo scenes"
+
+$artifacts = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/artifacts?locationId=$locationId"
+Assert-True ($artifacts.data.Count -ge 1) "No artifacts catalog"
+
+$discoveryPoints = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/discovery-points/by-location/$locationId"
+Assert-True ($discoveryPoints.data.Count -ge 1) "No discovery points"
+
 $characters = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/characters/by-location/$locationId"
 Assert-True ($characters.data.Count -ge 1) "No characters"
 
@@ -57,6 +66,12 @@ $checkinBody = @{
 } | ConvertTo-Json
 $checkin = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/checkins" -Headers $headers -ContentType "application/json" -Body $checkinBody
 Assert-True ($checkin.data.success -eq $true) "Check-in failed"
+
+$myArtifacts = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/me/artifacts?locationId=$locationId" -Headers $headers
+Assert-True ($myArtifacts.data.total -ge 1) "No my artifacts"
+
+$discoverySummary = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/me/discoveries/summary?locationId=$locationId" -Headers $headers
+Assert-True ($discoverySummary.data.total -ge 1) "No discovery summary"
 
 $frames = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/photo-frames"
 $frameId = $frames.data[0].id

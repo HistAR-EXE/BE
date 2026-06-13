@@ -20,9 +20,6 @@ public class HotspotController {
 
     @GetMapping("/by-panorama/{panoramaId}")
     public ApiResponse<List<HotspotResponse>> findByPanorama(@PathVariable UUID panoramaId) {
-        List<HotspotResponse> data = hotspotService.findByPanoramaId(panoramaId).stream()
-                .map(HotspotResponse::from)
-                .toList();
-        return ApiResponse.ok(data);
+        return ApiResponse.ok(hotspotService.findResponsesByPanoramaId(panoramaId));
     }
 }

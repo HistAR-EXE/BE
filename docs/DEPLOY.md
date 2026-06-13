@@ -76,7 +76,7 @@ User phải đã `POST /api/quests/{questId}/start` trước. Chi tiết FE: [`F
 .\docs\scripts\smoke-production.ps1 -BaseUrl https://<be-host>
 ```
 
-(Gồm golden path + week-2 screens.) Hoặc từng script riêng. Chi tiết CP3: [week-3/05-DEPLOY-PRODUCTION.md](./week-3/05-DEPLOY-PRODUCTION.md).
+(Gồm golden path + week-2 screens.) Hoặc từng script riêng. Chi tiết CP3: [DEPLOY.md](./DEPLOY.md).
 
 ## 9. Checklist trước demo
 

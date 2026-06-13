@@ -1,9 +1,9 @@
 package com.histar.be.hotspot.service;
 
+import com.histar.be.hotspot.dto.HotspotResponse;
 import com.histar.be.hotspot.entity.Hotspot;
 import java.util.List;
 import java.util.UUID;
-
 
 public interface HotspotService {
 
@@ -18,4 +18,6 @@ public interface HotspotService {
     long count();
 
     List<Hotspot> findByPanoramaId(UUID panoramaId);
+
+    List<HotspotResponse> findResponsesByPanoramaId(UUID panoramaId);
 }
