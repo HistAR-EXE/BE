@@ -10,7 +10,9 @@ import com.histar.be.common.gamification.LevelCalculator;
 import com.histar.be.common.gamification.QuestStatus;
 import com.histar.be.config.GamificationProperties;
 import com.histar.be.gamification.dto.BadgeEarnedDto;
+import com.histar.be.gamification.dto.HeritageOnsiteBonusResult;
 import com.histar.be.gamification.dto.QuestCompletedDto;
+import com.histar.be.gamification.service.HeritageOnsiteBonusService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
@@ -21,6 +23,7 @@ import com.histar.be.quest.support.QuestDiscoveryProgress;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,6 +46,7 @@ public class QuestProgressCompleter {
     private final VisitSessionRepository visitSessionRepository;
     private final CheckinRepository checkinRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
+    private final HeritageOnsiteBonusService heritageOnsiteBonusService;
 
     @Transactional
     public Optional<QuestCompletedDto> completeIfInProgress(UUID userId, UUID questId) {
@@ -72,8 +76,18 @@ public class QuestProgressCompleter {
         analyticsEventService.recordQuestCompleted(
                 userId, quest.getLocationId(), questId, sessionId, metadataJson);
 
-        List<BadgeEarnedDto> badges = badgeAwardService.evaluateAndAward(userId);
-        return Optional.of(new QuestCompletedDto(questId, reward, badges));
+        List<BadgeEarnedDto> badges = new ArrayList<>(badgeAwardService.evaluateAndAward(userId));
+        if (quest.getLocationId() != null && "discovery".equalsIgnoreCase(quest.getCompletionTrigger())) {
+            heritageOnsiteBonusService
+                    .tryAward(userId, quest.getLocationId())
+                    .map(HeritageOnsiteBonusResult::badgesEarned)
+                    .ifPresent(badges::addAll);
+        }
+        return Optional.of(new QuestCompletedDto(questId, reward, dedupeBadges(badges)));
+    }
+
+    private List<BadgeEarnedDto> dedupeBadges(List<BadgeEarnedDto> badges) {
+        return badges.stream().distinct().toList();
     }
 
     private String buildCompletionMetadata(UUID userId, Quest quest, CompletionTrigger trigger) {

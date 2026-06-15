@@ -206,7 +206,7 @@ VALUES (
   'Địa đạo Củ Chi',
   'Hệ thống địa đạo lịch sử thời kháng chiến tại huyện Củ Chi, TP.HCM.',
   11.143, 106.461, 'TP.HCM',
-  'https://placehold.co/800x500?text=Cu+Chi'
+  '/media/cu-chi/map/hero.jpg'
 );
 
 -- 2 characters (persona_prompt dùng cho AI Chat)
@@ -271,284 +271,87 @@ INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label) VALUES
 ('22222222-2222-2222-2222-222222222222', 2.0, -0.2, 'scene', 'meeting-room', 'Phòng họp dưới lòng đất');
 
 -- ============================================================
--- EXTENDED SEED DATA — full schema realistic dataset (>=10 rows/table)
+-- MINIMAL SEED — leaderboard & chat demo (Cu Chi only)
 -- ============================================================
 
--- Extra locations (to reach >=10)
-INSERT INTO locations (name, description, latitude, longitude, city, cover_image)
-SELECT
-    'Di tích lịch sử #' || i,
-    'Mô tả địa điểm lịch sử số ' || i,
-    10.70 + (i * 0.01),
-    106.50 + (i * 0.01),
-    CASE
-        WHEN i % 3 = 0 THEN 'Huế'
-        WHEN i % 2 = 0 THEN 'Hà Nội'
-        ELSE 'TP.HCM'
-    END,
-    'https://placehold.co/800x500?text=Location+' || i
-FROM generate_series(2, 10) AS g(i);
-
--- Profiles (12 users)
+-- Demo profiles for leaderboard
 INSERT INTO profiles (email, password_hash, provider, role, display_name, avatar_url, level, total_points, city, created_at)
 SELECT
     'user' || i || '@histar.vn',
     '$2a$10$uQfV2m4K1S8mJjW9n8u9fezQ3L4kE0cM9Qz5bQ2QByC2eQ6HgG5Qe',
     'local',
     'USER',
-    'Explorer ' || i,
-    'https://placehold.co/200x200?text=User+' || i,
+    'Khám phá viên ' || i,
+    NULL,
     1 + ((i - 1) % 4),
     40 * i,
-    CASE
-        WHEN i % 3 = 0 THEN 'Huế'
-        WHEN i % 2 = 0 THEN 'Hà Nội'
-        ELSE 'TP.HCM'
-    END,
+    'TP.HCM',
     now() - ((13 - i) || ' days')::interval
-FROM generate_series(1, 12) AS g(i)
+FROM generate_series(1, 8) AS g(i)
 ON CONFLICT (email) DO NOTHING;
 
--- Characters: 1 character per location (>=10 total)
-INSERT INTO characters (location_id, name, era, persona_prompt, portrait_url)
-SELECT
-    l.id,
-    'Nhân vật lịch sử #' || rn,
-    'Giai đoạn ' || (1940 + rn),
-    'Bạn là nhân vật lịch sử #' || rn || '. Trả lời ngắn gọn, chính xác lịch sử, không bịa.',
-    'https://placehold.co/800x800?text=Character+' || rn
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-) l
-LEFT JOIN characters c ON c.location_id = l.id
-WHERE c.id IS NULL;
-
--- Photo pairs: ensure each location has at least 1, then top up to >=10
-INSERT INTO photo_pairs (location_id, historical_image, current_image, year, caption, sort_order)
-SELECT
-    l.id,
-    'https://placehold.co/800x600?text=Past+' || l.rn,
-    'https://placehold.co/800x600?text=Now+' || l.rn,
-    1960 + l.rn,
-    'Khoảnh khắc lịch sử #' || l.rn,
-    1
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-) l
-LEFT JOIN photo_pairs p ON p.location_id = l.id
-WHERE p.id IS NULL;
-
--- Panoramas: one per location
-INSERT INTO panoramas (location_id, image_url, title)
-SELECT
-    l.id,
-    'https://placehold.co/4096x2048?text=Panorama+' || l.rn,
-    'Panorama địa điểm #' || l.rn
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-) l
-LEFT JOIN panoramas p ON p.location_id = l.id
-WHERE p.id IS NULL;
-
--- Hotspots: add one hotspot per panorama if missing
-INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label)
-SELECT
-    p.id,
-    ((row_number() OVER (ORDER BY p.id))::double precision * 0.3) - 1.5,
-    0.1,
-    CASE WHEN (row_number() OVER (ORDER BY p.id)) % 3 = 0 THEN 'scene' ELSE 'info' END,
-    'ref-' || row_number() OVER (ORDER BY p.id),
-    'Hotspot #' || row_number() OVER (ORDER BY p.id)
-FROM panoramas p
-LEFT JOIN hotspots h ON h.panorama_id = p.id
-WHERE h.id IS NULL;
-
--- Quests: one per location
-INSERT INTO quests (location_id, title, description, story, points_reward, required_order)
-SELECT
-    l.id,
-    'Nhiệm vụ #' || l.rn,
-    'Hoàn thành check-in tại địa điểm #' || l.rn,
-    'Câu chuyện bí mật tại địa điểm #' || l.rn,
-    60 + (l.rn * 10),
-    1
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-) l
-LEFT JOIN quests q ON q.location_id = l.id
-WHERE q.id IS NULL;
-
--- Badges top-up to >=10
-INSERT INTO badges (name, description, icon_url, condition_type, condition_value)
-SELECT
-    'Huy hiệu #' || i,
-    'Điều kiện nhận huy hiệu #' || i,
-    'https://placehold.co/200?text=Badge+' || i,
-    CASE
-        WHEN i % 3 = 0 THEN 'points'
-        WHEN i % 2 = 0 THEN 'checkin'
-        ELSE 'quest_complete'
-    END,
-    CASE
-        WHEN i % 3 = 0 THEN 100 * i
-        ELSE i
-    END
-FROM generate_series(4, 10) AS g(i);
-
--- Photo frames top-up to >=10
-INSERT INTO photo_frames (name, image_url, era, sort_order)
-SELECT
-    'Khung lịch sử #' || i,
-    'https://placehold.co/1080?text=Frame+' || i,
-    CASE WHEN i % 2 = 0 THEN 'Hiện đại' ELSE 'Cổ điển' END,
-    i
-FROM generate_series(4, 10) AS g(i);
-
--- Campaigns (10 rows)
-INSERT INTO campaigns (name, start_date, end_date, bonus_points)
-SELECT
-    'Chiến dịch #' || i,
-    now() - ((40 - i) || ' days')::interval,
-    now() + ((i + 5) || ' days')::interval,
-    5 * i
-FROM generate_series(1, 10) AS g(i);
-
--- Conversations: first 10 users x first character
+-- Conversations with Chị Năm
 INSERT INTO conversations (user_id, character_id, created_at)
 SELECT
     u.id,
     c.id,
-    now() - ((10 - u.rn) || ' days')::interval
+    now() - ((8 - u.rn) || ' days')::interval
 FROM (
     SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
     FROM profiles
-    LIMIT 10
+    WHERE email LIKE 'user%@histar.vn'
+    LIMIT 5
 ) u
 CROSS JOIN LATERAL (
-    SELECT id
-    FROM characters
-    ORDER BY id
-    LIMIT 1
+    SELECT id FROM characters
+    WHERE location_id = '11111111-1111-1111-1111-111111111111'
+    ORDER BY id LIMIT 1
 ) c
 ON CONFLICT DO NOTHING;
 
--- Messages: 2 messages/conversation (>=20 rows)
 INSERT INTO messages (conversation_id, role, content, created_at)
 SELECT
     c.id,
     CASE WHEN g.i % 2 = 1 THEN 'user' ELSE 'assistant' END,
     CASE
-        WHEN g.i % 2 = 1 THEN 'Xin chào, cho tôi biết thêm về địa đạo.'
-        ELSE 'Địa đạo là hệ thống công sự ngầm quan trọng trong kháng chiến.'
+        WHEN g.i % 2 = 1 THEN 'Chị ơi, bếp Hoàng Cầm là gì ạ?'
+        ELSE 'Bếp Hoàng Cầm là loại bếp dưới lòng đất, nấu không khói — một trong ba trụ cột sinh tồn tại Củ Chi.'
     END,
     c.created_at + (g.i || ' minutes')::interval
 FROM (
-    SELECT id, created_at
-    FROM conversations
-    ORDER BY created_at
-    LIMIT 10
+    SELECT id, created_at FROM conversations ORDER BY created_at LIMIT 5
 ) c
 CROSS JOIN generate_series(1, 2) AS g(i);
 
--- Checkins: 10 checkins by 10 users on first 10 locations
+-- Check-ins at Cu Chi
 INSERT INTO checkins (user_id, location_id, latitude, longitude, created_at)
 SELECT
     u.id,
-    l.id,
-    l.latitude + 0.0003,
-    l.longitude + 0.0003,
-    now() - ((11 - u.rn) || ' days')::interval
+    '11111111-1111-1111-1111-111111111111',
+    11.143 + 0.0002,
+    106.461 + 0.0002,
+    now() - ((6 - u.rn) || ' days')::interval
 FROM (
     SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
     FROM profiles
-    LIMIT 10
+    LIMIT 5
 ) u
-JOIN (
-    SELECT id, latitude, longitude, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-    LIMIT 10
-) l ON l.rn = u.rn;
+WHERE NOT EXISTS (
+    SELECT 1 FROM checkins ck
+    WHERE ck.user_id = u.id AND ck.location_id = '11111111-1111-1111-1111-111111111111'
+);
 
--- User quest progress: realistic mix status
+-- User quest progress on main Cu Chi quest
 INSERT INTO user_quest_progress (user_id, quest_id, status, started_at, completed_at)
 SELECT
     u.id,
-    q.id,
-    CASE
-        WHEN u.rn <= 4 THEN 'completed'
-        WHEN u.rn <= 8 THEN 'in_progress'
-        ELSE 'not_started'
-    END,
-    now() - ((10 - u.rn) || ' days')::interval,
-    CASE WHEN u.rn <= 4 THEN now() - ((9 - u.rn) || ' days')::interval ELSE NULL END
+    '33333333-3333-3333-3333-333333333333',
+    CASE WHEN u.rn <= 2 THEN 'completed' WHEN u.rn <= 4 THEN 'in_progress' ELSE 'not_started' END,
+    now() - ((5 - u.rn) || ' days')::interval,
+    CASE WHEN u.rn <= 2 THEN now() - ((4 - u.rn) || ' days')::interval ELSE NULL END
 FROM (
     SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
     FROM profiles
-    LIMIT 10
+    LIMIT 5
 ) u
-JOIN (
-    SELECT id, row_number() OVER (ORDER BY id) AS rn
-    FROM quests
-    LIMIT 10
-) q ON q.rn = u.rn
 ON CONFLICT (user_id, quest_id) DO NOTHING;
-
--- User badges (10 rows)
-INSERT INTO user_badges (user_id, badge_id, earned_at)
-SELECT
-    u.id,
-    b.id,
-    now() - ((11 - u.rn) || ' days')::interval
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM profiles
-    LIMIT 10
-) u
-JOIN (
-    SELECT id, row_number() OVER (ORDER BY id) AS rn
-    FROM badges
-    LIMIT 10
-) b ON b.rn = u.rn
-ON CONFLICT (user_id, badge_id) DO NOTHING;
-
--- User creations (10 rows, mixed shared state)
-INSERT INTO user_creations (user_id, frame_id, output_url, variant, shared_at, created_at)
-SELECT
-    u.id,
-    f.id,
-    'https://placehold.co/1080?text=Creation+' || u.rn,
-    CASE WHEN u.rn % 2 = 0 THEN 'story' ELSE 'square' END,
-    CASE WHEN u.rn <= 5 THEN now() - ((6 - u.rn) || ' days')::interval ELSE NULL END,
-    now() - ((7 - u.rn) || ' days')::interval
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM profiles
-    LIMIT 10
-) u
-JOIN (
-    SELECT id, row_number() OVER (ORDER BY sort_order, id) AS rn
-    FROM photo_frames
-    LIMIT 10
-) f ON f.rn = u.rn;
-
--- User secret unlocks (10 rows)
-INSERT INTO user_secret_unlocks (user_id, location_id, unlocked_at)
-SELECT
-    u.id,
-    l.id,
-    now() - ((8 - u.rn) || ' days')::interval
-FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM profiles
-    LIMIT 10
-) u
-JOIN (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn
-    FROM locations
-    LIMIT 10
-) l ON l.rn = u.rn
-ON CONFLICT (user_id, location_id) DO NOTHING;

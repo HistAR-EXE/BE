@@ -166,6 +166,7 @@ class GamificationFlowTest {
                 userId, locationId, 11.143, 106.461, "timelens:location:" + locationId);
         assertTrue(second.success());
         assertTrue(second.questsCompleted().isEmpty());
+        assertEquals(0, second.bonusXpAwarded());
 
         Profile afterSecond = profileRepository.findById(userId).orElseThrow();
         assertEquals(pointsAfterFirst, afterSecond.getTotalPoints());

@@ -8,11 +8,13 @@ public record QuestProgressResponse(
         UUID locationId,
         String title,
         String description,
+        String story,
         Integer pointsReward,
         String status,
         Integer currentStep,
         Integer stepsTotal,
         boolean discoveryStepsComplete,
         boolean hasCheckinAtLocation,
+        String completionTrigger,
         Instant startedAt,
         Instant completedAt) {}

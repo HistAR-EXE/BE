@@ -10,6 +10,7 @@ import com.histar.be.discovery.entity.UserDiscovery;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.discovery.service.DiscoveryService;
+import com.histar.be.profile.service.ProfileAccessPolicy;
 import com.histar.be.gamification.rules.entity.UnlockRule;
 import com.histar.be.gamification.rules.repository.UnlockRuleRepository;
 import java.time.Instant;
@@ -35,6 +36,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private final DiscoveryArtifactBridge discoveryArtifactBridge;
     private final UnlockRuleRepository unlockRuleRepository;
     private final GamificationProperties gamificationProperties;
+    private final ProfileAccessPolicy profileAccessPolicy;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,6 +53,10 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         Set<String> pointKeys = new HashSet<>();
         for (DiscoveryPoint point : points) {
             pointKeys.add(point.getUnlockKey());
+        }
+        if (profileAccessPolicy.previewsAllGamificationContent(userId)) {
+            List<String> allKeys = points.stream().map(DiscoveryPoint::getUnlockKey).toList();
+            return new DiscoverySummaryResponse(allKeys.size(), points.size(), allKeys, System.currentTimeMillis());
         }
         List<String> userKeys = userDiscoveryRepository.findByUserIdAndLocationId(userId, locationId).stream()
                 .map(UserDiscovery::getDiscoveryKey)

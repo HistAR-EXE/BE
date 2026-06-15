@@ -72,6 +72,13 @@ public class QuestProgressServiceImpl implements QuestProgressService {
             throw new BusinessRuleException("Quest đã hoàn thành");
         }
         if (QuestStatus.IN_PROGRESS.equals(progress.getStatus())) {
+            var counts = QuestDiscoveryProgress.compute(
+                    userId, quest.getLocationId(), quest, QuestStatus.IN_PROGRESS, userDiscoveryRepository);
+            if (progress.getCurrentStep() == null) {
+                progress.setCurrentStep(counts.currentStep());
+                progress.setStepsTotal(counts.stepsTotal());
+                userQuestProgressRepository.save(progress);
+            }
             questCompletionService.tryComplete(userId, quest.getLocationId(), CompletionTrigger.START_QUEST);
             return toProgress(userId, quest);
         }
@@ -84,6 +91,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
         progress.setStartedAt(Instant.now());
         var counts = QuestDiscoveryProgress.compute(
                 userId, quest.getLocationId(), quest, QuestStatus.IN_PROGRESS, userDiscoveryRepository);
+        progress.setCurrentStep(counts.currentStep());
         progress.setStepsTotal(counts.stepsTotal());
         userQuestProgressRepository.save(progress);
 
@@ -127,12 +135,14 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                 quest.getLocationId(),
                 quest.getTitle(),
                 quest.getDescription(),
+                quest.getStory(),
                 quest.getPointsReward(),
                 status,
                 counts.currentStep(),
                 counts.stepsTotal(),
                 discoveryStepsComplete,
                 hasCheckinAtLocation,
+                quest.getCompletionTrigger(),
                 progress != null ? progress.getStartedAt() : null,
                 progress != null ? progress.getCompletedAt() : null);
     }

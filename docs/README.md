@@ -1,29 +1,16 @@
-# Tài liệu Backend
+# BE — TimeLens Backend
 
-| File | Mô tả |
-|------|--------|
-| [BE_PROJECT_STATUS_AND_FE_GUIDE.md](./BE_PROJECT_STATUS_AND_FE_GUIDE.md) | Trạng thái BE + hướng dẫn tích hợp FE |
-| [FE_API_HANDOFF.md](./FE_API_HANDOFF.md) | Contract API chi tiết |
-| [DEPLOY.md](./DEPLOY.md) | Deploy production (Railway/Render) |
-| [CP3_FULL_FLOW_TEST_GUIDE.md](./CP3_FULL_FLOW_TEST_GUIDE.md) | Test flow Online + Offline |
-| [HUONG_DAN_360_UPLOAD.md](./HUONG_DAN_360_UPLOAD.md) | Chụp & upload panorama 360° |
-| [database/](./database/) | Schema + migration SQL |
+Spring Boot API. Tài liệu dự án tập trung tại [`../docs/`](../docs/).
 
-## Chạy local
-
-**Khuyến nghị:** dùng [`docker-compose.yml`](../../docker-compose.yml) ở thư mục gốc HistAR (Postgres + MinIO + BE + AI + FE).
-
-Chỉ BE:
+| Path | Mục đích |
+|------|----------|
+| [`../docs/04_api_&_integration_guide.md`](../docs/04_api_&_integration_guide.md) | API contract |
+| [`../docs/05_development_&_deployment.md`](../docs/05_development_&_deployment.md) | Setup, test, deploy |
+| [`database/`](./database/) | SQL schema + migrations |
+| [`scripts/`](./scripts/) | Seed, smoke test PowerShell |
 
 ```powershell
-cp .env.example .env
-cd ..
-docker compose up -d postgres minio minio-init
 cd BE
-./mvnw spring-boot:run
+mvn test
+.\docs\scripts\run-all-seed.ps1
 ```
-
-- API: http://localhost:8080/api/health
-- MinIO: http://localhost:9001
-
-Seed DB: `.\docs\scripts\run-all-seed.ps1`

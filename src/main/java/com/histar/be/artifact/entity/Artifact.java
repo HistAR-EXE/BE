@@ -35,6 +35,9 @@ public class Artifact {
     @Column(columnDefinition = "text")
     private String description;
 
+    @Column(columnDefinition = "text")
+    private String story;
+
     private String unlockKey;
     private String reliability;
     private Integer sortOrder;

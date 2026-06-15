@@ -40,6 +40,8 @@ public class Quest {
     /** Reserved for future step ordering; evaluator does not enforce (BR-QST-06). */
     private Integer requiredOrder;
     private String completionTrigger;
+    private Integer stepsTotal;
+    private String coverImage;
 
     /** Comma-separated discovery unlock_keys required before check-in completes quest. */
     @Column(name = "step_discovery_keys", columnDefinition = "text")

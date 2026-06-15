@@ -13,10 +13,28 @@ public final class QuestDiscoveryProgress {
 
     public record StepCounts(int currentStep, int stepsTotal) {}
 
+    public static boolean requiresCheckinStep(Quest quest) {
+        return quest == null || !"discovery".equalsIgnoreCase(quest.getCompletionTrigger());
+    }
+
+    public static int stepsTotal(Quest quest) {
+        if (quest == null) {
+            return 1;
+        }
+        if (quest.getStepsTotal() != null && quest.getStepsTotal() > 0) {
+            return quest.getStepsTotal();
+        }
+        List<String> steps = parseSteps(quest);
+        if (steps.isEmpty()) {
+            return 1;
+        }
+        return steps.size() + (requiresCheckinStep(quest) ? 1 : 0);
+    }
+
     public static StepCounts compute(
             UUID userId, UUID locationId, Quest quest, String status, UserDiscoveryRepository repo) {
         List<String> steps = parseSteps(quest);
-        int stepsTotal = steps.isEmpty() ? 1 : steps.size() + 1;
+        int stepsTotal = stepsTotal(quest);
         if (QuestStatus.COMPLETED.equals(status)) {
             return new StepCounts(stepsTotal, stepsTotal);
         }

@@ -8,4 +8,5 @@ public record CheckinResultDto(
         double distanceMeters,
         List<UUID> questsCompleted,
         List<BadgeEarnedDto> badgesEarned,
-        boolean secretUnlocked) {}
+        boolean secretUnlocked,
+        int bonusXpAwarded) {}

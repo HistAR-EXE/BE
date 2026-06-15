@@ -11,6 +11,7 @@ import com.histar.be.userbadge.repository.UserBadgeRepository;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.quest.repository.QuestRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final CheckinRepository checkinRepository;
     private final ProfileRepository profileRepository;
+    private final QuestRepository questRepository;
 
     @Override
     @Transactional
@@ -46,7 +48,7 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
             if (userBadgeRepository.existsByUserIdAndBadgeId(userId, badge.getId())) {
                 continue;
             }
-            if (!meetsCondition(badge, questCompletedCount, checkinCount, totalPoints)) {
+            if (!meetsCondition(badge, userId, questCompletedCount, checkinCount, totalPoints)) {
                 continue;
             }
             userBadgeRepository.save(UserBadge.builder()
@@ -59,7 +61,8 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
         return earned;
     }
 
-    private boolean meetsCondition(Badge badge, long questCompletedCount, long checkinCount, int totalPoints) {
+    private boolean meetsCondition(
+            Badge badge, UUID userId, long questCompletedCount, long checkinCount, int totalPoints) {
         String type = badge.getConditionType();
         int required = badge.getConditionValue() == null ? 0 : badge.getConditionValue();
         if (type == null) {
@@ -69,7 +72,24 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
             case "quest_complete" -> questCompletedCount >= required;
             case "points" -> totalPoints >= required;
             case "checkin" -> checkinCount >= required;
+            case "heritage_onsite" -> meetsHeritageOnsite(badge, userId);
             default -> false;
         };
+    }
+
+    private boolean meetsHeritageOnsite(Badge badge, UUID userId) {
+        UUID locationId = badge.getLocationId();
+        if (locationId == null) {
+            return false;
+        }
+        if (!checkinRepository.existsByUserIdAndLocationId(userId, locationId)) {
+            return false;
+        }
+        return questRepository.findByLocationId(locationId).stream()
+                .filter(q -> "discovery".equalsIgnoreCase(q.getCompletionTrigger()))
+                .anyMatch(q -> userQuestProgressRepository
+                        .findByUserIdAndQuestId(userId, q.getId())
+                        .map(p -> QuestStatus.COMPLETED.equals(p.getStatus()))
+                        .orElse(false));
     }
 }

@@ -36,4 +36,7 @@ public class Badge {
 
     private String conditionType;
     private Integer conditionValue;
+
+    @Column(name = "location_id")
+    private UUID locationId;
 }

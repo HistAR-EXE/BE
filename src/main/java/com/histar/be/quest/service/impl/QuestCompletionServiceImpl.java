@@ -37,13 +37,22 @@ public class QuestCompletionServiceImpl implements QuestCompletionService {
         }
         boolean requirePriorCheckin = trigger != CompletionTrigger.CHECKIN;
         if (requirePriorCheckin && !checkinRepository.existsByUserIdAndLocationId(userId, locationId)) {
-            return completed;
+            boolean hasDiscoveryOnlyQuest = questRepository.findByLocationId(locationId).stream()
+                    .anyMatch(q -> "discovery".equalsIgnoreCase(q.getCompletionTrigger()));
+            if (!hasDiscoveryOnlyQuest) {
+                return completed;
+            }
         }
 
         CheckinEventContext event = new CheckinEventContext(userId, locationId);
         for (Quest quest : questRepository.findByLocationId(locationId)) {
             var progressOpt = userQuestProgressRepository.findByUserIdAndQuestId(userId, quest.getId());
             if (progressOpt.isEmpty() || !QuestStatus.IN_PROGRESS.equals(progressOpt.get().getStatus())) {
+                continue;
+            }
+            if (requirePriorCheckin
+                    && !"discovery".equalsIgnoreCase(quest.getCompletionTrigger())
+                    && !checkinRepository.existsByUserIdAndLocationId(userId, locationId)) {
                 continue;
             }
             if (!questCompletionEvaluator.isSatisfied(quest, event)) {

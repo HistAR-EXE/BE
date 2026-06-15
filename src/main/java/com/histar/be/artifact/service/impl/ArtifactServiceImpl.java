@@ -7,6 +7,7 @@ import com.histar.be.artifact.entity.UserArtifact;
 import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.artifact.repository.UserArtifactRepository;
 import com.histar.be.artifact.service.ArtifactService;
+import com.histar.be.profile.service.ProfileAccessPolicy;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ public class ArtifactServiceImpl implements ArtifactService {
 
     private final ArtifactRepository artifactRepository;
     private final UserArtifactRepository userArtifactRepository;
+    private final ProfileAccessPolicy profileAccessPolicy;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,10 +44,13 @@ public class ArtifactServiceImpl implements ArtifactService {
     @Transactional(readOnly = true)
     public MyArtifactsResponse findMine(UUID userId, UUID locationId) {
         List<Artifact> catalog = artifactRepository.findByLocationIdOrderBySortOrder(locationId);
+        boolean previewAll = profileAccessPolicy.previewsAllGamificationContent(userId);
         Set<UUID> unlockedIds = new HashSet<>();
-        userArtifactRepository.findByUserId(userId).forEach(ua -> unlockedIds.add(ua.getArtifactId()));
+        if (!previewAll) {
+            userArtifactRepository.findByUserId(userId).forEach(ua -> unlockedIds.add(ua.getArtifactId()));
+        }
         List<ArtifactResponse> items = catalog.stream()
-                .map(a -> ArtifactResponse.from(a, unlockedIds.contains(a.getId())))
+                .map(a -> ArtifactResponse.from(a, previewAll || unlockedIds.contains(a.getId())))
                 .toList();
         int collected = (int) items.stream().filter(ArtifactResponse::unlocked).count();
         return new MyArtifactsResponse(items, collected, items.size());

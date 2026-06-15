@@ -10,7 +10,8 @@ public record CheckinResponse(
         double distanceMeters,
         List<UUID> questsCompleted,
         List<BadgeEarnedDto> badgesEarned,
-        boolean secretUnlocked) {
+        boolean secretUnlocked,
+        int bonusXpAwarded) {
 
     public static CheckinResponse from(CheckinResultDto result) {
         return new CheckinResponse(
@@ -18,6 +19,7 @@ public record CheckinResponse(
                 result.distanceMeters(),
                 result.questsCompleted(),
                 result.badgesEarned(),
-                result.secretUnlocked());
+                result.secretUnlocked(),
+                result.bonusXpAwarded());
     }
 }

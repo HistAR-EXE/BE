@@ -14,9 +14,11 @@ import com.histar.be.config.GamificationProperties;
 import com.histar.be.discovery.service.DiscoveryService;
 import com.histar.be.gamification.dto.BadgeEarnedDto;
 import com.histar.be.gamification.dto.CheckinResultDto;
+import com.histar.be.gamification.dto.HeritageOnsiteBonusResult;
 import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.gamification.rules.UnlockRuleEvaluator;
 import com.histar.be.gamification.service.GamificationService;
+import com.histar.be.gamification.service.HeritageOnsiteBonusService;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.quest.service.QuestProgressCompleter;
@@ -57,6 +59,7 @@ public class GamificationServiceImpl implements GamificationService {
     private final QuestCompletionService questCompletionService;
     private final QuestProgressCompleter questProgressCompleter;
     private final QuestRepository questRepository;
+    private final HeritageOnsiteBonusService heritageOnsiteBonusService;
 
     @Override
     @Transactional
@@ -78,7 +81,7 @@ public class GamificationServiceImpl implements GamificationService {
 
         if (payload.type() == QrPayloadType.SECRET) {
             boolean secretUnlocked = tryUnlockSecret(userId, locationId);
-            return new CheckinResultDto(true, distance, List.of(), List.of(), secretUnlocked);
+            return new CheckinResultDto(true, distance, List.of(), List.of(), secretUnlocked, 0);
         }
 
         return recordVisitAndMaybeReward(userId, locationId, latitude, longitude, distance);
@@ -115,8 +118,15 @@ public class GamificationServiceImpl implements GamificationService {
             applyFirstCheckinUnlocks(userId, locationId);
         }
 
+        int bonusXp = 0;
+        Optional<HeritageOnsiteBonusResult> onsiteBonus = heritageOnsiteBonusService.tryAward(userId, locationId);
+        if (onsiteBonus.isPresent()) {
+            bonusXp = onsiteBonus.get().xpAwarded();
+            allBadges.addAll(onsiteBonus.get().badgesEarned());
+        }
+
         List<UUID> questIds = questsCompleted.stream().map(QuestCompletedDto::questId).toList();
-        return new CheckinResultDto(true, distanceMeters, questIds, dedupeBadges(allBadges), false);
+        return new CheckinResultDto(true, distanceMeters, questIds, dedupeBadges(allBadges), false, bonusXp);
     }
 
     private void applyFirstCheckinUnlocks(UUID userId, UUID locationId) {

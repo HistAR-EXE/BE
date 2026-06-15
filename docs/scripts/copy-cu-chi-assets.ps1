@@ -2,7 +2,30 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $dest = Join-Path $root "FE\public\media\cu-chi"
-New-Item -ItemType Directory -Force -Path "$dest\scenes", "$dest\artifacts", "$dest\map" | Out-Null
+New-Item -ItemType Directory -Force -Path "$dest\scenes", "$dest\artifacts", "$dest\map", "$dest\panoramas" | Out-Null
+
+# Panorama 360° từ Google Street View (equirectangular 2:1)
+$cursorAssets = Join-Path (Split-Path $root -Parent) ".cursor\projects\d-FPT-SU26-EXE101-HistAR\assets"
+if (-not (Test-Path $cursorAssets)) {
+  $cursorAssets = Join-Path $env:USERPROFILE ".cursor\projects\d-FPT-SU26-EXE101-HistAR\assets"
+}
+if (Test-Path $cursorAssets) {
+  $panoMap = @{
+    '*Street_View_5*' = 'panoramas\duong-vao.jpg'
+    '*Street_View_360*' = 'panoramas\san-le-tuong-niem.jpg'
+    '*Street_View_4*' = 'panoramas\den-tuong-niem.jpg'
+    '*Street_View_3*' = 'panoramas\trung-bay-vu-khi.jpg'
+    '*Street_View_2*' = 'panoramas\xe-thiet-giap.jpg'
+  }
+  foreach ($pattern in $panoMap.Keys) {
+    $src = Get-ChildItem $cursorAssets -Filter $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($src) { Copy-Item $src.FullName (Join-Path $dest $panoMap[$pattern]) -Force }
+  }
+  $upscale = Join-Path $PSScriptRoot "upscale-cu-chi-panoramas.py"
+  if (Test-Path $upscale) {
+    python $upscale 2>&1 | ForEach-Object { Write-Host $_ }
+  }
+}
 
 $anhDd = Get-ChildItem $root -Directory | Where-Object {
   $_.Name -notin @('AI', 'BE', 'FE', 'docs') -and $_.Name -notlike '*GD*'
@@ -44,3 +67,9 @@ if ($anhGd) {
 }
 
 Write-Host "Copied $((Get-ChildItem $dest -Recurse -File).Count) files to $dest"
+
+$supp = Join-Path $PSScriptRoot "copy-cu-chi-supplementary.py"
+if (Test-Path $supp) {
+  Write-Host "Running supplementary asset copy..."
+  python $supp 2>&1 | ForEach-Object { Write-Host $_ }
+}

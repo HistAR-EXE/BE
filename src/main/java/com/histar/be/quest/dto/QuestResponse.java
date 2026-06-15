@@ -1,6 +1,7 @@
 package com.histar.be.quest.dto;
 
 import com.histar.be.quest.entity.Quest;
+import com.histar.be.quest.support.QuestDiscoveryProgress;
 import java.util.UUID;
 
 public record QuestResponse(
@@ -8,10 +9,12 @@ public record QuestResponse(
         UUID locationId,
         String title,
         String description,
+        String story,
         Integer pointsReward,
         Integer stepsTotal,
         Integer unlockLevel,
-        String coverImage) {
+        String coverImage,
+        String completionTrigger) {
 
     public static QuestResponse from(Quest quest) {
         return new QuestResponse(
@@ -19,9 +22,11 @@ public record QuestResponse(
                 quest.getLocationId(),
                 quest.getTitle(),
                 quest.getDescription(),
+                quest.getStory(),
                 quest.getPointsReward(),
+                QuestDiscoveryProgress.stepsTotal(quest),
                 1,
-                1,
-                null);
+                quest.getCoverImage(),
+                quest.getCompletionTrigger());
     }
 }
