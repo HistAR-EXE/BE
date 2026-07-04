@@ -11,6 +11,7 @@ import com.histar.be.visit.repository.VisitSessionRepository;
 import com.histar.be.visit.service.VisitSessionService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,17 +32,31 @@ public class VisitSessionServiceImpl implements VisitSessionService {
     @Override
     @Transactional
     public UUID startSession(UUID userId, UUID locationId, String mode) {
-        closeActiveSessions(userId, locationId, EndReason.SYSTEM);
+        String finalMode = mode != null ? mode : "online";
+
+        // KIỂM TRA: Nếu đã có session đang ACTIVE thì tái sử dụng, tránh tạo đúp do React Strict Mode
+        Optional<VisitSession> existingSession = visitSessionRepository
+                .findFirstByUserIdAndLocationIdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(
+                        userId, locationId, STATUS_ACTIVE);
+
+        if (existingSession.isPresent()) {
+            VisitSession session = existingSession.get();
+            session.setLastActivityAt(Instant.now());
+            session.setMode(finalMode);
+            return visitSessionRepository.save(session).getId();
+        }
+
+        // Nếu chưa có thì mới tạo mới
         Instant now = Instant.now();
-        VisitSession session = VisitSession.builder()
+        VisitSession newSession = VisitSession.builder()
                 .userId(userId)
                 .locationId(locationId)
-                .mode(mode != null ? mode : "online")
+                .mode(finalMode)
                 .status(STATUS_ACTIVE)
                 .startedAt(now)
                 .lastActivityAt(now)
                 .build();
-        return visitSessionRepository.save(session).getId();
+        return visitSessionRepository.save(newSession).getId();
     }
 
     @Override
