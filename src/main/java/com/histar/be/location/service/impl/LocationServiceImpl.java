@@ -6,6 +6,7 @@ import com.histar.be.location.dto.LocationResponse;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.location.service.LocationService;
+import com.histar.be.location.service.LocationUnlockService;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class LocationServiceImpl implements LocationService {
 
     private final LocationRepository repository;
+    private final LocationUnlockService locationUnlockService;
 
     @Override
     public List<Location> findAll() {
@@ -29,7 +31,7 @@ public class LocationServiceImpl implements LocationService {
 
     @Override
     public Page<LocationResponse> search(
-            String city, String search, Double nearLat, Double nearLng, Double maxDistanceKm, Pageable pageable) {
+            String city, String search, Double nearLat, Double nearLng, Double maxDistanceKm, Pageable pageable, UUID userId) {
         Specification<Location> spec = (root, query, cb) -> cb.conjunction();
         if (city != null && !city.isBlank()) {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("city")), city.trim().toLowerCase()));
@@ -43,7 +45,7 @@ public class LocationServiceImpl implements LocationService {
 
         boolean hasNearby = nearLat != null && nearLng != null;
         if (!hasNearby) {
-            return repository.findAll(spec, pageable).map(LocationResponse::from);
+            return repository.findAll(spec, pageable).map(loc -> toResponse(loc, null, userId));
         }
 
         List<LocationResponse> filtered = repository.findAll(spec, pageable.getSort()).stream()
@@ -54,7 +56,7 @@ public class LocationServiceImpl implements LocationService {
                                         nearLat, nearLng, location.getLatitude(), location.getLongitude())
                                 / 1000.0;
                     }
-                    return LocationResponse.from(location, distanceKm);
+                    return toResponse(location, distanceKm, userId);
                 })
                 .filter(item -> maxDistanceKm == null
                         || item.distanceKm() == null
@@ -64,6 +66,11 @@ public class LocationServiceImpl implements LocationService {
         int start = Math.min((int) pageable.getOffset(), filtered.size());
         int end = Math.min(start + pageable.getPageSize(), filtered.size());
         return new PageImpl<>(filtered.subList(start, end), pageable, filtered.size());
+    }
+
+    private LocationResponse toResponse(Location location, Double distanceKm, UUID userId) {
+        Boolean isUnlocked = userId != null ? locationUnlockService.isUnlocked(userId, location) : null;
+        return LocationResponse.from(location, distanceKm, isUnlocked);
     }
 
     @Override

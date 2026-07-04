@@ -2,7 +2,9 @@ package com.histar.be.chat.service;
 
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.ChatProperties;
+import com.histar.be.chat.dto.ChatSource;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +41,47 @@ public class RagAiChatClient {
             Integer userLevel,
             long artifactsUnlockedCount,
             long discoveriesCount) {
-        return generate(message, personaKey, personaOverride, knowledgeContext, sources, locationId,
-                history, userLevel, artifactsUnlockedCount, discoveriesCount, null);
+        return generateWithSources(
+                        message,
+                        personaKey,
+                        personaOverride,
+                        knowledgeContext,
+                        sources,
+                        locationId,
+                        history,
+                        userLevel,
+                        artifactsUnlockedCount,
+                        discoveriesCount,
+                        null)
+                .reply();
     }
 
-    public String generate(
+    public RagChatResponse generateWithSources(
+            String message,
+            String personaKey,
+            Map<String, String> personaOverride,
+            String knowledgeContext,
+            String sources,
+            UUID locationId,
+            List<Map<String, String>> history,
+            Integer userLevel,
+            long artifactsUnlockedCount,
+            long discoveriesCount) {
+        return generateWithSources(
+                message,
+                personaKey,
+                personaOverride,
+                knowledgeContext,
+                sources,
+                locationId,
+                history,
+                userLevel,
+                artifactsUnlockedCount,
+                discoveriesCount,
+                null);
+    }
+
+    public RagChatResponse generateWithSources(
             String message,
             String personaKey,
             Map<String, String> personaOverride,
@@ -87,7 +125,7 @@ public class RagAiChatClient {
             if (!(reply instanceof String s) || s.isBlank()) {
                 throw new BusinessRuleException("RAG AI không trả lời được");
             }
-            return s.trim();
+            return new RagChatResponse(s.trim(), parseSources(response.get("sources")));
         } catch (WebClientResponseException ex) {
             throw new BusinessRuleException("Gọi RAG AI thất bại: " + ex.getStatusCode());
         } catch (BusinessRuleException ex) {
@@ -96,5 +134,28 @@ public class RagAiChatClient {
             throw new BusinessRuleException(
                     "RAG AI không khả dụng. Chạy: cd AI && uvicorn app.main:app --port 8100");
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ChatSource> parseSources(Object raw) {
+        if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<ChatSource> out = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Object title = map.get("title");
+            Object excerpt = map.get("excerpt");
+            Object url = map.get("url");
+            if (!(title instanceof String titleStr) || titleStr.isBlank()) {
+                continue;
+            }
+            String excerptStr = excerpt instanceof String s && !s.isBlank() ? s : titleStr;
+            String urlStr = url instanceof String u && !u.isBlank() ? u : null;
+            out.add(new ChatSource(titleStr.trim(), excerptStr.trim(), urlStr));
+        }
+        return out;
     }
 }

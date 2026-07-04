@@ -6,6 +6,7 @@ import com.histar.be.config.GamificationProperties;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.dto.UpdateProfileRequest;
 import com.histar.be.profile.entity.Profile;
+import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.service.ProfileService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -49,6 +51,17 @@ public class ProfileController {
         if (request.city() != null) {
             profile.setCity(request.city().trim());
         }
+        Profile saved = profileService.save(profile);
+        return ApiResponse.ok(ProfileMeResponse.from(saved, gamificationProperties));
+    }
+
+    @PostMapping("/upgrade")
+    public ApiResponse<ProfileMeResponse> upgrade() {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        Profile profile = profileService.findById(userId);
+        profile.setTier(UserTier.PREMIUM.name());
         Profile saved = profileService.save(profile);
         return ApiResponse.ok(ProfileMeResponse.from(saved, gamificationProperties));
     }

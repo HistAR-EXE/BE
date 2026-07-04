@@ -35,6 +35,7 @@ public class AnalyticsEventController {
                 .eventKey(request.eventKey())
                 .source(request.source())
                 .contentType(request.contentType())
+                .metadata(request.metadata())
                 .createdAt(Instant.now())
                 .build());
         return ApiResponse.ok(null);

@@ -7,6 +7,7 @@ import com.histar.be.artifact.entity.UserArtifact;
 import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.artifact.repository.UserArtifactRepository;
 import com.histar.be.artifact.service.ArtifactService;
+import com.histar.be.gamification.dto.UnlockedArtifactDto;
 import com.histar.be.profile.service.ProfileAccessPolicy;
 import java.time.Instant;
 import java.util.HashSet;
@@ -59,11 +60,17 @@ public class ArtifactServiceImpl implements ArtifactService {
     @Override
     @Transactional
     public boolean unlockByKey(UUID userId, String unlockKey) {
+        return !unlockByKeyCollecting(userId, unlockKey).isEmpty();
+    }
+
+    @Override
+    @Transactional
+    public List<UnlockedArtifactDto> unlockByKeyCollecting(UUID userId, String unlockKey) {
         List<Artifact> matches = artifactRepository.findByUnlockKey(unlockKey);
         if (matches.isEmpty()) {
-            return false;
+            return List.of();
         }
-        boolean anyNew = false;
+        List<UnlockedArtifactDto> unlocked = new java.util.ArrayList<>();
         for (Artifact artifact : matches) {
             if (!userArtifactRepository.existsByUserIdAndArtifactId(userId, artifact.getId())) {
                 userArtifactRepository.save(UserArtifact.builder()
@@ -71,10 +78,11 @@ public class ArtifactServiceImpl implements ArtifactService {
                         .artifactId(artifact.getId())
                         .unlockedAt(Instant.now())
                         .build());
-                anyNew = true;
+                unlocked.add(new UnlockedArtifactDto(
+                        artifact.getId(), artifact.getName(), artifact.getImageUrl(), artifact.getUnlockKey()));
             }
         }
-        return anyNew;
+        return unlocked;
     }
 
     @Override

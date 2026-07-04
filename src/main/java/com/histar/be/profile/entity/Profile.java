@@ -33,6 +33,7 @@ public class Profile {
     private String passwordHash;
     private String provider;
     private String role;
+    private String tier;
     private String displayName;
 
     @Column(columnDefinition = "text")

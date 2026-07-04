@@ -31,4 +31,7 @@ public class DiscoveryContentBinding {
     private String engagement;
     private String hrefTemplate;
     private Integer sortOrder;
+    private UUID artifactId;
+    private Integer xpBonus;
+    private UUID questStepId;
 }

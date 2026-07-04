@@ -10,4 +10,5 @@ public record AuthResponse(
         Long refreshExpiresIn,
         UUID userId,
         String displayName,
-        String role) {}
+        String role,
+        String tier) {}

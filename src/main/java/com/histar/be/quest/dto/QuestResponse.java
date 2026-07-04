@@ -14,9 +14,12 @@ public record QuestResponse(
         Integer stepsTotal,
         Integer unlockLevel,
         String coverImage,
-        String completionTrigger) {
+        String completionTrigger,
+        Boolean requireOnsiteCheckin) {
 
     public static QuestResponse from(Quest quest) {
+        boolean requireOnsite = Boolean.TRUE.equals(quest.getRequireOnsiteCheckin())
+                || QuestDiscoveryProgress.requiresCheckinStep(quest);
         return new QuestResponse(
                 quest.getId(),
                 quest.getLocationId(),
@@ -27,6 +30,7 @@ public record QuestResponse(
                 QuestDiscoveryProgress.stepsTotal(quest),
                 1,
                 quest.getCoverImage(),
-                quest.getCompletionTrigger());
+                quest.getCompletionTrigger(),
+                requireOnsite);
     }
 }

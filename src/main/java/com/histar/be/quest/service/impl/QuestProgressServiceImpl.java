@@ -130,6 +130,8 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                         >= steps.size();
         boolean hasCheckinAtLocation = quest.getLocationId() != null
                 && checkinRepository.existsByUserIdAndLocationId(userId, quest.getLocationId());
+        boolean requireOnsite = Boolean.TRUE.equals(quest.getRequireOnsiteCheckin())
+                || QuestDiscoveryProgress.requiresCheckinStep(quest);
         return new QuestProgressResponse(
                 quest.getId(),
                 quest.getLocationId(),
@@ -143,6 +145,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                 discoveryStepsComplete,
                 hasCheckinAtLocation,
                 quest.getCompletionTrigger(),
+                requireOnsite,
                 progress != null ? progress.getStartedAt() : null,
                 progress != null ? progress.getCompletedAt() : null);
     }

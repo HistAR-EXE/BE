@@ -161,14 +161,16 @@ class HeritageOnsiteBonusTest {
         assertTrue(onsiteBonusRepository.existsByIdUserIdAndIdLocationId(userId, locationId));
 
         Profile afterFirst = profileRepository.findById(userId).orElseThrow();
-        assertEquals(105, afterFirst.getTotalPoints());
+        // 80 quest + 30 check-in nền (lần đầu) + 25 bonus onsite = 135
+        assertEquals(135, afterFirst.getTotalPoints());
 
         var second = gamificationService.processCheckin(
                 userId, locationId, 10.77, 106.70, "timelens:location:" + locationId);
         assertEquals(0, second.bonusXpAwarded());
 
         Profile afterSecond = profileRepository.findById(userId).orElseThrow();
-        assertEquals(105, afterSecond.getTotalPoints());
+        // Check-in lần 2 không cộng thêm (base chỉ lần đầu, bonus đã trao) → giữ 135
+        assertEquals(135, afterSecond.getTotalPoints());
     }
 
     @Test
@@ -179,7 +181,8 @@ class HeritageOnsiteBonusTest {
         completeDiscoveryQuestOnline();
 
         Profile profile = profileRepository.findById(userId).orElseThrow();
-        assertEquals(105, profile.getTotalPoints());
+        // 30 check-in nền (lần đầu, trước quest) + 80 quest + 25 bonus onsite = 135
+        assertEquals(135, profile.getTotalPoints());
         assertTrue(onsiteBonusRepository.existsByIdUserIdAndIdLocationId(userId, locationId));
     }
 
@@ -190,6 +193,7 @@ class HeritageOnsiteBonusTest {
 
         assertEquals(0, result.bonusXpAwarded());
         assertFalse(onsiteBonusRepository.existsByIdUserIdAndIdLocationId(userId, locationId));
-        assertEquals(0, profileRepository.findById(userId).orElseThrow().getTotalPoints());
+        // Không có bonus onsite nhưng vẫn được +30 check-in nền (lần đầu)
+        assertEquals(30, profileRepository.findById(userId).orElseThrow().getTotalPoints());
     }
 }

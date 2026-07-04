@@ -12,6 +12,7 @@ CREATE TABLE profiles (
     password_hash VARCHAR(255),                 -- null nếu đăng nhập OAuth
     provider      VARCHAR(50)  DEFAULT 'local', -- local / google
     role          VARCHAR(50)  DEFAULT 'USER',
+    tier          VARCHAR(20)  NOT NULL DEFAULT 'FREE',
     display_name  VARCHAR(100),
     avatar_url    TEXT,
     level         INT DEFAULT 1,

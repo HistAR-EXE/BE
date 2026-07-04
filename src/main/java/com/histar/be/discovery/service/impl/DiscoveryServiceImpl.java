@@ -5,6 +5,7 @@ import com.histar.be.config.GamificationProperties;
 import com.histar.be.discovery.bridge.DiscoveryArtifactBridge;
 import com.histar.be.discovery.dto.DiscoveryPointResponse;
 import com.histar.be.discovery.dto.DiscoverySummaryResponse;
+import com.histar.be.discovery.dto.VisitedLocationsResponse;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.entity.UserDiscovery;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
@@ -68,6 +69,13 @@ public class DiscoveryServiceImpl implements DiscoveryService {
                 .max()
                 .orElse(0L);
         return new DiscoverySummaryResponse(userKeys.size(), points.size(), userKeys, version);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VisitedLocationsResponse visitedLocations(UUID userId) {
+        List<UUID> locationIds = userDiscoveryRepository.findDistinctLocationIdsByUserId(userId);
+        return new VisitedLocationsResponse(locationIds, locationIds.size());
     }
 
     @Override

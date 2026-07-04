@@ -20,7 +20,7 @@ public interface UserQuestProgressRepository extends JpaRepository<UserQuestProg
 
     long countByUserIdAndStatus(UUID userId, String status);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             UPDATE UserQuestProgress p
             SET p.status = :completed, p.completedAt = :completedAt

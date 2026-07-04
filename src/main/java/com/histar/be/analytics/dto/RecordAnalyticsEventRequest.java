@@ -8,4 +8,5 @@ public record RecordAnalyticsEventRequest(
         @jakarta.validation.constraints.NotBlank String eventType,
         String eventKey,
         String source,
-        String contentType) {}
+        String contentType,
+        String metadata) {}

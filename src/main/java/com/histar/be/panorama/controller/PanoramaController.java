@@ -7,6 +7,7 @@ import com.histar.be.panorama.service.PanoramaService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,8 +39,9 @@ public class PanoramaController {
         return ApiResponse.ok(PanoramaResponse.from(panoramaService.findById(id)));
     }
 
-    /** CP3 Tuần 3: upload ảnh 360 equirectangular lên MinIO + tạo record DB (JWT). */
+    /** CP3 Tuần 3: upload ảnh 360 equirectangular lên MinIO + tạo record DB (ADMIN). */
     @PostMapping(consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<PanoramaResponse> upload(
             @RequestParam UUID locationId,
             @RequestParam String title,
@@ -48,6 +50,7 @@ public class PanoramaController {
     }
 
     @PutMapping(value = "/{id}/image", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<PanoramaResponse> replaceImage(
             @PathVariable UUID id, @RequestPart("file") MultipartFile file) {
         return ApiResponse.ok(panoramaAppService.replaceImage(id, file));
