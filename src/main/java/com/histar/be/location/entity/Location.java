@@ -51,5 +51,11 @@ public class Location {
     @Column(name = "knowledge_context", columnDefinition = "text")
     private String knowledgeContext;
 
+    @Column(name = "unlock_prerequisite_quest_id")
+    private UUID unlockPrerequisiteQuestId;
+
+    @Column(name = "unlock_narrative", columnDefinition = "text")
+    private String unlockNarrative;
+
     private Instant createdAt;
 }

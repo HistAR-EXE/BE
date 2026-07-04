@@ -92,6 +92,7 @@ class QuestCompletionIdempotencyTest {
         questCompletionService.tryComplete(userId, locationId, CompletionTrigger.DISCOVERY);
 
         Profile profile = profileRepository.findById(userId).orElseThrow();
-        assertEquals(80, profile.getTotalPoints());
+        // 30 check-in nền (setUp, lần đầu) + 80 quest (trao đúng một lần, không nhân đôi)
+        assertEquals(110, profile.getTotalPoints());
     }
 }

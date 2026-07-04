@@ -9,4 +9,8 @@ public record CheckinResultDto(
         List<UUID> questsCompleted,
         List<BadgeEarnedDto> badgesEarned,
         boolean secretUnlocked,
-        int bonusXpAwarded) {}
+        int bonusXpAwarded,
+        int xpEarned,
+        List<UnlockedArtifactDto> newArtifacts,
+        QuestProgressSnapshotDto questProgress,
+        List<com.histar.be.location.dto.LocationResponse> newlyUnlockedLocations) {}

@@ -5,8 +5,13 @@ import com.histar.be.discovery.entity.UserDiscoveryId;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface UserDiscoveryRepository extends JpaRepository<UserDiscovery, UserDiscoveryId> {
+
+    @Query("select distinct ud.locationId from UserDiscovery ud where ud.userId = :userId")
+    List<UUID> findDistinctLocationIdsByUserId(@Param("userId") UUID userId);
 
     List<UserDiscovery> findByUserId(UUID userId);
 

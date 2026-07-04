@@ -10,4 +10,9 @@ public record AdminQuestRequest(
         String description,
         String story,
         Integer pointsReward,
-        Integer requiredOrder) {}
+        Integer requiredOrder,
+        String completionTrigger,
+        Boolean requireOnsiteCheckin,
+        Integer stepsTotal,
+        String coverImage,
+        String stepDiscoveryKeys) {}

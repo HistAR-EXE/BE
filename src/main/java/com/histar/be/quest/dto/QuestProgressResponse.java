@@ -16,5 +16,6 @@ public record QuestProgressResponse(
         boolean discoveryStepsComplete,
         boolean hasCheckinAtLocation,
         String completionTrigger,
+        Boolean requireOnsiteCheckin,
         Instant startedAt,
         Instant completedAt) {}

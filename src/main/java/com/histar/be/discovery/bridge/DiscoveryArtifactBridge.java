@@ -1,6 +1,8 @@
 package com.histar.be.discovery.bridge;
 
 import com.histar.be.artifact.evaluator.ArtifactUnlockEvaluator;
+import com.histar.be.gamification.dto.UnlockedArtifactDto;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,7 +15,7 @@ public class DiscoveryArtifactBridge {
     private final ArtifactUnlockEvaluator artifactUnlockEvaluator;
 
     @Transactional
-    public void unlockLinkedArtifacts(UUID userId, String discoveryUnlockKey) {
-        artifactUnlockEvaluator.evaluateFromDiscovery(userId, discoveryUnlockKey);
+    public List<UnlockedArtifactDto> unlockLinkedArtifacts(UUID userId, String discoveryUnlockKey) {
+        return artifactUnlockEvaluator.evaluateFromDiscovery(userId, discoveryUnlockKey);
     }
 }

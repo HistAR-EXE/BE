@@ -11,6 +11,7 @@ import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
+import com.histar.be.location.service.LocationEraValidationService;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import java.util.List;
@@ -28,6 +29,7 @@ public class AdminContentService {
     private final DiscoveryPointRepository discoveryPointRepository;
     private final ArtifactRepository artifactRepository;
     private final QuestRepository questRepository;
+    private final LocationEraValidationService locationEraValidationService;
 
     public List<AdminDiscoveryPointResponse> listDiscoveryPoints(UUID locationId) {
         List<DiscoveryPoint> points = locationId != null
@@ -113,6 +115,9 @@ public class AdminContentService {
 
     @Transactional
     public AdminQuestResponse createQuest(AdminQuestRequest request) {
+        if (request.locationId() != null) {
+            locationEraValidationService.ensureMinimumThreeEras(request.locationId());
+        }
         Quest saved = questRepository.save(Quest.builder()
                 .locationId(request.locationId())
                 .title(request.title())
@@ -120,6 +125,11 @@ public class AdminContentService {
                 .story(request.story())
                 .pointsReward(request.pointsReward() != null ? request.pointsReward() : 0)
                 .requiredOrder(request.requiredOrder() != null ? request.requiredOrder() : 0)
+                .completionTrigger(request.completionTrigger() != null ? request.completionTrigger() : "discovery")
+                .requireOnsiteCheckin(Boolean.TRUE.equals(request.requireOnsiteCheckin()))
+                .stepsTotal(request.stepsTotal())
+                .coverImage(request.coverImage())
+                .stepDiscoveryKeys(request.stepDiscoveryKeys())
                 .build());
         log.info("admin create quest id={} locationId={}", saved.getId(), saved.getLocationId());
         return AdminQuestResponse.from(saved);
@@ -139,6 +149,21 @@ public class AdminContentService {
         }
         if (request.requiredOrder() != null) {
             quest.setRequiredOrder(request.requiredOrder());
+        }
+        if (request.completionTrigger() != null) {
+            quest.setCompletionTrigger(request.completionTrigger());
+        }
+        if (request.requireOnsiteCheckin() != null) {
+            quest.setRequireOnsiteCheckin(request.requireOnsiteCheckin());
+        }
+        if (request.stepsTotal() != null) {
+            quest.setStepsTotal(request.stepsTotal());
+        }
+        if (request.coverImage() != null) {
+            quest.setCoverImage(request.coverImage());
+        }
+        if (request.stepDiscoveryKeys() != null) {
+            quest.setStepDiscoveryKeys(request.stepDiscoveryKeys());
         }
         return AdminQuestResponse.from(questRepository.save(quest));
     }

@@ -46,4 +46,8 @@ public class Quest {
     /** Comma-separated discovery unlock_keys required before check-in completes quest. */
     @Column(name = "step_discovery_keys", columnDefinition = "text")
     private String stepDiscoveryKeys;
+
+    @Column(name = "require_onsite_checkin", nullable = false)
+    @Builder.Default
+    private Boolean requireOnsiteCheckin = false;
 }

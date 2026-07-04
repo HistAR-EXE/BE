@@ -2,7 +2,8 @@ package com.histar.be.profile.entity;
 
 public enum UserRole {
     USER,
-    ADMIN;
+    ADMIN,
+    TEACHER;
 
     public String authority() {
         return "ROLE_" + name();

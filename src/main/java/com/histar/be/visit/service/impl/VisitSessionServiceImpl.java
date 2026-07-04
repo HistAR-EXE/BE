@@ -177,6 +177,8 @@ public class VisitSessionServiceImpl implements VisitSessionService {
         }
         if (!actives.isEmpty()) {
             visitSessionRepository.saveAll(actives);
+            // Flush closes before insert — otherwise partial unique index can reject new ACTIVE row.
+            visitSessionRepository.flush();
         }
     }
 }

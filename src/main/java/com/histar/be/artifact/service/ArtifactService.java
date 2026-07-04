@@ -2,6 +2,7 @@ package com.histar.be.artifact.service;
 
 import com.histar.be.artifact.dto.ArtifactResponse;
 import com.histar.be.artifact.dto.MyArtifactsResponse;
+import com.histar.be.gamification.dto.UnlockedArtifactDto;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ public interface ArtifactService {
     MyArtifactsResponse findMine(UUID userId, UUID locationId);
 
     boolean unlockByKey(UUID userId, String unlockKey);
+
+    List<UnlockedArtifactDto> unlockByKeyCollecting(UUID userId, String unlockKey);
 
     void unlockOnCheckin(UUID userId, UUID locationId);
 

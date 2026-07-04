@@ -128,7 +128,8 @@ class GamificationFlowTest {
         assertFalse(result.badgesEarned().isEmpty());
 
         Profile updated = profileRepository.findById(userId).orElseThrow();
-        assertEquals(100, updated.getTotalPoints());
+        // +30 check-in nền (lần đầu) + 100 phần thưởng quest = 130
+        assertEquals(130, updated.getTotalPoints());
         assertEquals(2, updated.getLevel());
 
         var progress = userQuestProgressRepository.findByUserIdAndQuestId(userId, questId).orElseThrow();
@@ -168,6 +169,7 @@ class GamificationFlowTest {
         assertTrue(second.questsCompleted().isEmpty());
         assertEquals(0, second.bonusXpAwarded());
 
+        // Check-in lần 2 chỉ ghi nhận lượt thăm, không cộng thêm XP nền
         Profile afterSecond = profileRepository.findById(userId).orElseThrow();
         assertEquals(pointsAfterFirst, afterSecond.getTotalPoints());
     }

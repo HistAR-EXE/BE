@@ -11,6 +11,7 @@ import com.histar.be.chat.dto.ChatHistoryTurn;
 import com.histar.be.chat.dto.ChatMessageRequest;
 import com.histar.be.chat.dto.ChatRequest;
 import com.histar.be.chat.dto.ChatResponse;
+import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.service.ChatService;
@@ -18,6 +19,7 @@ import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.chat.service.PersonaMapper;
 import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.chat.service.RagAiChatClient;
+import com.histar.be.chat.service.RagChatResponse;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.conversation.entity.Conversation;
@@ -26,6 +28,7 @@ import com.histar.be.location.entity.Location;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.message.entity.Message;
 import com.histar.be.message.repository.MessageRepository;
+import java.util.Arrays;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -91,7 +94,7 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build());
 
-        return new ChatResponse(reply, conversation.getId());
+        return new ChatResponse(reply, conversation.getId(), resolveSourcesList(location));
     }
 
     @Override
@@ -146,7 +149,7 @@ public class ChatServiceImpl implements ChatService {
                 .build());
 
         log.info("chat sync userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
-        return new ChatResponse(request.assistantReply(), conversation.getId());
+        return new ChatResponse(request.assistantReply(), conversation.getId(), List.of());
     }
 
     @Override
@@ -182,7 +185,7 @@ public class ChatServiceImpl implements ChatService {
         Map<String, Object> playerContext =
                 playerStoryContextService.build(userId, character.getLocationId());
 
-        String reply = ragAiChatClient.generate(
+        RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
                 request.message(),
                 PersonaMapper.resolvePersonaKey(character.getName()),
                 Collections.emptyMap(),
@@ -194,6 +197,7 @@ public class ChatServiceImpl implements ChatService {
                 artifactsUnlocked,
                 discoveriesCount,
                 playerContext);
+        String reply = ragResponse.reply();
 
         messageRepository.save(Message.builder()
                 .conversationId(conversation.getId())
@@ -207,7 +211,10 @@ public class ChatServiceImpl implements ChatService {
                 userId,
                 request.characterId(),
                 conversation.getId());
-        return new ChatResponse(reply, conversation.getId());
+        List<ChatSource> responseSources = !ragResponse.sources().isEmpty()
+                ? ragResponse.sources()
+                : resolveSourcesList(location);
+        return new ChatResponse(reply, conversation.getId(), responseSources);
     }
 
     @Override
@@ -318,5 +325,22 @@ public class ChatServiceImpl implements ChatService {
         }
         String name = location.getName() != null ? location.getName() : "di tích lịch sử";
         return "Khu di tích lịch sử " + name;
+    }
+
+    private List<ChatSource> resolveSourcesList(Location location) {
+        String sources = resolveCiteSources(location);
+        if (sources == null || sources.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(sources.split("[\\n,;]+"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(this::toChatSource)
+                .toList();
+    }
+
+    private ChatSource toChatSource(String title) {
+        String excerpt = title.length() > 120 ? title.substring(0, 117) + "..." : title;
+        return new ChatSource(title, excerpt, null);
     }
 }

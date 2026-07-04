@@ -16,16 +16,21 @@ import com.histar.be.gamification.dto.BadgeEarnedDto;
 import com.histar.be.gamification.dto.CheckinResultDto;
 import com.histar.be.gamification.dto.HeritageOnsiteBonusResult;
 import com.histar.be.gamification.dto.QuestCompletedDto;
+import com.histar.be.gamification.dto.QuestProgressSnapshotDto;
+import com.histar.be.gamification.dto.UnlockedArtifactDto;
 import com.histar.be.gamification.rules.UnlockRuleEvaluator;
+import com.histar.be.gamification.service.EngagementOutcomeService;
 import com.histar.be.gamification.service.GamificationService;
 import com.histar.be.gamification.service.HeritageOnsiteBonusService;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.service.LocationService;
+import com.histar.be.location.service.LocationUnlockService;
 import com.histar.be.quest.service.QuestProgressCompleter;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
+import com.histar.be.profile.service.ProfilePointsService;
 import com.histar.be.secret.dto.SecretStoryResponse;
 import com.histar.be.secret.entity.UserSecretUnlock;
 import com.histar.be.secret.repository.UserSecretUnlockRepository;
@@ -60,6 +65,9 @@ public class GamificationServiceImpl implements GamificationService {
     private final QuestProgressCompleter questProgressCompleter;
     private final QuestRepository questRepository;
     private final HeritageOnsiteBonusService heritageOnsiteBonusService;
+    private final ProfilePointsService profilePointsService;
+    private final EngagementOutcomeService engagementOutcomeService;
+    private final LocationUnlockService locationUnlockService;
 
     @Override
     @Transactional
@@ -81,7 +89,7 @@ public class GamificationServiceImpl implements GamificationService {
 
         if (payload.type() == QrPayloadType.SECRET) {
             boolean secretUnlocked = tryUnlockSecret(userId, locationId);
-            return new CheckinResultDto(true, distance, List.of(), List.of(), secretUnlocked, 0);
+            return new CheckinResultDto(true, distance, List.of(), List.of(), secretUnlocked, 0, 0, List.of(), null, List.of());
         }
 
         return recordVisitAndMaybeReward(userId, locationId, latitude, longitude, distance);
@@ -125,8 +133,41 @@ public class GamificationServiceImpl implements GamificationService {
             allBadges.addAll(onsiteBonus.get().badgesEarned());
         }
 
+        int checkinXp = firstReward ? profilePointsService.award(userId, ProfilePointsService.XP_CHECKIN) : 0;
+        int xpEarned = checkinXp + bonusXp;
+        List<UnlockedArtifactDto> newArtifacts = collectCheckinArtifacts(userId, locationId, firstReward);
+        QuestProgressSnapshotDto questProgress =
+                engagementOutcomeService.resolveQuestProgress(userId, locationId, "checkin", questsCompleted);
+        var newlyUnlocked = locationUnlockService.resolveNewlyUnlocked(userId, questsCompleted);
+
         List<UUID> questIds = questsCompleted.stream().map(QuestCompletedDto::questId).toList();
-        return new CheckinResultDto(true, distanceMeters, questIds, dedupeBadges(allBadges), false, bonusXp);
+        return new CheckinResultDto(
+                true,
+                distanceMeters,
+                questIds,
+                dedupeBadges(allBadges),
+                false,
+                bonusXp,
+                xpEarned,
+                newArtifacts,
+                questProgress,
+                newlyUnlocked);
+    }
+
+    private List<UnlockedArtifactDto> collectCheckinArtifacts(UUID userId, UUID locationId, boolean firstReward) {
+        if (!firstReward) {
+            return List.of();
+        }
+        java.util.Map<java.util.UUID, UnlockedArtifactDto> collected = new java.util.LinkedHashMap<>();
+        for (String key : List.of(
+                "artifact:cuoc-chim",
+                "artifact:chong-tre",
+                "artifact:nap-ham",
+                "artifact:den-dau",
+                "artifact:khan-ran")) {
+            artifactService.unlockByKeyCollecting(userId, key).forEach(a -> collected.putIfAbsent(a.id(), a));
+        }
+        return List.copyOf(collected.values());
     }
 
     private void applyFirstCheckinUnlocks(UUID userId, UUID locationId) {

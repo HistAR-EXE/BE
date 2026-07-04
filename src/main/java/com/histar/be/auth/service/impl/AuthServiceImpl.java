@@ -12,6 +12,7 @@ import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ConflictException;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
+import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.service.ProfileService;
 import com.histar.be.security.JwtService;
 import java.time.Instant;
@@ -45,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
                 .displayName(request.displayName())
                 .provider("local")
                 .role(UserRole.USER.name())
+                .tier(UserTier.FREE.name())
                 .level(1)
                 .totalPoints(0)
                 .createdAt(Instant.now())
@@ -112,6 +114,7 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getRefreshExpiration() / 1000,
                 profile.getId(),
                 profile.getDisplayName(),
-                role);
+                role,
+                UserTier.fromStored(profile.getTier()).name());
     }
 }

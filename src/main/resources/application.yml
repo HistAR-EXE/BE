@@ -44,7 +44,8 @@ gemini:
 
 gamification:
   checkin-radius-meters: ${GAMIFICATION_CHECKIN_RADIUS_METERS:100}
-  level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,700}
+  level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,600,1000}
+  level-names: ${GAMIFICATION_LEVEL_NAMES:Lữ hành mới,Nhà khám phá,Sử học gia,Người gìn giữ di sản,Huyền thoại lịch sử}
   rules-engine-enabled: ${GAMIFICATION_RULES_ENGINE_ENABLED:false}
 
 visit:

@@ -18,7 +18,8 @@ public interface LocationService {
             Double nearLat,
             Double nearLng,
             Double maxDistanceKm,
-            Pageable pageable);
+            Pageable pageable,
+            UUID userId);
 
     Location findById(UUID id);
 

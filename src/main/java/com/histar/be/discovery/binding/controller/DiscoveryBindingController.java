@@ -26,7 +26,10 @@ public class DiscoveryBindingController {
                         b.getRecordKey(),
                         b.getEngagement(),
                         b.getHrefTemplate(),
-                        b.getSortOrder() != null ? b.getSortOrder() : 0))
+                        b.getSortOrder() != null ? b.getSortOrder() : 0,
+                        b.getArtifactId(),
+                        b.getXpBonus() != null ? b.getXpBonus() : 0,
+                        b.getQuestStepId()))
                 .toList();
         return ApiResponse.ok(items);
     }

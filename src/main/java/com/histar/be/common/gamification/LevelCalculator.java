@@ -4,12 +4,13 @@ import java.util.List;
 
 public final class LevelCalculator {
 
-    private static final List<String> LEVEL_NAMES =
-            List.of("Explorer", "Time Traveler", "History Hunter", "Legend");
-
     private LevelCalculator() {}
 
     public static int levelFromPoints(int totalPoints, int[] thresholds) {
+        return levelFromPoints(totalPoints, thresholds, thresholds.length);
+    }
+
+    public static int levelFromPoints(int totalPoints, int[] thresholds, int maxLevel) {
         int level = 1;
         for (int i = thresholds.length - 1; i >= 0; i--) {
             if (totalPoints >= thresholds[i]) {
@@ -17,18 +18,19 @@ public final class LevelCalculator {
                 break;
             }
         }
-        return Math.min(level, LEVEL_NAMES.size());
+        return Math.min(level, maxLevel);
     }
 
-    public static LevelInfo info(int totalPoints, int[] thresholds) {
-        int level = levelFromPoints(totalPoints, thresholds);
-        String levelName = LEVEL_NAMES.get(level - 1);
+    public static LevelInfo info(int totalPoints, int[] thresholds, List<String> levelNames) {
+        int maxLevel = Math.min(thresholds.length, levelNames.size());
+        int level = levelFromPoints(totalPoints, thresholds, maxLevel);
+        String levelName = levelNames.get(Math.min(level - 1, levelNames.size() - 1));
         int currentThreshold = thresholds[level - 1];
         int nextThreshold = level < thresholds.length ? thresholds[level] : thresholds[thresholds.length - 1];
-        int pointsToNext = level < thresholds.length ? Math.max(0, nextThreshold - totalPoints) : 0;
+        int pointsToNext = level < maxLevel ? Math.max(0, nextThreshold - totalPoints) : 0;
         int span = nextThreshold - currentThreshold;
         int progress = span > 0 ? (int) Math.min(100, ((totalPoints - currentThreshold) * 100L) / span) : 100;
-        if (level >= thresholds.length) {
+        if (level >= maxLevel) {
             progress = 100;
             pointsToNext = 0;
         }
