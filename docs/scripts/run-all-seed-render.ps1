@@ -3,15 +3,14 @@
 #
 # Yêu cầu: Docker (khuyến nghị) hoặc psql cài sẵn trên máy.
 #
-# Ví dụ (DB Render mới, chưa có bảng):
+# Windows chặn .ps1? Dùng file .cmd (không cần ExecutionPolicy):
 #   cd BE
-#   .\docs\scripts\run-all-seed-render.ps1 `
-#     -PgHost "dpg-d9517c71k1mc73c1u8sg-a.singapore-postgres.render.com" `
-#     -Password "YOUR_PASSWORD" `
-#     -IncludeSchema
+#   docs\scripts\run-all-seed-render.cmd -IncludeSchema
 #
-# Ví dụ (DB đã có schema, chỉ chạy migration/seed):
-#   .\docs\scripts\run-all-seed-render.ps1 -PgHost "..." -Password "..."
+# Hoặc Bypass trực tiếp:
+#   powershell -ExecutionPolicy Bypass -File .\docs\scripts\run-all-seed-render.ps1 `
+#     -PgHost "dpg-d9517c7lk1mc73c1u8sg-a.singapore-postgres.render.com" `
+#     -Password "YOUR_PASSWORD" -IncludeSchema
 
 param(
   [Parameter(Mandatory = $true)]
