@@ -1,4 +1,4 @@
-package com.histar.be.organization.entity;
+package com.histar.be.group.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,27 +15,24 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "organizations")
+@Table(name = "study_group_members")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Organization {
+public class StudyGroupMember {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    private String slug;
-    private String name;
-    private String plan;
+    @Column(name = "group_id", nullable = false)
+    private UUID groupId;
 
-    @Column(name = "invite_code")
-    private String inviteCode;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(name = "invite_code_expires_at")
-    private Instant inviteCodeExpiresAt;
-
-    private Instant createdAt;
+    @Column(name = "joined_at", nullable = false)
+    private Instant joinedAt;
 }

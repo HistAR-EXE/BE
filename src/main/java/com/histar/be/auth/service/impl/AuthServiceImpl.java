@@ -10,6 +10,7 @@ import com.histar.be.auth.repository.RefreshTokenRepository;
 import com.histar.be.auth.service.AuthService;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ConflictException;
+import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
@@ -47,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
                 .provider("local")
                 .role(UserRole.USER.name())
                 .tier(UserTier.FREE.name())
+                .orgSubscription(OrgSubscription.NONE.name())
                 .level(1)
                 .totalPoints(0)
                 .createdAt(Instant.now())
@@ -97,7 +99,9 @@ public class AuthServiceImpl implements AuthService {
 
     private AuthResponse issueTokens(Profile profile) {
         String role = UserRole.fromStored(profile.getRole()).name();
-        String accessToken = jwtService.generateAccessToken(profile.getId(), profile.getEmail(), role);
+        String orgSub = OrgSubscription.fromStored(profile.getOrgSubscription()).name();
+        String accessToken = jwtService.generateAccessToken(
+                profile.getId(), profile.getEmail(), role, profile.getOrgId(), orgSub);
         String refreshToken = jwtService.generateRefreshToken(profile.getEmail());
         refreshTokenRepository.save(RefreshToken.builder()
                 .userId(profile.getId())
@@ -115,6 +119,8 @@ public class AuthServiceImpl implements AuthService {
                 profile.getId(),
                 profile.getDisplayName(),
                 role,
-                UserTier.fromStored(profile.getTier()).name());
+                UserTier.fromStored(profile.getTier()).name(),
+                profile.getOrgId(),
+                orgSub);
     }
 }

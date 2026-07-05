@@ -2,6 +2,7 @@ package com.histar.be.leaderboard.service.impl;
 
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.ViralProperties;
+import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.leaderboard.dto.LeaderboardEntryResponse;
 import com.histar.be.leaderboard.dto.LeaderboardResponse;
 import com.histar.be.leaderboard.service.LeaderboardService;
@@ -24,12 +25,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeaderboardServiceImpl implements LeaderboardService {
 
     private final ProfileRepository profileRepository;
+    private final StudyGroupMemberRepository studyGroupMemberRepository;
     private final ViralProperties viralProperties;
     private final Map<String, CachedLeaderboard> cache = new ConcurrentHashMap<>();
 
     @Override
     @Transactional(readOnly = true)
-    public LeaderboardResponse getLeaderboard(String scope, String city, UUID currentUserId) {
+    public LeaderboardResponse getLeaderboard(String scope, String city, UUID currentUserId, UUID groupId) {
+        if (groupId != null) {
+            return getGroupLeaderboard(groupId, currentUserId);
+        }
         String normalizedScope = scope == null ? "all" : scope.toLowerCase();
         if (!normalizedScope.equals("all") && !normalizedScope.equals("city") && !normalizedScope.equals("week")) {
             throw new BusinessRuleException("scope phải là all, city hoặc week");
@@ -64,6 +69,32 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         LeaderboardResponse response = new LeaderboardResponse(normalizedScope, city, entries);
         cache.put(cacheKey, new CachedLeaderboard(response, now));
         return applyCurrentUserHighlight(response, currentUserId);
+    }
+
+    private LeaderboardResponse getGroupLeaderboard(UUID groupId, UUID currentUserId) {
+        List<UUID> memberIds = studyGroupMemberRepository.findByGroupId(groupId).stream()
+                .map(m -> m.getUserId())
+                .toList();
+        if (memberIds.isEmpty()) {
+            return new LeaderboardResponse("group", null, List.of());
+        }
+        List<Profile> profiles = profileRepository.findAllById(memberIds).stream()
+                .filter(p -> p.getTotalPoints() != null)
+                .sorted((a, b) -> Integer.compare(b.getTotalPoints(), a.getTotalPoints()))
+                .limit(viralProperties.getLeaderboardLimit())
+                .toList();
+        List<LeaderboardEntryResponse> entries = new ArrayList<>();
+        int rank = 1;
+        for (Profile profile : profiles) {
+            entries.add(new LeaderboardEntryResponse(
+                    rank++,
+                    profile.getId(),
+                    profile.getDisplayName() == null ? "Explorer" : profile.getDisplayName(),
+                    profile.getAvatarUrl(),
+                    profile.getTotalPoints(),
+                    false));
+        }
+        return applyCurrentUserHighlight(new LeaderboardResponse("group", null, entries), currentUserId);
     }
 
     private List<Profile> loadProfiles(String scope, String city) {

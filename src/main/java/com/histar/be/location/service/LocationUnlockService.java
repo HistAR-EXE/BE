@@ -5,6 +5,7 @@ import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.location.dto.LocationResponse;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
+import com.histar.be.profile.service.ProfileAccessPolicy;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +19,12 @@ public class LocationUnlockService {
 
     private final LocationRepository locationRepository;
     private final UserQuestProgressRepository userQuestProgressRepository;
+    private final ProfileAccessPolicy profileAccessPolicy;
 
     public boolean isUnlocked(UUID userId, Location location) {
+        if (userId != null && profileAccessPolicy.previewsAllGamificationContent(userId)) {
+            return true;
+        }
         if (location.getUnlockPrerequisiteQuestId() == null) {
             return true;
         }

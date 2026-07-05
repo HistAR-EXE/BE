@@ -87,7 +87,10 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     @Override
     @Transactional
     public boolean record(UUID userId, String unlockKey, UUID locationId) {
-        DiscoveryPoint point = resolvePoint(unlockKey, locationId);
+        DiscoveryPoint point = resolvePoint(userId, unlockKey, locationId);
+        if (point == null) {
+            return false;
+        }
         UUID resolvedLocationId = point.getLocationId();
         if (userDiscoveryRepository.existsByUserIdAndLocationIdAndDiscoveryKey(
                 userId, resolvedLocationId, unlockKey)) {
@@ -102,13 +105,23 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         return true;
     }
 
-    private DiscoveryPoint resolvePoint(String unlockKey, UUID locationId) {
+    private DiscoveryPoint resolvePoint(UUID userId, String unlockKey, UUID locationId) {
         if (locationId == null) {
+            if (userId != null && profileAccessPolicy.previewsAllGamificationContent(userId)) {
+                log.debug("Admin preview skip discovery without locationId: {}", unlockKey);
+                return null;
+            }
             throw new BusinessRuleException("locationId bắt buộc khi ghi discovery: " + unlockKey);
         }
         return discoveryPointRepository
                 .findByUnlockKeyAndLocationId(unlockKey, locationId)
-                .orElseThrow(() -> new BusinessRuleException("unlock_key không hợp lệ tại địa điểm: " + unlockKey));
+                .orElseGet(() -> {
+                    if (userId != null && profileAccessPolicy.previewsAllGamificationContent(userId)) {
+                        log.debug("Admin preview skip unknown discovery key {} at {}", unlockKey, locationId);
+                        return null;
+                    }
+                    throw new BusinessRuleException("unlock_key không hợp lệ tại địa điểm: " + unlockKey);
+                });
     }
 
     @Override

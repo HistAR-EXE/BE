@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.histar.be.config.ViralProperties;
+import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.leaderboard.service.impl.LeaderboardServiceImpl;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
@@ -24,6 +25,9 @@ class LeaderboardServiceTest {
     @Mock
     private ProfileRepository profileRepository;
 
+    @Mock
+    private StudyGroupMemberRepository studyGroupMemberRepository;
+
     private LeaderboardServiceImpl leaderboardService;
 
     @BeforeEach
@@ -31,7 +35,7 @@ class LeaderboardServiceTest {
         ViralProperties props = new ViralProperties();
         props.setLeaderboardLimit(10);
         props.setLeaderboardCacheSeconds(60);
-        leaderboardService = new LeaderboardServiceImpl(profileRepository, props);
+        leaderboardService = new LeaderboardServiceImpl(profileRepository, studyGroupMemberRepository, props);
     }
 
     @Test
@@ -42,7 +46,7 @@ class LeaderboardServiceTest {
                         Profile.builder().id(user1).displayName("A").totalPoints(500).build(),
                         Profile.builder().id(UUID.randomUUID()).displayName("B").totalPoints(100).build()));
 
-        var result = leaderboardService.getLeaderboard("all", null, user1);
+        var result = leaderboardService.getLeaderboard("all", null, user1, null);
         assertEquals(2, result.entries().size());
         assertEquals(1, result.entries().get(0).rank());
         assertEquals(true, result.entries().get(0).currentUser());

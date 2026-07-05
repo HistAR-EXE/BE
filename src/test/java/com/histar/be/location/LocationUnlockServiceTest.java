@@ -10,6 +10,7 @@ import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.userquestprogress.entity.UserQuestProgress;
+import com.histar.be.profile.service.ProfileAccessPolicy;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,9 @@ class LocationUnlockServiceTest {
     @Mock
     private UserQuestProgressRepository userQuestProgressRepository;
 
+    @Mock
+    private ProfileAccessPolicy profileAccessPolicy;
+
     @InjectMocks
     private LocationUnlockService locationUnlockService;
 
@@ -36,6 +40,19 @@ class LocationUnlockServiceTest {
     void isUnlocked_returnsTrueWhenNoPrerequisite() {
         Location loc = Location.builder().id(UUID.randomUUID()).name("Open").build();
         assertThat(locationUnlockService.isUnlocked(UUID.randomUUID(), loc)).isTrue();
+    }
+
+    @Test
+    void isUnlocked_returnsTrueForAdminEvenWhenPrerequisiteNotCompleted() {
+        UUID userId = UUID.randomUUID();
+        UUID questId = UUID.randomUUID();
+        Location loc = Location.builder()
+                .id(UUID.randomUUID())
+                .name("Locked")
+                .unlockPrerequisiteQuestId(questId)
+                .build();
+        when(profileAccessPolicy.previewsAllGamificationContent(userId)).thenReturn(true);
+        assertThat(locationUnlockService.isUnlocked(userId, loc)).isTrue();
     }
 
     @Test

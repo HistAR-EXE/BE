@@ -5,5 +5,5 @@ import java.util.UUID;
 
 public interface LeaderboardService {
 
-    LeaderboardResponse getLeaderboard(String scope, String city, UUID currentUserId);
+    LeaderboardResponse getLeaderboard(String scope, String city, UUID currentUserId, UUID groupId);
 }

@@ -11,4 +11,6 @@ public record AuthResponse(
         UUID userId,
         String displayName,
         String role,
-        String tier) {}
+        String tier,
+        UUID orgId,
+        String orgSubscription) {}

@@ -2,20 +2,20 @@ package com.histar.be.profile.controller;
 
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
-import com.histar.be.config.GamificationProperties;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.dto.UpdateProfileRequest;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserTier;
+import com.histar.be.profile.service.ProfileMeService;
 import com.histar.be.profile.service.ProfileService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,16 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final ProfileMeService profileMeService;
     private final CurrentUserAccessor currentUserAccessor;
-    private final GamificationProperties gamificationProperties;
 
     @GetMapping("/me")
     public ApiResponse<ProfileMeResponse> me() {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        return ApiResponse.ok(
-                ProfileMeResponse.from(profileService.findById(userId), gamificationProperties));
+        return ApiResponse.ok(profileMeService.build(profileService.findById(userId)));
     }
 
     @PatchMapping("/me")
@@ -52,7 +51,7 @@ public class ProfileController {
             profile.setCity(request.city().trim());
         }
         Profile saved = profileService.save(profile);
-        return ApiResponse.ok(ProfileMeResponse.from(saved, gamificationProperties));
+        return ApiResponse.ok(profileMeService.build(saved));
     }
 
     @PostMapping("/upgrade")
@@ -63,6 +62,6 @@ public class ProfileController {
         Profile profile = profileService.findById(userId);
         profile.setTier(UserTier.PREMIUM.name());
         Profile saved = profileService.save(profile);
-        return ApiResponse.ok(ProfileMeResponse.from(saved, gamificationProperties));
+        return ApiResponse.ok(profileMeService.build(saved));
     }
 }

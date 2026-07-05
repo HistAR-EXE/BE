@@ -2,6 +2,7 @@ package com.histar.be.profile.entity;
 
 public enum UserRole {
     USER,
+    ORG_MEMBER,
     ADMIN,
     TEACHER;
 

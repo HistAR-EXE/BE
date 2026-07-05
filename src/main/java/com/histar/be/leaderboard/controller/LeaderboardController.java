@@ -23,8 +23,9 @@ public class LeaderboardController {
     @GetMapping
     public ApiResponse<LeaderboardResponse> leaderboard(
             @RequestParam(defaultValue = "all") String scope,
-            @RequestParam(required = false) String city) {
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) UUID groupId) {
         Optional<UUID> userId = currentUserAccessor.getUserId();
-        return ApiResponse.ok(leaderboardService.getLeaderboard(scope, city, userId.orElse(null)));
+        return ApiResponse.ok(leaderboardService.getLeaderboard(scope, city, userId.orElse(null), groupId));
     }
 }

@@ -1,4 +1,4 @@
-package com.histar.be.profile.entity;
+package com.histar.be.group.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,39 +15,29 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "profiles")
+@Table(name = "study_groups")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Profile {
+public class StudyGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(unique = true, nullable = false)
-    private String email;
+    private String name;
 
-    private String passwordHash;
-    private String provider;
-    private String role;
-    private String tier;
-    private String displayName;
+    @Column(unique = true, nullable = false, length = 6)
+    private String code;
 
-    @Column(columnDefinition = "text")
-    private String avatarUrl;
+    @Column(name = "created_by", nullable = false)
+    private UUID createdBy;
 
-    private Integer level;
-    private Integer totalPoints;
-    private String city;
-
-    @Column(name = "org_id")
-    private UUID orgId;
-
-    @Column(name = "org_subscription")
-    private String orgSubscription;
-
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
 }

@@ -54,7 +54,11 @@ $sqlFiles += @(
   "docs\database\2026-06-29_cu_chi_panorama_jpg_ext.sql",
   "docs\database\2026-06-30_cu_chi_supplementary_assets.sql",
   "docs\database\2026-07-01_cu_chi_real_panoramas.sql",
-  "docs\database\2026-07-04_location_unlock.sql"
+  "docs\database\2026-07-04_location_unlock.sql",
+  "docs\database\2026-07-04_profile_tier.sql",
+  "docs\database\2026-07-04_org_members_seed.sql",
+  "docs\database\2026-07-05_ensure_admin_accounts.sql",
+  "docs\database\2026-07-06_org_rbac_and_groups.sql"
 )
 
 foreach ($rel in $sqlFiles) {

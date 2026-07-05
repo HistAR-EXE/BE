@@ -202,7 +202,7 @@ class GoldenPathSmokeTest {
         var share = userCreationAppService.recordShare(register.userId(), upload.id());
         assertEquals(viralProperties.getShareBonusPoints(), share.bonusPointsAwarded());
 
-        var leaderboard = leaderboardService.getLeaderboard("all", null, register.userId());
+        var leaderboard = leaderboardService.getLeaderboard("all", null, register.userId(), null);
         assertFalse(leaderboard.entries().isEmpty());
         assertTrue(leaderboard.entries().stream().anyMatch(e -> register.userId().equals(e.userId())));
 

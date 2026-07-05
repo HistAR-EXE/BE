@@ -72,6 +72,16 @@ viral:
   leaderboard-limit: ${VIRAL_LEADERBOARD_LIMIT:50}
   leaderboard-cache-seconds: ${VIRAL_LEADERBOARD_CACHE_SECONDS:60}
 
+histar:
+  org:
+    invite-ttl-days: 90
+  group:
+    code-ttl-days: 30
+    max-groups-per-user: 20
+  tier:
+    free-chat-daily-limit: 10
+    free-photo-frame-ids: classic,heritage
+
 server:
   port: 8080
 

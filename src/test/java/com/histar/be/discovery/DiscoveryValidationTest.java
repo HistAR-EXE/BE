@@ -74,4 +74,19 @@ class DiscoveryValidationTest {
         assertTrue(discoveryService.record(userId, VALID_KEY, locationId));
         assertFalse(discoveryService.record(userId, VALID_KEY, locationId));
     }
+
+    @Test
+    void record_adminPreview_skipsUnknownKeyWithoutThrow() {
+        Profile admin = profileRepository.save(Profile.builder()
+                .email("discovery-admin@test.local")
+                .passwordHash("hash")
+                .displayName("Admin")
+                .provider("local")
+                .role("ADMIN")
+                .level(1)
+                .totalPoints(0)
+                .createdAt(Instant.now())
+                .build());
+        assertFalse(discoveryService.record(admin.getId(), "era:1968", locationId));
+    }
 }

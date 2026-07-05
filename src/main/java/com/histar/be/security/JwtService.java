@@ -31,8 +31,13 @@ public class JwtService {
         return generateToken(email, null, null, expiration);
     }
 
+    public String generateAccessToken(UUID userId, String email, String role, UUID orgId, String orgSubscription) {
+        return generateToken(email, userId, role, orgId, orgSubscription, expiration);
+    }
+
+    /** @deprecated use {@link #generateAccessToken(UUID, String, String, UUID, String)} */
     public String generateAccessToken(UUID userId, String email, String role) {
-        return generateToken(email, userId, role, expiration);
+        return generateAccessToken(userId, email, role, null, null);
     }
 
     public String generateRefreshToken(String email) {
@@ -53,7 +58,8 @@ public class JwtService {
         return refreshExpiration;
     }
 
-    private String generateToken(String email, UUID userId, String role, long ttlMillis) {
+    private String generateToken(
+            String email, UUID userId, String role, UUID orgId, String orgSubscription, long ttlMillis) {
         var builder = Jwts.builder()
                 .subject(email)
                 .issuedAt(new Date())
@@ -64,7 +70,17 @@ public class JwtService {
         if (role != null && !role.isBlank()) {
             builder.claim("role", role);
         }
+        if (orgId != null) {
+            builder.claim("orgId", orgId.toString());
+        }
+        if (orgSubscription != null && !orgSubscription.isBlank()) {
+            builder.claim("orgSubscription", orgSubscription);
+        }
         return builder.signWith(key()).compact();
+    }
+
+    private String generateToken(String email, UUID userId, String role, long ttlMillis) {
+        return generateToken(email, userId, role, null, null, ttlMillis);
     }
 
     private Claims parseClaims(String token) {
