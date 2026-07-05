@@ -55,6 +55,8 @@ $sqlFiles += @(
   "docs\database\2026-06-30_cu_chi_supplementary_assets.sql",
   "docs\database\2026-07-01_cu_chi_real_panoramas.sql",
   "docs\database\2026-07-04_location_unlock.sql",
+  "docs\database\2026-07-04_discovery_bindings_enrich.sql",
+  "docs\database\2026-07-04_quest_onsite_flag.sql",
   "docs\database\2026-07-04_profile_tier.sql",
   "docs\database\2026-07-04_org_members_seed.sql",
   "docs\database\2026-07-05_ensure_admin_accounts.sql",

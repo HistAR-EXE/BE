@@ -34,6 +34,8 @@ build/
 
 ### Environment ###
 .env
+.env.production
+.env.prod
 
 ### Docx / extract temp (không commit) ###
 _docx_extract/
