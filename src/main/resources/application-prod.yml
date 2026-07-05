@@ -6,14 +6,14 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/timelens}
     username: ${DB_USER:timelens}
     password: ${DB_PASSWORD:}
+    hikari:
+      connection-timeout: 60000
+      maximum-pool-size: 5
   jpa:
     hibernate:
       # Không auto-migrate — chạy SQL seed thủ công trên Postgres Render trước deploy
       ddl-auto: validate
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 server:
   port: ${PORT:8080}

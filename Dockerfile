@@ -10,6 +10,8 @@ FROM eclipse-temurin:17-jre-alpine
 RUN apk add --no-cache curl
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 ENV PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java -jar -Dserver.port=${PORT} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} app.jar"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
