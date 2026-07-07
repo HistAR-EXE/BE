@@ -35,4 +35,7 @@ public class VisitSession {
     private Instant lastActivityAt;
     private String endedReason;
     private UUID checkinId;
+    private String personaGoal;
+    private String sessionDuration;
+    private String aiTone;
 }

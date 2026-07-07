@@ -1,11 +1,16 @@
 package com.histar.be.visit.service;
 
+import com.histar.be.visit.dto.StartVisitSessionRequest;
 import com.histar.be.visit.entity.EndReason;
 import java.util.UUID;
 
 public interface VisitSessionService {
 
-    UUID startSession(UUID userId, UUID locationId, String mode);
+    UUID startSessionWithPersonalization(UUID userId, StartVisitSessionRequest request);
+
+    default UUID startSession(UUID userId, UUID locationId, String mode) {
+        return startSessionWithPersonalization(userId, new StartVisitSessionRequest(locationId, mode, "study", "30", "heritage"));
+    }
 
     void endSession(UUID userId, UUID sessionId);
 

@@ -30,7 +30,7 @@ public class VisitSessionController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        UUID id = visitSessionService.startSession(userId, request.locationId(), request.mode());
+        UUID id = visitSessionService.startSessionWithPersonalization(userId, request);
         return ApiResponse.ok(new VisitSessionResponse(id, request.locationId(), request.mode()));
     }
 

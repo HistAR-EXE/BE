@@ -3,6 +3,7 @@ package com.histar.be.visit.service.impl;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
 import com.histar.be.location.service.LocationService;
+import com.histar.be.visit.dto.StartVisitSessionRequest;
 import com.histar.be.visit.entity.EndReason;
 import com.histar.be.visit.entity.VisitSession;
 import com.histar.be.visit.entity.VisitSessionEvent;
@@ -29,32 +30,37 @@ public class VisitSessionServiceImpl implements VisitSessionService {
     private final DiscoveryPointRepository discoveryPointRepository;
     private final LocationService locationService;
 
-    @Override
     @Transactional
-    public UUID startSession(UUID userId, UUID locationId, String mode) {
-        String finalMode = mode != null ? mode : "online";
+    public UUID startSessionWithPersonalization(UUID userId, StartVisitSessionRequest request) {
+        String finalMode = request.mode() != null ? request.mode() : "online";
+        String goal = request.personaGoal() != null ? request.personaGoal() : "study";
+        String tone = request.aiTone() != null ? request.aiTone() : "heritage";
+        String duration = request.sessionDuration() != null ? request.sessionDuration() : "30";
 
-        // KIỂM TRA: Nếu đã có session đang ACTIVE thì tái sử dụng, tránh tạo đúp do React Strict Mode
         Optional<VisitSession> existingSession = visitSessionRepository
                 .findFirstByUserIdAndLocationIdAndStatusAndEndedAtIsNullOrderByStartedAtDesc(
-                        userId, locationId, STATUS_ACTIVE);
+                        userId, request.locationId(), STATUS_ACTIVE);
 
         if (existingSession.isPresent()) {
             VisitSession session = existingSession.get();
             session.setLastActivityAt(Instant.now());
             session.setMode(finalMode);
+            session.setPersonaGoal(goal);
+            session.setSessionDuration(duration);
+            session.setAiTone(tone);
             return visitSessionRepository.save(session).getId();
         }
 
-        // Nếu chưa có thì mới tạo mới
-        Instant now = Instant.now();
         VisitSession newSession = VisitSession.builder()
                 .userId(userId)
-                .locationId(locationId)
+                .locationId(request.locationId())
                 .mode(finalMode)
+                .personaGoal(goal)
+                .sessionDuration(duration)
+                .aiTone(tone)
                 .status(STATUS_ACTIVE)
-                .startedAt(now)
-                .lastActivityAt(now)
+                .startedAt(Instant.now())
+                .lastActivityAt(Instant.now())
                 .build();
         return visitSessionRepository.save(newSession).getId();
     }
