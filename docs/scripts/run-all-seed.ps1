@@ -9,6 +9,11 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
+$schemaFiles = @(
+  "docs\database\TimeLens_DB_Schema.sql",
+  "docs\database\2026-06-02_fe_compat_migration.sql"
+)
+
 if (-not (docker ps --format "{{.Names}}" | Select-String -SimpleMatch $Container)) {
   $fallback = docker ps --filter "name=histar-postgres" --format "{{.Names}}" | Select-Object -First 1
   if ($fallback) { $Container = $fallback }
@@ -19,10 +24,41 @@ Write-Host "Container: $Container"
 Write-Host "Database: $DbName"
 
 $sqlFiles = @()
-if ($IncludeSchema) {
-  $sqlFiles += "docs\database\TimeLens_DB_Schema.sql"
-  $sqlFiles += "docs\database\2026-06-02_fe_compat_migration.sql"
+$runSchema = $false
+
+function Invoke-PsqlCommand([string]$Sql) {
+  $output = docker exec $Container psql -U $DbUser -d $DbName -tAc $Sql 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "psql query failed: $Sql`n$output"
+  }
+  return [string]$output
 }
+
+function Test-DatabaseHasSchema {
+  $exists = (Invoke-PsqlCommand "SELECT to_regclass('public.profiles') IS NOT NULL;").Trim()
+  return $exists -match '^(t|true|1)$'
+}
+
+if ($IncludeSchema) {
+  if (Test-DatabaseHasSchema) {
+    Write-Host "[WARN] DB da co schema (bang profiles ton tai)." -ForegroundColor Yellow
+    Write-Host "       Bo qua TimeLens_DB_Schema + fe_compat_migration; chi chay upgrade/migration."
+    Write-Host "       DB trong moi: dung reset-and-seed-render.ps1 de DROP SCHEMA truoc."
+  }
+  else {
+    $runSchema = $true
+    $sqlFiles += $schemaFiles
+  }
+}
+else {
+  Write-Host "Mode: upgrade only (khong tao schema tu dau)."
+  Write-Host "Tip: DB trong moi: dung -IncludeSchema de tạo schema từ đầu."
+}
+
+# Chạy sau Flyway để đảm bảo cột billing/email đã có
+$postSeedFiles = @(
+  "docs\database\2026-07-10_demo_billing_accounts.sql"
+)
 
 $coreSqlFiles = @(
   "docs\database\2026-06-02_fe_compat_indexes_seed.sql",
@@ -71,7 +107,7 @@ function Get-RelativeSqlPath([string]$FullPath) {
 function Get-ExtraDocsSqlFiles {
   $docsDir = Join-Path $root "docs\database"
   $known = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-  foreach ($item in ($sqlFiles + $coreSqlFiles)) {
+  foreach ($item in ($schemaFiles + $sqlFiles + $coreSqlFiles + $postSeedFiles)) {
     [void]$known.Add($item)
   }
 
@@ -101,7 +137,10 @@ function Get-FlywaySqlFiles {
 $sqlFiles += $coreSqlFiles
 $sqlFiles += Get-ExtraDocsSqlFiles
 $sqlFiles += Get-FlywaySqlFiles
+$sqlFiles += $postSeedFiles
 $sqlFiles = $sqlFiles | Select-Object -Unique
+
+Write-Host "Files: $($sqlFiles.Count)$(if ($runSchema) { ' (gom schema)' } else { ' (upgrade)' })"
 
 foreach ($rel in $sqlFiles) {
   $path = Join-Path $root $rel

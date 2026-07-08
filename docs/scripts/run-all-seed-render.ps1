@@ -34,6 +34,10 @@ $schemaFiles = @(
   "docs\database\2026-06-02_fe_compat_migration.sql"
 )
 
+$postSeedFiles = @(
+  "docs\database\2026-07-10_demo_billing_accounts.sql"
+)
+
 $coreSqlFiles = @(
   "docs\database\2026-06-02_fe_compat_indexes_seed.sql",
   "docs\database\2026-06-02_fe_compat_data_topup.sql",
@@ -175,10 +179,11 @@ if ($IncludeSchema) {
   Write-Host "Tip: DB trong tren Render moi can -IncludeSchema."
 }
 
-$knownFiles = @($schemaFiles + $coreSqlFiles)
+$knownFiles = @($schemaFiles + $coreSqlFiles + $postSeedFiles)
 $sqlFiles += $coreSqlFiles
 $sqlFiles += Get-ExtraDocsSqlFiles -KnownFiles $knownFiles
 $sqlFiles += Get-FlywaySqlFiles
+$sqlFiles += $postSeedFiles
 $sqlFiles = $sqlFiles | Select-Object -Unique
 
 Write-Host "Files: $($sqlFiles.Count)$(if ($runSchema) { ' (gom schema)' } else { ' (upgrade)' })"
