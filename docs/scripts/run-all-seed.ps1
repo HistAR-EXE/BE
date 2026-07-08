@@ -57,7 +57,8 @@ else {
 
 # Chạy sau Flyway để đảm bảo cột billing/email đã có
 $postSeedFiles = @(
-  "docs\database\2026-07-10_demo_billing_accounts.sql"
+  "docs\database\2026-07-10_demo_billing_accounts.sql",
+  "docs\database\2026-07-10_flyway_baseline_after_manual_seed.sql"
 )
 
 $coreSqlFiles = @(
