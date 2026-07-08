@@ -38,6 +38,8 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS:true}
 
 server:
+  # Render requires binding 0.0.0.0 — https://render.com/docs/web-services#port-binding
+  address: 0.0.0.0
   port: ${PORT:8080}
   forward-headers-strategy: framework
 
@@ -45,6 +47,10 @@ logging:
   level:
     root: INFO
     com.histar.be: INFO
+    org.springframework.boot.web: DEBUG
+    org.hibernate: INFO
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.beans.factory: INFO
 
 payment:
   sepay:

@@ -52,6 +52,7 @@ DB_HOST="$(echo "$DB_URL" | sed -E 's|^jdbc:postgresql://([^/@]+@)?([^:/]+).*|\2
 echo "[INFO] Database host: ${DB_HOST}"
 
 exec java -jar \
+  -Dserver.address=0.0.0.0 \
   -Dserver.port="${PORT:-8080}" \
   -Dspring.profiles.active="${SPRING_PROFILES_ACTIVE:-prod}" \
   app.jar
