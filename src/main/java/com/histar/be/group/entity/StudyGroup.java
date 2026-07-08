@@ -40,4 +40,14 @@ public class StudyGroup {
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
+
+    @Column(name = "org_id")
+    private UUID orgId;
+
+    @Column(name = "quest_id")
+    private UUID questId;
+
+    @Column(name = "team_mode", length = 24)
+    @Builder.Default
+    private String teamMode = "QUEST";
 }

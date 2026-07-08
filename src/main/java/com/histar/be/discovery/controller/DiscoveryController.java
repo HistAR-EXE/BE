@@ -18,6 +18,7 @@ import com.histar.be.profile.service.ProfilePointsService;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.visit.service.VisitSessionService;
+import com.histar.be.organization.service.TrialEntitlementGuard;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -46,6 +47,7 @@ public class DiscoveryController {
     private final ProfilePointsService profilePointsService;
     private final EngagementOutcomeService engagementOutcomeService;
     private final LocationUnlockService locationUnlockService;
+    private final TrialEntitlementGuard trialEntitlementGuard;
 
     @GetMapping("/discovery-points/by-location/{locationId}")
     public ApiResponse<List<DiscoveryPointResponse>> points(@PathVariable UUID locationId) {
@@ -73,6 +75,7 @@ public class DiscoveryController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        trialEntitlementGuard.assertStudentCanWrite(userId);
         UUID locationId = request.locationId();
         boolean recorded = discoveryService.record(userId, request.unlockKey(), locationId);
         List<UnlockedArtifactDto> newArtifacts = discoveryArtifactBridge.unlockLinkedArtifacts(userId, request.unlockKey());

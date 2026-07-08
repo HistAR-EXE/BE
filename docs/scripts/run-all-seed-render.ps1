@@ -29,14 +29,12 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
-$sqlFiles = @()
-if ($IncludeSchema) {
-  $sqlFiles += @(
-    "docs\database\TimeLens_DB_Schema.sql",
-    "docs\database\2026-06-02_fe_compat_migration.sql"
-  )
-}
-$sqlFiles += @(
+$schemaFiles = @(
+  "docs\database\TimeLens_DB_Schema.sql",
+  "docs\database\2026-06-02_fe_compat_migration.sql"
+)
+
+$coreSqlFiles = @(
   "docs\database\2026-06-02_fe_compat_indexes_seed.sql",
   "docs\database\2026-06-02_fe_compat_data_topup.sql",
   "docs\database\2026-week3_update_panoramas_cu_chi.sql",
@@ -76,6 +74,62 @@ $sqlFiles += @(
   "docs\database\2026-07-06_org_rbac_and_groups.sql"
 )
 
+function Get-RelativeSqlPath([string]$FullPath) {
+  return $FullPath.Substring($root.Length + 1).Replace('/', '\')
+}
+
+function Get-ExtraDocsSqlFiles {
+  param([string[]]$KnownFiles)
+
+  $docsDir = Join-Path $root "docs\database"
+  $known = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($item in $KnownFiles) {
+    [void]$known.Add($item)
+  }
+
+  Get-ChildItem -Path $docsDir -Filter *.sql -File |
+    Sort-Object Name |
+    ForEach-Object {
+      $rel = Get-RelativeSqlPath $_.FullName
+      if (-not $known.Contains($rel)) {
+        $rel
+      }
+    }
+}
+
+function Get-FlywaySqlFiles {
+  $migrationDir = Join-Path $root "src\main\resources\db\migration"
+  if (-not (Test-Path $migrationDir)) {
+    return @()
+  }
+
+  Get-ChildItem -Path $migrationDir -Filter *.sql -File |
+    Sort-Object {
+      if ($_.BaseName -match '^V(\d+)__') { [int]$matches[1] } else { 999999 }
+    }, Name |
+    ForEach-Object { Get-RelativeSqlPath $_.FullName }
+}
+
+function Invoke-PsqlCommand {
+  param([string]$Sql)
+
+  if ($UseLocalPsql -or (Get-Command psql -ErrorAction SilentlyContinue)) {
+    $env:PGPASSWORD = $Password
+    $env:PGSSLMODE = "require"
+    $output = psql -h $PgHost -p $Port -U $DbUser -d $DbName -tAc $Sql 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "psql query failed: $Sql`n$output" }
+    return [string]$output
+  }
+
+  $output = docker run --rm `
+    -e "PGPASSWORD=$Password" `
+    -e "PGSSLMODE=require" `
+    postgres:16-alpine `
+    psql -h $PgHost -p $Port -U $DbUser -d $DbName -tAc $Sql 2>&1
+  if ($LASTEXITCODE -ne 0) { throw "docker psql query failed: $Sql`n$output" }
+  return ([string]$output).Trim()
+}
+
 function Invoke-PsqlFile {
   param([string]$FilePath)
 
@@ -98,11 +152,36 @@ function Invoke-PsqlFile {
   if ($LASTEXITCODE -ne 0) { throw "docker psql failed: $FilePath" }
 }
 
-Write-Host "Target: ${DbUser}@${PgHost}:${Port}/${DbName} (Render external, SSL)"
-Write-Host "Files: $($sqlFiles.Count)"
-if (-not $IncludeSchema) {
-  Write-Host "Tip: DB moi tren Render can -IncludeSchema (schema + compat truoc)."
+function Test-DatabaseHasSchema {
+  $exists = (Invoke-PsqlCommand "SELECT to_regclass('public.profiles') IS NOT NULL;").Trim()
+  return $exists -match '^(t|true|1)$'
 }
+
+Write-Host "Target: ${DbUser}@${PgHost}:${Port}/${DbName} (Render external, SSL)"
+
+$sqlFiles = @()
+$runSchema = $false
+if ($IncludeSchema) {
+  if (Test-DatabaseHasSchema) {
+    Write-Host "[WARN] DB da co schema (bang profiles ton tai)." -ForegroundColor Yellow
+    Write-Host "       Bo qua TimeLens_DB_Schema + fe_compat_migration; chi chay upgrade/migration."
+    Write-Host "       DB trong moi: dung reset-and-seed-render.ps1 de DROP SCHEMA truoc."
+  } else {
+    $runSchema = $true
+    $sqlFiles += $schemaFiles
+  }
+} else {
+  Write-Host "Mode: upgrade only (khong tao schema tu dau)."
+  Write-Host "Tip: DB trong tren Render moi can -IncludeSchema."
+}
+
+$knownFiles = @($schemaFiles + $coreSqlFiles)
+$sqlFiles += $coreSqlFiles
+$sqlFiles += Get-ExtraDocsSqlFiles -KnownFiles $knownFiles
+$sqlFiles += Get-FlywaySqlFiles
+$sqlFiles = $sqlFiles | Select-Object -Unique
+
+Write-Host "Files: $($sqlFiles.Count)$(if ($runSchema) { ' (gom schema)' } else { ' (upgrade)' })"
 
 foreach ($rel in $sqlFiles) {
   $path = Join-Path $root $rel

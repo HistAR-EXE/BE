@@ -2,10 +2,10 @@ package com.histar.be.profile.controller;
 
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
+import com.histar.be.billing.service.BillingService;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.dto.UpdateProfileRequest;
 import com.histar.be.profile.entity.Profile;
-import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.service.ProfileMeService;
 import com.histar.be.profile.service.ProfileService;
 import jakarta.validation.Valid;
@@ -25,6 +25,7 @@ public class ProfileController {
 
     private final ProfileService profileService;
     private final ProfileMeService profileMeService;
+    private final BillingService billingService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @GetMapping("/me")
@@ -59,9 +60,6 @@ public class ProfileController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        Profile profile = profileService.findById(userId);
-        profile.setTier(UserTier.PREMIUM.name());
-        Profile saved = profileService.save(profile);
-        return ApiResponse.ok(profileMeService.build(saved));
+        return ApiResponse.ok(billingService.subscribeB2c(userId, "DEMO"));
     }
 }

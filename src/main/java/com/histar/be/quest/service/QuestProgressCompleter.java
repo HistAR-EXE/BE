@@ -47,6 +47,7 @@ public class QuestProgressCompleter {
     private final CheckinRepository checkinRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final HeritageOnsiteBonusService heritageOnsiteBonusService;
+    private final com.histar.be.lms.service.LmsAssignmentService lmsAssignmentService;
 
     @Transactional
     public Optional<QuestCompletedDto> completeIfInProgress(UUID userId, UUID questId) {
@@ -83,6 +84,7 @@ public class QuestProgressCompleter {
                     .map(HeritageOnsiteBonusResult::badgesEarned)
                     .ifPresent(badges::addAll);
         }
+        lmsAssignmentService.autoGradeOnQuestCompletion(userId, questId);
         return Optional.of(new QuestCompletedDto(questId, reward, dedupeBadges(badges)));
     }
 

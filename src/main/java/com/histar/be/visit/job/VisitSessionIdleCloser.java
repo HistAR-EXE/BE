@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,7 @@ public class VisitSessionIdleCloser {
     private final VisitSessionProperties visitSessionProperties;
 
     @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "visitSessionIdleCloser", lockAtMostFor = "PT4M", lockAtLeastFor = "PT1M")
     public void closeIdleSessions() {
         Instant cutoff = Instant.now().minus(visitSessionProperties.getIdleTimeoutMinutes(), ChronoUnit.MINUTES);
         int closed = visitSessionService.closeIdleSessions(cutoff);

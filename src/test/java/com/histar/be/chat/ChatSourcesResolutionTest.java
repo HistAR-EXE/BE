@@ -20,6 +20,7 @@ import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
+import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.time.Instant;
 import java.util.List;
@@ -73,6 +74,9 @@ class ChatSourcesResolutionTest {
                 .displayName("Chat Source Tester")
                 .provider("local")
                 .role(UserRole.USER.name())
+                .tier(UserTier.PREMIUM.name())
+                .emailVerified(true)
+                .emailVerifiedAt(Instant.now())
                 .level(1)
                 .totalPoints(0)
                 .createdAt(Instant.now())

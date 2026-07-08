@@ -21,6 +21,9 @@ public class TierAccessService {
         if (profile == null) {
             return false;
         }
+        if (profile.getOrgId() != null) {
+            return true;
+        }
         UserRole role = UserRole.fromStored(profile.getRole());
         if (role == UserRole.ADMIN || role == UserRole.TEACHER) {
             return true;

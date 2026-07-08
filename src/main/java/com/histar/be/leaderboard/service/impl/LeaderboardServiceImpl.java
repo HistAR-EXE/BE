@@ -1,5 +1,6 @@
 package com.histar.be.leaderboard.service.impl;
 
+import com.histar.be.billing.service.UsageQuotaService;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.ViralProperties;
 import com.histar.be.group.repository.StudyGroupMemberRepository;
@@ -27,6 +28,7 @@ public class LeaderboardServiceImpl implements LeaderboardService {
     private final ProfileRepository profileRepository;
     private final StudyGroupMemberRepository studyGroupMemberRepository;
     private final ViralProperties viralProperties;
+    private final UsageQuotaService usageQuotaService;
     private final Map<String, CachedLeaderboard> cache = new ConcurrentHashMap<>();
 
     @Override
@@ -41,6 +43,12 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         }
         if (normalizedScope.equals("city") && (city == null || city.isBlank())) {
             throw new BusinessRuleException("scope=city cần tham số city");
+        }
+        if (normalizedScope.equals("all")
+                && currentUserId != null
+                && !usageQuotaService.hasPremiumEntitlement(currentUserId)
+                && !hasArchivedOrgReadAccess(currentUserId)) {
+            throw new BusinessRuleException("Bảng xếp hạng toàn cộng đồng chỉ dành cho Premium hoặc thành viên tổ chức B2B.");
         }
 
         String cacheKey = normalizedScope + "|" + (city == null ? "" : city);
@@ -109,6 +117,12 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         return "week".equals(scope)
                 ? profileRepository.findLeaderboardSince(cityParam, weekStart, page)
                 : profileRepository.findLeaderboard(cityParam, page);
+    }
+
+    private boolean hasArchivedOrgReadAccess(UUID currentUserId) {
+        return profileRepository.findById(currentUserId)
+                .map(profile -> profile.getOrgId() != null)
+                .orElse(false);
     }
 
     private LeaderboardResponse applyCurrentUserHighlight(LeaderboardResponse source, UUID currentUserId) {

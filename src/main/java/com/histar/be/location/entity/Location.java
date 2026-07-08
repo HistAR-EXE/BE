@@ -36,6 +36,12 @@ public class Location {
     private Double longitude;
     private String city;
 
+    @Column(name = "formatted_address", columnDefinition = "text")
+    private String formattedAddress;
+
+    @Column(name = "google_maps_url", columnDefinition = "text")
+    private String googleMapsUrl;
+
     @Column(columnDefinition = "text")
     private String coverImage;
 

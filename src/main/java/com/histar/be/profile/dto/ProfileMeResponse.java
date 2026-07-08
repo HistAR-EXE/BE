@@ -24,7 +24,8 @@ public record ProfileMeResponse(
         Integer totalPoints,
         Integer pointsToNextLevel,
         Integer levelProgressPercent,
-        String city) {
+        String city,
+        boolean emailVerified) {
 
     public static ProfileMeResponse from(
             Profile profile,
@@ -56,6 +57,7 @@ public record ProfileMeResponse(
                 points,
                 levelInfo.pointsToNextLevel(),
                 levelInfo.levelProgressPercent(),
-                profile.getCity());
+                profile.getCity(),
+                Boolean.TRUE.equals(profile.getEmailVerified()));
     }
 }

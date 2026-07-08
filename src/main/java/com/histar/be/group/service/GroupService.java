@@ -1,9 +1,11 @@
 package com.histar.be.group.service;
 
+import com.histar.be.billing.service.MultiplayerAccessService;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.HistarOrgProperties;
+import com.histar.be.group.dto.AssignGroupQuestRequest;
 import com.histar.be.group.dto.CreateGroupRequest;
 import com.histar.be.group.dto.GroupDetailResponse;
 import com.histar.be.group.dto.GroupMemberQuestProgressResponse;
@@ -31,12 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class GroupService {
 
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -48,9 +51,44 @@ public class GroupService {
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final QuestRepository questRepository;
     private final HistarOrgProperties histarOrgProperties;
+    private final MultiplayerAccessService multiplayerAccessService;
 
-    @Transactional
+    private final GroupService self;
+
+    public GroupService(
+            StudyGroupRepository studyGroupRepository,
+            StudyGroupMemberRepository studyGroupMemberRepository,
+            ProfileRepository profileRepository,
+            UserQuestProgressRepository userQuestProgressRepository,
+            QuestRepository questRepository,
+            HistarOrgProperties histarOrgProperties,
+            MultiplayerAccessService multiplayerAccessService,
+            @Lazy GroupService self) {
+        this.studyGroupRepository = studyGroupRepository;
+        this.studyGroupMemberRepository = studyGroupMemberRepository;
+        this.profileRepository = profileRepository;
+        this.userQuestProgressRepository = userQuestProgressRepository;
+        this.questRepository = questRepository;
+        this.histarOrgProperties = histarOrgProperties;
+        this.multiplayerAccessService = multiplayerAccessService;
+        this.self = self;
+    }
+
     public GroupSummaryResponse createGroup(UUID userId, CreateGroupRequest request) {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            try {
+                return self.createGroupOnce(userId, request);
+            } catch (DataIntegrityViolationException ex) {
+                // Isolated TX rolled back — retry with a new code in a fresh transaction.
+            }
+        }
+        throw new BusinessRuleException("Không thể tạo mã nhóm, vui lòng thử lại");
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public GroupSummaryResponse createGroupOnce(UUID userId, CreateGroupRequest request) {
+        multiplayerAccessService.assertMultiplayerAccess(userId);
+        Profile profile = profileRepository.findById(userId).orElseThrow(() -> new AuthException("Unauthorized"));
         String code = generateUniqueCode(6);
         Instant now = Instant.now();
         StudyGroup group = StudyGroup.builder()
@@ -59,6 +97,8 @@ public class GroupService {
                 .createdBy(userId)
                 .createdAt(now)
                 .expiresAt(now.plus(histarOrgProperties.getGroup().getCodeTtlDays(), ChronoUnit.DAYS))
+                .orgId(profile.getOrgId())
+                .teamMode("QUEST")
                 .build();
         studyGroupRepository.save(group);
         joinInternal(group, userId);
@@ -67,6 +107,7 @@ public class GroupService {
 
     @Transactional
     public GroupSummaryResponse joinGroup(UUID userId, String codeRaw) {
+        multiplayerAccessService.assertMultiplayerAccess(userId);
         String code = codeRaw == null ? "" : codeRaw.trim().toUpperCase();
         if (code.length() != 6) {
             throw new BusinessRuleException("Mã nhóm phải có 6 ký tự");
@@ -158,6 +199,30 @@ public class GroupService {
         return new GroupProgressResponse(quests);
     }
 
+    @Transactional
+    public GroupSummaryResponse assignQuest(UUID userId, UUID groupId, AssignGroupQuestRequest request) {
+        multiplayerAccessService.assertMultiplayerAccess(userId);
+        StudyGroup group = studyGroupRepository
+                .findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
+        if (!group.getCreatedBy().equals(userId)) {
+            throw new BusinessRuleException("Chỉ người tạo nhóm mới gán quest");
+        }
+        if (!questRepository.existsById(request.questId())) {
+            throw new ResourceNotFoundException("Quest not found");
+        }
+        group.setQuestId(request.questId());
+        group.setTeamMode("QUEST");
+        studyGroupRepository.save(group);
+        int count = studyGroupMemberRepository.findByGroupId(groupId).size();
+        return toSummary(group, count);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canUseMultiplayer(UUID userId) {
+        return multiplayerAccessService.hasMultiplayerAccess(userId);
+    }
+
     private void joinInternal(StudyGroup group, UUID userId) {
         studyGroupMemberRepository.save(StudyGroupMember.builder()
                 .groupId(group.getId())
@@ -173,7 +238,8 @@ public class GroupService {
     }
 
     private GroupSummaryResponse toSummary(StudyGroup group, int memberCount) {
-        return new GroupSummaryResponse(group.getId(), group.getName(), group.getCode(), group.getExpiresAt(), memberCount);
+        return new GroupSummaryResponse(
+                group.getId(), group.getName(), group.getCode(), group.getExpiresAt(), memberCount, group.getOrgId(), group.getQuestId());
     }
 
     private List<GroupMemberResponse> buildMemberResponses(List<StudyGroupMember> members) {

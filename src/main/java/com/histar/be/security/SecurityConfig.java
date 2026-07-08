@@ -29,6 +29,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final TestHookSecurityFilter testHookSecurityFilter;
     private final CustomUserDetailsService userDetailsService;
     private final SecurityExceptionHandlers securityExceptionHandlers;
 
@@ -42,11 +43,20 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/locations/*/secret-story")
                         .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/billing/org/plans", "/api/billing/public-pricing")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/panoramas/**")
                         .permitAll()
                         .requestMatchers(
                                 "/api/health/**",
-                                "/api/auth/**",
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/google",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/api/auth/verify-email/confirm",
+                                "/api/billing/webhooks/sepay",
+                                "/api/test/**",
                                 "/api/locations/**",
                                 "/api/characters/**",
                                 "/api/photo-pairs/**",
@@ -67,6 +77,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(securityExceptionHandlers))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(testHookSecurityFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

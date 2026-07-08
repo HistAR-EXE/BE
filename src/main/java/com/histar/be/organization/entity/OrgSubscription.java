@@ -2,7 +2,12 @@ package com.histar.be.organization.entity;
 
 public enum OrgSubscription {
     NONE,
+    MICRO,
+    STANDARD,
+    PREMIUM,
+    /** @deprecated use MICRO */
     ORG_BASIC,
+    /** @deprecated use STANDARD */
     ORG_PRO;
 
     public static OrgSubscription fromStored(String value) {
@@ -21,10 +26,23 @@ public enum OrgSubscription {
             return NONE;
         }
         return switch (plan.trim().toLowerCase()) {
-            case "org_basic", "basic" -> ORG_BASIC;
-            case "org_pro", "pro" -> ORG_PRO;
-            case "trial" -> ORG_BASIC;
+            case "org_basic", "basic", "micro" -> MICRO;
+            case "org_pro", "pro", "standard" -> STANDARD;
+            case "premium" -> PREMIUM;
+            case "trial" -> MICRO;
             default -> NONE;
+        };
+    }
+
+    public static OrgSubscription fromPlanType(String planType) {
+        if (planType == null || planType.isBlank()) {
+            return NONE;
+        }
+        return switch (planType.trim().toUpperCase()) {
+            case "MICRO" -> MICRO;
+            case "STANDARD" -> STANDARD;
+            case "PREMIUM" -> PREMIUM;
+            default -> fromOrgPlan(planType);
         };
     }
 }

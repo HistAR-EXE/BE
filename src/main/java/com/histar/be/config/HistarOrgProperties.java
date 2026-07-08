@@ -18,7 +18,7 @@ public class HistarOrgProperties {
     @Getter
     @Setter
     public static class Org {
-        private int inviteTtlDays = 90;
+        private int inviteTtlDays = 7;
     }
 
     @Getter

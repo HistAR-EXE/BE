@@ -49,5 +49,15 @@ public class Profile {
     @Column(name = "org_subscription")
     private String orgSubscription;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    @Column(name = "firebase_uid", length = 128)
+    private String firebaseUid;
+
     private Instant createdAt;
 }

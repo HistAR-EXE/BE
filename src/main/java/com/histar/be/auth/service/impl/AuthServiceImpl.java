@@ -8,6 +8,10 @@ import com.histar.be.auth.dto.RegisterRequest;
 import com.histar.be.auth.entity.RefreshToken;
 import com.histar.be.auth.repository.RefreshTokenRepository;
 import com.histar.be.auth.service.AuthService;
+import com.histar.be.auth.service.EmailVerificationService;
+import com.histar.be.auth.dto.GoogleLoginRequest;
+import com.histar.be.auth.service.FirebaseAuthService;
+import com.histar.be.auth.service.FirebaseAuthService.VerifiedGoogleUser;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ConflictException;
 import com.histar.be.organization.entity.OrgSubscription;
@@ -34,6 +38,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailVerificationService emailVerificationService;
+    private final FirebaseAuthService firebaseAuthService;
 
     @Override
     @Transactional
@@ -54,7 +60,8 @@ public class AuthServiceImpl implements AuthService {
                 .createdAt(Instant.now())
                 .build();
         profileService.save(profile);
-        return issueTokens(profile);
+        String debugToken = emailVerificationService.sendVerificationEmail(profile.getId());
+        return issueTokens(profile, debugToken);
     }
 
     @Override
@@ -66,6 +73,56 @@ public class AuthServiceImpl implements AuthService {
                 .findByEmail(request.email())
                 .orElseThrow(() -> new IllegalStateException("User not found after authentication"));
         return issueTokens(profile);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse googleLogin(GoogleLoginRequest request) {
+        VerifiedGoogleUser googleUser = firebaseAuthService.verifyIdToken(request.idToken());
+        Profile profile = profileService
+                .findByEmail(googleUser.email())
+                .map(existing -> linkGoogleAccount(existing, googleUser))
+                .orElseGet(() -> createGoogleProfile(googleUser));
+        return issueTokens(profile);
+    }
+
+    private Profile createGoogleProfile(VerifiedGoogleUser googleUser) {
+        String displayName = googleUser.name() != null && !googleUser.name().isBlank()
+                ? googleUser.name()
+                : googleUser.email().split("@")[0];
+        Profile profile = Profile.builder()
+                .email(googleUser.email())
+                .passwordHash(null)
+                .provider("google")
+                .firebaseUid(googleUser.uid())
+                .displayName(displayName)
+                .avatarUrl(googleUser.picture())
+                .role(UserRole.USER.name())
+                .tier(UserTier.FREE.name())
+                .orgSubscription(OrgSubscription.NONE.name())
+                .emailVerified(true)
+                .emailVerifiedAt(Instant.now())
+                .level(1)
+                .totalPoints(0)
+                .createdAt(Instant.now())
+                .build();
+        return profileService.save(profile);
+    }
+
+    private Profile linkGoogleAccount(Profile profile, VerifiedGoogleUser googleUser) {
+        if ("google".equals(profile.getProvider())) {
+            profile.setFirebaseUid(googleUser.uid());
+        } else if (profile.getProvider() == null || "local".equals(profile.getProvider())) {
+            profile.setFirebaseUid(googleUser.uid());
+            if (!Boolean.TRUE.equals(profile.getEmailVerified())) {
+                profile.setEmailVerified(true);
+                profile.setEmailVerifiedAt(Instant.now());
+            }
+        }
+        if (googleUser.picture() != null && !googleUser.picture().isBlank()) {
+            profile.setAvatarUrl(googleUser.picture());
+        }
+        return profileService.save(profile);
     }
 
     @Override
@@ -98,6 +155,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthResponse issueTokens(Profile profile) {
+        return issueTokens(profile, null);
+    }
+
+    private AuthResponse issueTokens(Profile profile, String debugVerificationToken) {
         String role = UserRole.fromStored(profile.getRole()).name();
         String orgSub = OrgSubscription.fromStored(profile.getOrgSubscription()).name();
         String accessToken = jwtService.generateAccessToken(
@@ -121,6 +182,8 @@ public class AuthServiceImpl implements AuthService {
                 role,
                 UserTier.fromStored(profile.getTier()).name(),
                 profile.getOrgId(),
-                orgSub);
+                orgSub,
+                Boolean.TRUE.equals(profile.getEmailVerified()),
+                debugVerificationToken);
     }
 }

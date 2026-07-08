@@ -5,6 +5,11 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/timelens}
     username: ${DB_USER:timelens}
     password: ${DB_PASSWORD:timelens_secret}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,6 +21,17 @@ spring:
     multipart:
       max-file-size: 8MB
       max-request-size: 10MB
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
 
 jwt:
   secret: ${JWT_SECRET:change-me-to-at-least-32-characters-long}
@@ -56,6 +72,20 @@ demo:
   enabled: ${DEMO_ENABLED:false}
   secret: ${DEMO_SECRET:}
 
+payment:
+  sepay:
+    enabled: ${SEPAY_ENABLED:false}
+    bank-code: ${SEPAY_BANK_CODE:}
+    account-number: ${SEPAY_ACCOUNT_NUMBER:}
+    account-name: ${SEPAY_ACCOUNT_NAME:}
+    webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    qr-base-url: ${SEPAY_QR_BASE_URL:https://vietqr.app/img}
+    qr-template: ${SEPAY_QR_TEMPLATE:compact}
+    qr-show-info: ${SEPAY_QR_SHOW_INFO:true}
+    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:49000}
+    order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:15}
+    max-timestamp-skew-seconds: ${SEPAY_MAX_TIMESTAMP_SKEW_SECONDS:300}
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
@@ -73,14 +103,27 @@ viral:
   leaderboard-cache-seconds: ${VIRAL_LEADERBOARD_CACHE_SECONDS:60}
 
 histar:
+  app:
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    from: ${MAIL_FROM:noreply@histar.vn}
+    verification-ttl-hours: 24
+    resend-cooldown-seconds: 60
+  firebase:
+    enabled: ${FIREBASE_ENABLED:false}
+    service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}
   org:
-    invite-ttl-days: 90
+    invite-ttl-days: 7
   group:
     code-ttl-days: 30
     max-groups-per-user: 20
   tier:
     free-chat-daily-limit: 10
     free-photo-frame-ids: classic,heritage
+  test-hooks:
+    enabled: ${HISTAR_TEST_HOOKS_ENABLED:false}
+    secret: ${HISTAR_TEST_HOOKS_SECRET:}
 
 server:
   port: 8080

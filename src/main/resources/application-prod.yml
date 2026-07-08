@@ -2,10 +2,20 @@
 # Biến môi trường: xem BE/.env.production.example — paste vào Render Dashboard → Environment
 
 spring:
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/timelens}
     username: ${DB_USER:timelens}
     password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:5}
+      minimum-idle: 1
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
   jpa:
     hibernate:
       ddl-auto: validate
@@ -13,6 +23,19 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
 
 server:
   port: ${PORT:8080}
@@ -22,6 +45,20 @@ logging:
   level:
     root: INFO
     com.histar.be: INFO
+
+payment:
+  sepay:
+    enabled: ${SEPAY_ENABLED:false}
+    bank-code: ${SEPAY_BANK_CODE:}
+    account-number: ${SEPAY_ACCOUNT_NUMBER:}
+    account-name: ${SEPAY_ACCOUNT_NAME:}
+    webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    qr-base-url: ${SEPAY_QR_BASE_URL:https://vietqr.app/img}
+    qr-template: ${SEPAY_QR_TEMPLATE:compact}
+    qr-show-info: ${SEPAY_QR_SHOW_INFO:true}
+    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:49000}
+    order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:15}
+    max-timestamp-skew-seconds: ${SEPAY_MAX_TIMESTAMP_SKEW_SECONDS:300}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:https://fe-lake-five.vercel.app}
@@ -43,3 +80,13 @@ minio:
   access-key: ${MINIO_ROOT_USER:}
   secret-key: ${MINIO_ROOT_PASSWORD:}
   bucket: ${MINIO_BUCKET_NAME:timelens-media}
+
+histar:
+  app:
+    frontend-url: ${FRONTEND_URL:https://fe-lake-five.vercel.app}
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    from: ${MAIL_FROM:}
+  firebase:
+    enabled: ${FIREBASE_ENABLED:true}
+    service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}

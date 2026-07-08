@@ -13,6 +13,7 @@ import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestProgressService;
 import com.histar.be.quest.service.QuestService;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
+import com.histar.be.organization.service.TrialEntitlementGuard;
 import com.histar.be.userquestprogress.entity.UserQuestProgress;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.repository.VisitSessionRepository;
@@ -37,6 +38,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     private final AnalyticsEventService analyticsEventService;
     private final VisitSessionRepository visitSessionRepository;
     private final CheckinRepository checkinRepository;
+    private final TrialEntitlementGuard trialEntitlementGuard;
 
     @Override
     public Page<QuestResponse> listByLocation(UUID locationId, Pageable pageable) {
@@ -59,6 +61,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     @Override
     @Transactional
     public QuestProgressResponse startQuest(UUID userId, UUID questId) {
+        trialEntitlementGuard.assertStudentCanWrite(userId);
         Quest quest = questService.findById(questId);
         UserQuestProgress progress = userQuestProgressRepository
                 .findByUserIdAndQuestId(userId, questId)

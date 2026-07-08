@@ -21,6 +21,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBaseException(BaseException ex) {
         HttpStatus status = mapStatus(ex.getErrorCode());
+        if (ex instanceof QuotaExceededException quotaEx) {
+            return ResponseEntity.status(status)
+                    .body(ErrorResponse.ofQuota(
+                            ex.getErrorCode(),
+                            ex.getMessage(),
+                            quotaEx.getUpgradeUrl(),
+                            quotaEx.getQuotaType(),
+                            quotaEx.getUpgradePackage()));
+        }
         return ResponseEntity.status(status).body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
     }
 
@@ -80,6 +89,17 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.UNAUTHORIZED, "Email hoặc mật khẩu không đúng"));
     }
 
+    @ExceptionHandler(CcuLimitException.class)
+    public ResponseEntity<ErrorResponse> handleCcuLimit(CcuLimitException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.builder()
+                        .code("CCU_LIMIT_EXCEEDED")
+                        .message(ex.getMessage())
+                        .type("ORG_CCU")
+                        .timestamp(Instant.now())
+                        .build());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -94,6 +114,10 @@ public class GlobalExceptionHandler {
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case VALIDATION_ERROR -> HttpStatus.UNPROCESSABLE_ENTITY;
             case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case EMAIL_NOT_VERIFIED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case LMS_PREMIUM_REQUIRED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case QUOTA_EXCEEDED -> HttpStatus.FORBIDDEN;
+            case TRIAL_EXPIRED -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

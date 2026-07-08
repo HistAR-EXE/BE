@@ -54,6 +54,17 @@ public class GroupController {
         return ApiResponse.ok(groupService.getProgress(requireUser(), groupId));
     }
 
+    @PostMapping("/{groupId}/assign-quest")
+    public ApiResponse<GroupSummaryResponse> assignQuest(
+            @PathVariable UUID groupId, @RequestBody @Valid com.histar.be.group.dto.AssignGroupQuestRequest request) {
+        return ApiResponse.ok(groupService.assignQuest(requireUser(), groupId, request));
+    }
+
+    @GetMapping("/multiplayer-access")
+    public ApiResponse<Boolean> multiplayerAccess() {
+        return ApiResponse.ok(groupService.canUseMultiplayer(requireUser()));
+    }
+
     private UUID requireUser() {
         return currentUserAccessor
                 .getUserId()

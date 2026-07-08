@@ -13,4 +13,6 @@ public record AuthResponse(
         String role,
         String tier,
         UUID orgId,
-        String orgSubscription) {}
+        String orgSubscription,
+        boolean emailVerified,
+        String debugVerificationToken) {}

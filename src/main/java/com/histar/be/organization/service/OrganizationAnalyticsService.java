@@ -1,6 +1,7 @@
 package com.histar.be.organization.service;
 
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.organization.dto.OrgQuestProgressItem;
 import com.histar.be.organization.dto.OrgRosterMemberResponse;
 import com.histar.be.organization.dto.OrganizationAnalyticsResponse;
 import com.histar.be.organization.entity.Organization;
@@ -9,6 +10,9 @@ import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.quest.entity.Quest;
+import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.userquestprogress.entity.UserQuestProgress;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
 import java.util.List;
 import java.util.UUID;
@@ -20,11 +24,13 @@ import org.springframework.stereotype.Service;
 public class OrganizationAnalyticsService {
 
     private static final UUID CU_CHI_HERITAGE_QUEST_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID CU_CHI_LOCATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final ProfileRepository profileRepository;
     private final UserQuestProgressRepository userQuestProgressRepository;
+    private final QuestRepository questRepository;
 
     public OrganizationAnalyticsResponse analytics(UUID orgId) {
         Organization org = organizationRepository
@@ -91,7 +97,39 @@ public class OrganizationAnalyticsService {
                 member.getOrgRole(),
                 level,
                 points,
-                completed);
+                completed,
+                buildQuestProgress(member.getUserId()));
+    }
+
+    private List<OrgQuestProgressItem> buildQuestProgress(UUID userId) {
+        List<Quest> quests = questRepository.findByLocationId(CU_CHI_LOCATION_ID);
+        if (quests.isEmpty()) {
+            return List.of(new OrgQuestProgressItem(
+                    CU_CHI_HERITAGE_QUEST_ID, "Hành trình Di sản Củ Chi", completionPct(userId, CU_CHI_HERITAGE_QUEST_ID, null)));
+        }
+        return quests.stream()
+                .map(quest -> new OrgQuestProgressItem(
+                        quest.getId(),
+                        quest.getTitle() != null ? quest.getTitle() : "Quest",
+                        completionPct(userId, quest.getId(), quest)))
+                .toList();
+    }
+
+    private int completionPct(UUID userId, UUID questId, Quest quest) {
+        UserQuestProgress progress = userQuestProgressRepository.findByUserIdAndQuestId(userId, questId).orElse(null);
+        if (progress == null) {
+            return 0;
+        }
+        if ("completed".equalsIgnoreCase(progress.getStatus())) {
+            return 100;
+        }
+        int total = progress.getStepsTotal() != null && progress.getStepsTotal() > 0
+                ? progress.getStepsTotal()
+                : quest != null && quest.getStepsTotal() != null && quest.getStepsTotal() > 0
+                        ? quest.getStepsTotal()
+                        : 1;
+        int current = progress.getCurrentStep() != null ? progress.getCurrentStep() : 0;
+        return Math.min(99, (int) Math.round((current * 100.0) / total));
     }
 
     private static double roundPct(long numerator, long denominator) {

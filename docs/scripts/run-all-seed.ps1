@@ -23,7 +23,8 @@ if ($IncludeSchema) {
   $sqlFiles += "docs\database\TimeLens_DB_Schema.sql"
   $sqlFiles += "docs\database\2026-06-02_fe_compat_migration.sql"
 }
-$sqlFiles += @(
+
+$coreSqlFiles = @(
   "docs\database\2026-06-02_fe_compat_indexes_seed.sql",
   "docs\database\2026-06-02_fe_compat_data_topup.sql",
   "docs\database\2026-week3_update_panoramas_cu_chi.sql",
@@ -62,6 +63,45 @@ $sqlFiles += @(
   "docs\database\2026-07-05_ensure_admin_accounts.sql",
   "docs\database\2026-07-06_org_rbac_and_groups.sql"
 )
+
+function Get-RelativeSqlPath([string]$FullPath) {
+  return $FullPath.Substring($root.Length + 1).Replace('/', '\')
+}
+
+function Get-ExtraDocsSqlFiles {
+  $docsDir = Join-Path $root "docs\database"
+  $known = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($item in ($sqlFiles + $coreSqlFiles)) {
+    [void]$known.Add($item)
+  }
+
+  Get-ChildItem -Path $docsDir -Filter *.sql -File |
+    Sort-Object Name |
+    ForEach-Object {
+      $rel = Get-RelativeSqlPath $_.FullName
+      if (-not $known.Contains($rel)) {
+        $rel
+      }
+    }
+}
+
+function Get-FlywaySqlFiles {
+  $migrationDir = Join-Path $root "src\main\resources\db\migration"
+  if (-not (Test-Path $migrationDir)) {
+    return @()
+  }
+
+  Get-ChildItem -Path $migrationDir -Filter *.sql -File |
+    Sort-Object {
+      if ($_.BaseName -match '^V(\d+)__') { [int]$matches[1] } else { 999999 }
+    }, Name |
+    ForEach-Object { Get-RelativeSqlPath $_.FullName }
+}
+
+$sqlFiles += $coreSqlFiles
+$sqlFiles += Get-ExtraDocsSqlFiles
+$sqlFiles += Get-FlywaySqlFiles
+$sqlFiles = $sqlFiles | Select-Object -Unique
 
 foreach ($rel in $sqlFiles) {
   $path = Join-Path $root $rel

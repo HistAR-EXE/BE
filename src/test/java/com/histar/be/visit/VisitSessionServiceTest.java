@@ -9,7 +9,6 @@ import com.histar.be.visit.entity.VisitSession;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import com.histar.be.visit.service.VisitSessionService;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,23 +55,15 @@ class VisitSessionServiceTest {
     }
 
     @Test
-    void startSession_closesPriorActiveSession() {
+    void startSession_reusesPriorActiveSession() {
         UUID first = visitSessionService.startSession(userId, locationId, "online");
         UUID second = visitSessionService.startSession(userId, locationId, "online");
 
-        List<VisitSession> sessions =
-                visitSessionRepository.findByUserIdAndLocationIdOrderByStartedAtDesc(userId, locationId);
-        assertThat(sessions).hasSizeGreaterThanOrEqualTo(2);
-
-        VisitSession closed = sessions.stream()
-                .filter(s -> s.getId().equals(first))
-                .findFirst()
-                .orElseThrow();
-        assertThat(closed.getEndedAt()).isNotNull();
-        assertThat(closed.getStatus()).isEqualTo("CLOSED");
+        assertThat(second).isEqualTo(first);
 
         VisitSession active = visitSessionRepository.findById(second).orElseThrow();
         assertThat(active.getEndedAt()).isNull();
+        assertThat(active.getStatus()).isEqualTo("ACTIVE");
     }
 
     @Test

@@ -206,7 +206,7 @@ VALUES (
   '11111111-1111-1111-1111-111111111111',
   'Địa đạo Củ Chi',
   'Hệ thống địa đạo lịch sử thời kháng chiến tại huyện Củ Chi, TP.HCM.',
-  11.143, 106.461, 'TP.HCM',
+  11.141591, 106.4615963, 'TP.HCM',
   '/media/cu-chi/map/hero.jpg'
 );
 

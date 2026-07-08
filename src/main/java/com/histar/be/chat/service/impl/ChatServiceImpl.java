@@ -1,6 +1,8 @@
 package com.histar.be.chat.service.impl;
 
 import com.histar.be.artifact.repository.UserArtifactRepository;
+import com.histar.be.auth.service.EmailVerifiedGuard;
+import com.histar.be.billing.service.UsageQuotaService;
 import com.histar.be.character.entity.CharacterEntity;
 import com.histar.be.character.service.CharacterService;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
@@ -21,6 +23,7 @@ import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.chat.service.RagAiChatClient;
 import com.histar.be.chat.service.RagChatResponse;
 import com.histar.be.common.exception.AuthException;
+import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
@@ -60,10 +63,16 @@ public class ChatServiceImpl implements ChatService {
     private final ChatLlmClient chatLlmClient;
     private final RagAiChatClient ragAiChatClient;
     private final ChatRateLimiter chatRateLimiter;
+    private final UsageQuotaService usageQuotaService;
     private final ProfileRepository profileRepository;
     private final UserArtifactRepository userArtifactRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final PlayerStoryContextService playerStoryContextService;
+    private final EmailVerifiedGuard emailVerifiedGuard;
+
+    private void assertEmailVerified(UUID userId) {
+        emailVerifiedGuard.assertEmailVerified(userId);
+    }
 
     @Override
     @Transactional
@@ -71,6 +80,7 @@ public class ChatServiceImpl implements ChatService {
         if (userId == null) {
             throw new AuthException("Unauthorized");
         }
+        assertEmailVerified(userId);
         chatRateLimiter.checkAndIncrement(userId);
 
         CharacterEntity character = characterService.findById(request.characterId());
@@ -94,7 +104,9 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build());
 
-        return new ChatResponse(reply, conversation.getId(), resolveSourcesList(location));
+        chatRateLimiter.recordSuccess(userId);
+        return new ChatResponse(
+                reply, conversation.getId(), filterSourcesForUser(userId, resolveSourcesList(location)));
     }
 
     @Override
@@ -128,6 +140,7 @@ public class ChatServiceImpl implements ChatService {
         if (userId == null) {
             throw new AuthException("Unauthorized");
         }
+        assertEmailVerified(userId);
         chatRateLimiter.checkAndIncrement(userId);
 
         CharacterEntity character = characterService.findById(request.characterId());
@@ -148,6 +161,7 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build());
 
+        chatRateLimiter.recordSuccess(userId);
         log.info("chat sync userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
         return new ChatResponse(request.assistantReply(), conversation.getId(), List.of());
     }
@@ -158,6 +172,7 @@ public class ChatServiceImpl implements ChatService {
         if (userId == null) {
             throw new AuthException("Unauthorized");
         }
+        assertEmailVerified(userId);
         chatRateLimiter.checkAndIncrement(userId);
 
         CharacterEntity character = characterService.findById(request.characterId());
@@ -185,19 +200,31 @@ public class ChatServiceImpl implements ChatService {
         Map<String, Object> playerContext =
                 playerStoryContextService.build(userId, character.getLocationId());
 
-        RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
-                request.message(),
-                PersonaMapper.resolvePersonaKey(character.getName()),
-                Collections.emptyMap(),
-                location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                resolveCiteSources(location),
-                character.getLocationId(),
-                historyPayload,
-                userLevel,
-                artifactsUnlocked,
-                discoveriesCount,
-                playerContext);
-        String reply = ragResponse.reply();
+        String reply;
+        List<ChatSource> responseSources;
+        try {
+            RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
+                    request.message(),
+                    PersonaMapper.resolvePersonaKey(character.getName()),
+                    Collections.emptyMap(),
+                    location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                    resolveCiteSources(location),
+                    character.getLocationId(),
+                    historyPayload,
+                    userLevel,
+                    artifactsUnlocked,
+                    discoveriesCount,
+                    playerContext);
+            reply = ragResponse.reply();
+            responseSources = !ragResponse.sources().isEmpty()
+                    ? ragResponse.sources()
+                    : resolveSourcesList(location);
+        } catch (BusinessRuleException ex) {
+            log.warn("RAG AI unavailable, falling back to direct LLM: {}", ex.getMessage());
+            String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
+            reply = chatLlmClient.generate(prompt);
+            responseSources = resolveSourcesList(location);
+        }
 
         messageRepository.save(Message.builder()
                 .conversationId(conversation.getId())
@@ -211,10 +238,15 @@ public class ChatServiceImpl implements ChatService {
                 userId,
                 request.characterId(),
                 conversation.getId());
-        List<ChatSource> responseSources = !ragResponse.sources().isEmpty()
-                ? ragResponse.sources()
-                : resolveSourcesList(location);
-        return new ChatResponse(reply, conversation.getId(), responseSources);
+        chatRateLimiter.recordSuccess(userId);
+        return new ChatResponse(reply, conversation.getId(), filterSourcesForUser(userId, responseSources));
+    }
+
+    private List<ChatSource> filterSourcesForUser(UUID userId, List<ChatSource> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return List.of();
+        }
+        return usageQuotaService.shouldIncludeChatSources(userId) ? sources : List.of();
     }
 
     @Override

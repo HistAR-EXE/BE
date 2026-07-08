@@ -6,7 +6,10 @@ import com.histar.be.common.gamification.LevelCalculator;
 import com.histar.be.config.GamificationProperties;
 import com.histar.be.config.ViralProperties;
 import com.histar.be.media.service.MediaStorageService;
+import com.histar.be.photoframe.entity.PhotoFrame;
+import com.histar.be.photoframe.service.PhotoFrameAccessService;
 import com.histar.be.photoframe.service.PhotoFrameService;
+import com.histar.be.profile.service.TierAccessService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.usercreation.dto.ShareRecordedResponse;
@@ -32,6 +35,8 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
     private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final PhotoFrameService photoFrameService;
+    private final PhotoFrameAccessService photoFrameAccessService;
+    private final TierAccessService tierAccessService;
     private final UserCreationRepository userCreationRepository;
     private final ProfileRepository profileRepository;
     private final MediaStorageService mediaStorageService;
@@ -53,7 +58,13 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
             throw new BusinessRuleException("variant phải là square hoặc story");
         }
 
-        photoFrameService.findById(frameId);
+        PhotoFrame frame = photoFrameService.findById(frameId);
+        if (!tierAccessService.hasPremiumAccess(userId)) {
+            int index = photoFrameService.findAllOrdered().indexOf(frame);
+            if (!photoFrameAccessService.isFrameFree(frame, Math.max(index, 0))) {
+                throw new BusinessRuleException("Khung ảnh Premium — nâng cấp tại /pricing để sử dụng.");
+            }
+        }
 
         byte[] bytes;
         try {
