@@ -132,6 +132,9 @@ histar:
 resend:
   api-key: ${RESEND_API_KEY:}
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+
 server:
   port: 8080
 

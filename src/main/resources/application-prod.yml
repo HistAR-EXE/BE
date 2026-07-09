@@ -96,12 +96,15 @@ minio:
 resend:
   api-key: ${RESEND_API_KEY:}
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+
 histar:
   app:
     frontend-url: ${FRONTEND_URL:https://fe-lake-five.vercel.app}
   mail:
     enabled: ${MAIL_ENABLED:true}
-    provider: ${MAIL_PROVIDER:resend}
+    provider: ${MAIL_PROVIDER:brevo}
     from: ${MAIL_FROM:}
   firebase:
     enabled: ${FIREBASE_ENABLED:true}

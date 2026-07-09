@@ -9,6 +9,7 @@ import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarFirebaseProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.config.MinioProperties;
+import com.histar.be.config.BrevoProperties;
 import com.histar.be.config.ResendProperties;
 import com.histar.be.config.ViralProperties;
 import com.histar.be.config.VisitSessionProperties;
@@ -31,6 +32,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     VisitSessionProperties.class,
     HistarAppProperties.class,
     HistarMailProperties.class,
+    BrevoProperties.class,
     ResendProperties.class,
     HistarFirebaseProperties.class
 })
