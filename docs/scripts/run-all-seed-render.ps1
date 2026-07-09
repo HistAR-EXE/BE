@@ -76,7 +76,12 @@ $coreSqlFiles = @(
   "docs\database\2026-07-04_profile_tier.sql",
   "docs\database\2026-07-04_org_members_seed.sql",
   "docs\database\2026-07-05_ensure_admin_accounts.sql",
-  "docs\database\2026-07-06_org_rbac_and_groups.sql"
+  "docs\database\2026-07-06_org_rbac_and_groups.sql",
+  "docs\database\2026-07-07_monetization_p0.sql",
+  "docs\database\2026-07-08_quest_steps_schema.sql",
+  "docs\database\2026-07-08_quest_steps_init.sql",
+  "docs\database\2026-07-09_shedlock.sql",
+  "docs\database\2026-07-10_visit_sessions_ai_fields.sql"
 )
 
 function Get-RelativeSqlPath([string]$FullPath) {
