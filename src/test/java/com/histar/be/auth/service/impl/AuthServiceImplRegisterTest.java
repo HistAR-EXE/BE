@@ -12,6 +12,7 @@ import com.histar.be.auth.entity.RefreshToken;
 import com.histar.be.auth.repository.RefreshTokenRepository;
 import com.histar.be.auth.service.EmailVerificationService;
 import com.histar.be.auth.service.FirebaseAuthService;
+import com.histar.be.config.HistarMailProperties;
 import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
@@ -55,6 +56,9 @@ class AuthServiceImplRegisterTest {
     @Mock
     private FirebaseAuthService firebaseAuthService;
 
+    @Mock
+    private HistarMailProperties mailProperties;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
@@ -88,13 +92,34 @@ class AuthServiceImplRegisterTest {
             p.setId(unverifiedProfile.getId());
             return p;
         });
-        when(emailVerificationService.sendVerificationEmail(any(UUID.class))).thenReturn("debug-token");
+        when(emailVerificationService.sendInitialVerificationEmail(any(UUID.class))).thenReturn("debug-token");
+        when(mailProperties.isEnabled()).thenReturn(false);
 
         AuthResponse response = authService.register(new RegisterRequest("new@histar.vn", "pass123", "New User"));
 
         assertThat(response.emailVerified()).isFalse();
+        assertThat(response.email()).isEqualTo("new@histar.vn");
         assertThat(response.debugVerificationToken()).isEqualTo("debug-token");
-        verify(emailVerificationService).sendVerificationEmail(any(UUID.class));
+        verify(emailVerificationService).sendInitialVerificationEmail(any(UUID.class));
+    }
+
+    @Test
+    void register_mailEnabled_sendsAsyncAndReturnsWithoutBlocking() {
+        when(profileService.findByEmail("new@histar.vn")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(profileService.save(any(Profile.class))).thenAnswer(inv -> {
+            Profile p = inv.getArgument(0);
+            p.setId(unverifiedProfile.getId());
+            return p;
+        });
+        when(mailProperties.isEnabled()).thenReturn(true);
+
+        AuthResponse response = authService.register(new RegisterRequest("new@histar.vn", "pass123", "New User"));
+
+        assertThat(response.emailVerified()).isFalse();
+        assertThat(response.email()).isEqualTo("new@histar.vn");
+        assertThat(response.debugVerificationToken()).isNull();
+        verify(emailVerificationService).sendInitialVerificationEmailAsync(any(UUID.class));
     }
 
     @Test

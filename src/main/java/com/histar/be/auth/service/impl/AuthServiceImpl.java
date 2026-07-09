@@ -14,6 +14,7 @@ import com.histar.be.auth.service.FirebaseAuthService;
 import com.histar.be.auth.service.FirebaseAuthService.VerifiedGoogleUser;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ConflictException;
+import com.histar.be.config.HistarMailProperties;
 import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
@@ -28,6 +29,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final EmailVerificationService emailVerificationService;
     private final FirebaseAuthService firebaseAuthService;
+    private final HistarMailProperties mailProperties;
 
     @Override
     @Transactional
@@ -60,8 +64,27 @@ public class AuthServiceImpl implements AuthService {
                 .createdAt(Instant.now())
                 .build();
         profileService.save(profile);
-        String debugToken = emailVerificationService.sendVerificationEmail(profile.getId());
+        UUID userId = profile.getId();
+        String debugToken = null;
+        if (!mailProperties.isEnabled()) {
+            debugToken = emailVerificationService.sendInitialVerificationEmail(userId);
+        } else {
+            scheduleInitialVerificationEmailAfterCommit(userId);
+        }
         return issueTokens(profile, debugToken);
+    }
+
+    private void scheduleInitialVerificationEmailAfterCommit(UUID userId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    emailVerificationService.sendInitialVerificationEmailAsync(userId);
+                }
+            });
+            return;
+        }
+        emailVerificationService.sendInitialVerificationEmailAsync(userId);
     }
 
     @Override
@@ -179,6 +202,7 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getRefreshExpiration() / 1000,
                 profile.getId(),
                 profile.getDisplayName(),
+                profile.getEmail(),
                 role,
                 UserTier.fromStored(profile.getTier()).name(),
                 profile.getOrgId(),

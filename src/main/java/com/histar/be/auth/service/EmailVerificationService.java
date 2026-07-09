@@ -53,22 +53,45 @@ public class EmailVerificationService {
 
     @Async
     public void sendVerificationEmailAsync(UUID userId) {
+        sendVerificationEmailAsync(userId, true);
+    }
+
+    /** First send after register — no 60s resend cooldown. */
+    @Async
+    public void sendInitialVerificationEmailAsync(UUID userId) {
+        sendVerificationEmailAsync(userId, false);
+    }
+
+    private void sendVerificationEmailAsync(UUID userId, boolean enforceCooldown) {
         try {
-            sendVerificationEmail(userId);
+            sendVerificationEmail(userId, enforceCooldown);
         } catch (Exception ex) {
-            log.warn("Failed to send verification email for user {}: {}", userId, ex.getMessage());
+            log.warn("Failed to send verification email for user {}: {}", userId, ex.getMessage(), ex);
         }
     }
 
     @Transactional
     public String sendVerificationEmail(UUID userId) {
+        return sendVerificationEmail(userId, true);
+    }
+
+    /** Initial verification mail (register) — skips resend cooldown. */
+    @Transactional
+    public String sendInitialVerificationEmail(UUID userId) {
+        return sendVerificationEmail(userId, false);
+    }
+
+    @Transactional
+    public String sendVerificationEmail(UUID userId, boolean enforceCooldown) {
         Profile profile = profileRepository
                 .findById(userId)
                 .orElseThrow(() -> new BusinessRuleException("User not found"));
         if (Boolean.TRUE.equals(profile.getEmailVerified())) {
             return null;
         }
-        enforceResendCooldown(userId);
+        if (enforceCooldown) {
+            enforceResendCooldown(userId);
+        }
 
         String rawToken = randomToken();
         Instant now = Instant.now();
@@ -79,8 +102,8 @@ public class EmailVerificationService {
                 .createdAt(now)
                 .build());
 
-        lastResendAt.put(userId, now);
         dispatchEmail(profile.getEmail(), profile.getDisplayName(), rawToken);
+        lastResendAt.put(userId, Instant.now());
         // Test hooks: always return raw token so E2E can verify without SMTP (MAIL_ENABLED=true OK).
         if (testHookProperties.isEnabled() || !mailProperties.isEnabled()) {
             return rawToken;
@@ -168,6 +191,7 @@ public class EmailVerificationService {
                     true);
             mailSender.send(message);
         } catch (Exception ex) {
+            log.warn("SMTP failed sending verification email to {}: {}", to, ex.getMessage(), ex);
             throw new BusinessRuleException("Không gửi được email xác thực. Thử lại sau.");
         }
     }

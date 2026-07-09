@@ -181,6 +181,28 @@ class EmailVerificationServiceTest {
     }
 
     @Test
+    void AUTH_EV_BE16_smtpFailure_doesNotStartResendCooldown() throws Exception {
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
+        when(mailProperties.isEnabled()).thenReturn(true);
+        when(testHookProperties.isEnabled()).thenReturn(false);
+        when(mailProperties.getFrom()).thenReturn("noreply@histar.vn");
+        when(tokenRepository.save(any(EmailVerificationToken.class))).thenAnswer(i -> i.getArgument(0));
+        MimeMessage mime = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mime);
+        org.mockito.Mockito.doThrow(new RuntimeException("SMTP auth failed"))
+                .when(mailSender)
+                .send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> emailVerificationService.sendVerificationEmail(userId))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Không gửi được email");
+
+        when(mailProperties.isEnabled()).thenReturn(false);
+        String token = emailVerificationService.sendVerificationEmail(userId);
+        assertThat(token).isNotBlank();
+    }
+
+    @Test
     void sendVerificationEmail_persistsHashedToken() {
         when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
         when(mailProperties.isEnabled()).thenReturn(false);

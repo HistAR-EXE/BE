@@ -10,6 +10,7 @@ public record AuthResponse(
         Long refreshExpiresIn,
         UUID userId,
         String displayName,
+        String email,
         String role,
         String tier,
         UUID orgId,
