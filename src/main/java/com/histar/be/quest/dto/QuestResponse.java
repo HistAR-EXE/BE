@@ -2,6 +2,7 @@ package com.histar.be.quest.dto;
 
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
+import java.util.List;
 import java.util.UUID;
 
 public record QuestResponse(
@@ -15,11 +16,18 @@ public record QuestResponse(
         Integer unlockLevel,
         String coverImage,
         String completionTrigger,
-        Boolean requireOnsiteCheckin) {
+        Boolean requireOnsiteCheckin,
+        List<QuestStepResponse> steps
+) {
 
     public static QuestResponse from(Quest quest) {
         boolean requireOnsite = Boolean.TRUE.equals(quest.getRequireOnsiteCheckin())
                 || QuestDiscoveryProgress.requiresCheckinStep(quest);
+
+        List<QuestStepResponse> stepResponses = quest.getSteps() != null
+                ? quest.getSteps().stream().map(QuestStepResponse::from).toList()
+                : List.of();
+
         return new QuestResponse(
                 quest.getId(),
                 quest.getLocationId(),
@@ -31,6 +39,8 @@ public record QuestResponse(
                 1,
                 quest.getCoverImage(),
                 quest.getCompletionTrigger(),
-                requireOnsite);
+                requireOnsite,
+                stepResponses
+        );
     }
 }
