@@ -24,7 +24,7 @@ public class ResendEmailSender implements EmailSender {
     public void sendHtml(String to, String subject, String html) {
         String recipient = EmailRecipientValidator.requireRecipient(to);
         ResendEmailRequest request = new ResendEmailRequest(
-                mailProperties.getFrom(), new String[] {recipient}, subject, html);
+                resolveFromAddress(), new String[] {recipient}, subject, html);
         dispatch(request);
     }
 
@@ -33,8 +33,25 @@ public class ResendEmailSender implements EmailSender {
         String recipient = EmailRecipientValidator.requireRecipient(to);
         String html = "<p>" + escapeHtml(text) + "</p>";
         ResendEmailRequest request = new ResendEmailRequest(
-                mailProperties.getFrom(), new String[] {recipient}, subject, html);
+                resolveFromAddress(), new String[] {recipient}, subject, html);
         dispatch(request);
+    }
+
+    /** Strip surrounding quotes — Render env often stores MAIL_FROM with literal " characters. */
+    private String resolveFromAddress() {
+        String from = mailProperties.getFrom();
+        if (from == null || from.isBlank()) {
+            throw new EmailDeliveryException("Resend: MAIL_FROM is not configured");
+        }
+        from = from.trim();
+        if (from.length() >= 2) {
+            char first = from.charAt(0);
+            char last = from.charAt(from.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                from = from.substring(1, from.length() - 1).trim();
+            }
+        }
+        return from;
     }
 
     private void dispatch(ResendEmailRequest request) {
