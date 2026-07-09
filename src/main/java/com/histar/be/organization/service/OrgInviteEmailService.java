@@ -5,18 +5,17 @@ import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.config.TestHookProperties;
+import com.histar.be.mail.EmailDeliveryException;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.organization.dto.OrgInviteCodeResponse;
 import com.histar.be.organization.dto.OrgInviteEmailRequest;
 import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +28,7 @@ public class OrgInviteEmailService {
     private final OrgAccessService orgAccessService;
     private final OrganizationRepository organizationRepository;
     private final ProfileRepository profileRepository;
-    private final JavaMailSender mailSender;
+    private final HistarEmailService histarEmailService;
     private final HistarAppProperties appProperties;
     private final HistarMailProperties mailProperties;
     private final TestHookProperties testHookProperties;
@@ -80,18 +79,12 @@ public class OrgInviteEmailService {
             return;
         }
         if (testHookProperties.isEnabled()) {
-            log.info("Test hooks enabled — skip SMTP; org invite for {}: code={} url={}", to, inviteCode, inviteUrl);
+            log.info("Test hooks enabled — skip mail; org invite for {}: code={} url={}", to, inviteCode, inviteUrl);
             return;
         }
         try {
-            var message = mailSender.createMimeMessage();
-            var helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            helper.setFrom(mailProperties.getFrom());
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-            mailSender.send(message);
-        } catch (Exception ex) {
+            histarEmailService.sendHtml(to, subject, html);
+        } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email mời. Thử lại sau.");
         }
     }

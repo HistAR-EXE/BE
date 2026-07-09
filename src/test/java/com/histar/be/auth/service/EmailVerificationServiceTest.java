@@ -3,6 +3,8 @@ package com.histar.be.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,14 +16,13 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.config.TestHookProperties;
+import com.histar.be.mail.EmailDeliveryException;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.javamail.JavaMailSender;
 
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceTest {
@@ -42,7 +42,7 @@ class EmailVerificationServiceTest {
     private EmailVerificationTokenRepository tokenRepository;
 
     @Mock
-    private JavaMailSender mailSender;
+    private HistarEmailService histarEmailService;
 
     @Mock
     private HistarAppProperties appProperties;
@@ -83,27 +83,24 @@ class EmailVerificationServiceTest {
         String token = emailVerificationService.sendVerificationEmail(userId);
 
         assertThat(token).isNotBlank();
-        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(histarEmailService, never()).sendHtml(any(), any(), any());
     }
 
     @Test
-    void AUTH_EV_BE11_mailEnabled_sendsSmtpAndReturnsNull() {
+    void AUTH_EV_BE11_mailEnabled_sendsAndReturnsNull() {
         when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
         when(mailProperties.isEnabled()).thenReturn(true);
         when(testHookProperties.isEnabled()).thenReturn(false);
-        when(mailProperties.getFrom()).thenReturn("noreply@histar.vn");
         when(tokenRepository.save(any(EmailVerificationToken.class))).thenAnswer(i -> i.getArgument(0));
-        MimeMessage mime = new MimeMessage(Session.getInstance(new Properties()));
-        when(mailSender.createMimeMessage()).thenReturn(mime);
 
         String token = emailVerificationService.sendVerificationEmail(userId);
 
         assertThat(token).isNull();
-        verify(mailSender).send(mime);
+        verify(histarEmailService).sendHtml(eq("user@histar.vn"), eq("Xác thực email TimeLens"), any());
     }
 
     @Test
-    void AUTH_EV_BE11b_mailEnabledButTestHooks_skipsSmtpAndReturnsDebugToken() {
+    void AUTH_EV_BE11b_mailEnabledButTestHooks_skipsSendAndReturnsDebugToken() {
         when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
         when(mailProperties.isEnabled()).thenReturn(true);
         when(testHookProperties.isEnabled()).thenReturn(true);
@@ -112,7 +109,7 @@ class EmailVerificationServiceTest {
         String token = emailVerificationService.sendVerificationEmail(userId);
 
         assertThat(token).isNotBlank();
-        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(histarEmailService, never()).sendHtml(any(), any(), any());
     }
 
     @Test
@@ -170,7 +167,8 @@ class EmailVerificationServiceTest {
     @Test
     void AUTH_EV_BE15_resendCooldown_throws() {
         when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
-        when(mailProperties.isEnabled()).thenReturn(false);
+        when(mailProperties.isEnabled()).thenReturn(true);
+        when(testHookProperties.isEnabled()).thenReturn(false);
         when(tokenRepository.save(any(EmailVerificationToken.class))).thenAnswer(i -> i.getArgument(0));
 
         emailVerificationService.sendVerificationEmail(userId);
@@ -181,17 +179,14 @@ class EmailVerificationServiceTest {
     }
 
     @Test
-    void AUTH_EV_BE16_smtpFailure_doesNotStartResendCooldown() throws Exception {
+    void AUTH_EV_BE16_sendFailure_doesNotStartResendCooldown() {
         when(profileRepository.findById(userId)).thenReturn(Optional.of(unverified));
         when(mailProperties.isEnabled()).thenReturn(true);
         when(testHookProperties.isEnabled()).thenReturn(false);
-        when(mailProperties.getFrom()).thenReturn("noreply@histar.vn");
         when(tokenRepository.save(any(EmailVerificationToken.class))).thenAnswer(i -> i.getArgument(0));
-        MimeMessage mime = new MimeMessage(Session.getInstance(new Properties()));
-        when(mailSender.createMimeMessage()).thenReturn(mime);
-        org.mockito.Mockito.doThrow(new RuntimeException("SMTP auth failed"))
-                .when(mailSender)
-                .send(any(MimeMessage.class));
+        doThrow(new EmailDeliveryException("Resend: forbidden"))
+                .when(histarEmailService)
+                .sendHtml(any(), any(), any());
 
         assertThatThrownBy(() -> emailVerificationService.sendVerificationEmail(userId))
                 .isInstanceOf(BusinessRuleException.class)

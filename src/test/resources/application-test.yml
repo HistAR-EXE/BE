@@ -50,6 +50,7 @@ histar:
     frontend-url: http://localhost:5173
   mail:
     enabled: false
+    provider: smtp
     resend-cooldown-seconds: 0
   firebase:
     enabled: false

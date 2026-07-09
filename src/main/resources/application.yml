@@ -110,6 +110,7 @@ histar:
     frontend-url: ${FRONTEND_URL:http://localhost:5173}
   mail:
     enabled: ${MAIL_ENABLED:true}
+    provider: ${MAIL_PROVIDER:smtp}
     from: ${MAIL_FROM:noreply@histar.vn}
     verification-ttl-hours: 24
     resend-cooldown-seconds: 60
@@ -127,6 +128,9 @@ histar:
   test-hooks:
     enabled: ${HISTAR_TEST_HOOKS_ENABLED:false}
     secret: ${HISTAR_TEST_HOOKS_SECRET:}
+
+resend:
+  api-key: ${RESEND_API_KEY:}
 
 server:
   port: 8080

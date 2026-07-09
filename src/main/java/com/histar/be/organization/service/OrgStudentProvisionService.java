@@ -13,15 +13,14 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
-import java.nio.charset.StandardCharsets;
+import com.histar.be.mail.EmailDeliveryException;
+import com.histar.be.mail.HistarEmailService;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +39,7 @@ public class OrgStudentProvisionService {
     private final OrganizationRepository organizationRepository;
     private final ProfileRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JavaMailSender mailSender;
+    private final HistarEmailService histarEmailService;
     private final HistarAppProperties appProperties;
     private final HistarMailProperties mailProperties;
 
@@ -116,12 +115,7 @@ public class OrgStudentProvisionService {
             return;
         }
         try {
-            var message = mailSender.createMimeMessage();
-            var helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            helper.setFrom(mailProperties.getFrom());
-            helper.setTo(to);
-            helper.setSubject("Tài khoản TimeLens — lớp " + orgName);
-            helper.setText(
+            String html =
                     """
                     <p>Xin chào <strong>%s</strong>,</p>
                     <p>Giáo viên <strong>%s</strong> đã tạo tài khoản TimeLens cho bạn tham gia lớp <strong>%s</strong>.</p>
@@ -132,10 +126,9 @@ public class OrgStudentProvisionService {
                     <p><a href="%s">Đăng nhập TimeLens</a></p>
                     <p>Sau khi đăng nhập, hãy đổi mật khẩu tại Cài đặt → Hồ sơ. Bạn được hưởng quyền lợi Premium qua gói trường.</p>
                     """
-                            .formatted(studentName, teacherName, orgName, to, tempPassword, loginUrl),
-                    true);
-            mailSender.send(message);
-        } catch (Exception ex) {
+                            .formatted(studentName, teacherName, orgName, to, tempPassword, loginUrl);
+            histarEmailService.sendHtml(to, "Tài khoản TimeLens — lớp " + orgName, html);
+        } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email thông tin đăng nhập. Thử lại sau.");
         }
     }

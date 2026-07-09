@@ -93,11 +93,15 @@ minio:
   secret-key: ${MINIO_ROOT_PASSWORD:}
   bucket: ${MINIO_BUCKET_NAME:timelens-media}
 
+resend:
+  api-key: ${RESEND_API_KEY:}
+
 histar:
   app:
     frontend-url: ${FRONTEND_URL:https://fe-lake-five.vercel.app}
   mail:
     enabled: ${MAIL_ENABLED:true}
+    provider: ${MAIL_PROVIDER:resend}
     from: ${MAIL_FROM:}
   firebase:
     enabled: ${FIREBASE_ENABLED:true}

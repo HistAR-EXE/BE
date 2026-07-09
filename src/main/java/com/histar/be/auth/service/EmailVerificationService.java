@@ -6,6 +6,8 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.config.TestHookProperties;
+import com.histar.be.mail.EmailDeliveryException;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.nio.charset.StandardCharsets;
@@ -20,8 +22,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +36,7 @@ public class EmailVerificationService {
 
     private final ProfileRepository profileRepository;
     private final EmailVerificationTokenRepository tokenRepository;
-    private final JavaMailSender mailSender;
+    private final HistarEmailService histarEmailService;
     private final HistarAppProperties appProperties;
     private final HistarMailProperties mailProperties;
     private final TestHookProperties testHookProperties;
@@ -102,9 +102,7 @@ public class EmailVerificationService {
                 .createdAt(now)
                 .build());
 
-        dispatchEmail(profile.getEmail(), profile.getDisplayName(), rawToken);
-        lastResendAt.put(userId, Instant.now());
-        // Test hooks: always return raw token so E2E can verify without SMTP (MAIL_ENABLED=true OK).
+        dispatchEmail(userId, profile.getEmail(), profile.getDisplayName(), rawToken);
         if (testHookProperties.isEnabled() || !mailProperties.isEnabled()) {
             return rawToken;
         }
@@ -160,38 +158,29 @@ public class EmailVerificationService {
         }
     }
 
-    private void dispatchEmail(String to, String displayName, String rawToken) {
+    private void dispatchEmail(UUID userId, String to, String displayName, String rawToken) {
+        String link = buildVerifyLink(rawToken);
         if (!mailProperties.isEnabled()) {
-            String link = buildVerifyLink(rawToken);
             log.info("Mail disabled — verification link for {}: {}", to, link);
             return;
         }
-        // Avoid SMTP cooldown / delivery failures in local/E2E when test hooks are on.
         if (testHookProperties.isEnabled()) {
-            String link = buildVerifyLink(rawToken);
-            log.info("Test hooks enabled — skip SMTP; verification link for {}: {}", to, link);
+            log.info("Test hooks enabled — skip mail; verification link for {}: {}", to, link);
             return;
         }
+        String name = displayName != null && !displayName.isBlank() ? displayName : "bạn";
+        String html =
+                """
+                <p>Xin chào %s,</p>
+                <p>Nhấn vào liên kết bên dưới để xác thực email và bắt đầu dùng TimeLens (gói Free). Khi cần, bạn vẫn có thể nâng cấp Premium hoặc gói trường học sau:</p>
+                <p><a href="%s">Xác thực email TimeLens</a></p>
+                <p>Liên kết hết hạn sau %d giờ. Nếu bạn không đăng ký TimeLens, hãy bỏ qua email này.</p>
+                """
+                        .formatted(name, link, mailProperties.getVerificationTtlHours());
         try {
-            var message = mailSender.createMimeMessage();
-            var helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            helper.setFrom(mailProperties.getFrom());
-            helper.setTo(to);
-            helper.setSubject("Xác thực email TimeLens");
-            String link = buildVerifyLink(rawToken);
-            String name = displayName != null && !displayName.isBlank() ? displayName : "bạn";
-            helper.setText(
-                    """
-                    <p>Xin chào %s,</p>
-                    <p>Nhấn vào liên kết bên dưới để xác thực email và bắt đầu dùng TimeLens (gói Free). Khi cần, bạn vẫn có thể nâng cấp Premium hoặc gói trường học sau:</p>
-                    <p><a href="%s">Xác thực email TimeLens</a></p>
-                    <p>Liên kết hết hạn sau %d giờ. Nếu bạn không đăng ký TimeLens, hãy bỏ qua email này.</p>
-                    """
-                            .formatted(name, link, mailProperties.getVerificationTtlHours()),
-                    true);
-            mailSender.send(message);
-        } catch (Exception ex) {
-            log.warn("SMTP failed sending verification email to {}: {}", to, ex.getMessage(), ex);
+            histarEmailService.sendHtml(to, "Xác thực email TimeLens", html);
+            lastResendAt.put(userId, Instant.now());
+        } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email xác thực. Thử lại sau.");
         }
     }

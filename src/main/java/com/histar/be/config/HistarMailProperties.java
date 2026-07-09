@@ -10,6 +10,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class HistarMailProperties {
 
     private boolean enabled = true;
+    /** smtp | resend */
+    private String provider = "smtp";
     private String from = "noreply@histar.vn";
     private int verificationTtlHours = 24;
     private int resendCooldownSeconds = 60;

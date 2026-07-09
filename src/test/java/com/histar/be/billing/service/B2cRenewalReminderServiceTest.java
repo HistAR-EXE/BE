@@ -2,6 +2,7 @@ package com.histar.be.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,7 @@ import com.histar.be.billing.entity.B2cSubscription;
 import com.histar.be.billing.repository.B2cRenewalReminderRepository;
 import com.histar.be.billing.repository.B2cSubscriptionRepository;
 import com.histar.be.config.HistarMailProperties;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.time.LocalDate;
@@ -22,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.javamail.JavaMailSender;
 
 @ExtendWith(MockitoExtension.class)
 class B2cRenewalReminderServiceTest {
@@ -37,7 +38,7 @@ class B2cRenewalReminderServiceTest {
     private ProfileRepository profileRepository;
 
     @Mock
-    private JavaMailSender mailSender;
+    private HistarEmailService histarEmailService;
 
     private HistarMailProperties mailProperties;
     private B2cRenewalReminderService service;
@@ -47,7 +48,7 @@ class B2cRenewalReminderServiceTest {
         mailProperties = new HistarMailProperties();
         mailProperties.setEnabled(false);
         service = new B2cRenewalReminderService(
-                subscriptionRepository, reminderRepository, profileRepository, mailSender, mailProperties);
+                subscriptionRepository, reminderRepository, profileRepository, histarEmailService, mailProperties);
     }
 
     @Test
@@ -90,6 +91,6 @@ class B2cRenewalReminderServiceTest {
 
         assertEquals(0, sent);
         verify(reminderRepository, never()).save(any());
-        verify(mailSender, never()).send(any(org.springframework.mail.SimpleMailMessage.class));
+        verify(histarEmailService, never()).sendText(any(), any(), any());
     }
 }

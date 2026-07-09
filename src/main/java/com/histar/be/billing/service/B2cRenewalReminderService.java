@@ -5,6 +5,7 @@ import com.histar.be.billing.entity.B2cSubscription;
 import com.histar.be.billing.repository.B2cRenewalReminderRepository;
 import com.histar.be.billing.repository.B2cSubscriptionRepository;
 import com.histar.be.config.HistarMailProperties;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.time.Instant;
@@ -14,8 +15,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +29,7 @@ public class B2cRenewalReminderService {
     private final B2cSubscriptionRepository b2cSubscriptionRepository;
     private final B2cRenewalReminderRepository b2cRenewalReminderRepository;
     private final ProfileRepository profileRepository;
-    private final JavaMailSender mailSender;
+    private final HistarEmailService histarEmailService;
     private final HistarMailProperties mailProperties;
 
     @Transactional
@@ -68,12 +67,8 @@ public class B2cRenewalReminderService {
             log.info("Mail disabled — B2C renewal reminder {} day(s) for {} endDate={}", daysUntil, to, endDate);
             return;
         }
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailProperties.getFrom());
-        message.setTo(to);
-        message.setSubject("[TimeLens] Nhắc gia hạn Premium");
-        message.setText("Gói Premium của bạn sẽ hết hạn sau " + daysUntil
-                + " ngày (ngày hết hạn: " + endDate + "). Vui lòng gia hạn tại /checkout/b2c");
-        mailSender.send(message);
+        String text = "Gói Premium của bạn sẽ hết hạn sau " + daysUntil
+                + " ngày (ngày hết hạn: " + endDate + "). Vui lòng gia hạn tại /checkout/b2c";
+        histarEmailService.sendText(to, "[TimeLens] Nhắc gia hạn Premium", text);
     }
 }
