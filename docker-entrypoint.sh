@@ -28,7 +28,8 @@ fi
 
 # Internal Render (dpg-xxx-a, không có .postgres.render.com): KHÔNG dùng SSL
 # External Render (*.postgres.render.com): bắt buộc sslmode=require
-if echo "$DB_URL" | grep -qE '@dpg-[a-z0-9-]+([:/]|$)' \
+# Match cả jdbc:...@dpg-... và jdbc:...//dpg-... (user/pass tách env)
+if echo "$DB_URL" | grep -qE '(^|[@/])dpg-[a-z0-9-]+([:/]|$)' \
   && ! echo "$DB_URL" | grep -q 'postgres.render.com'; then
   export DB_URL="$(echo "$DB_URL" | sed -E 's/[?&]sslmode=[^&]*//g; s/\?&/?/g; s/\?$//')"
   echo "[INFO] Postgres: Render internal (private network, no SSL)"
@@ -51,7 +52,13 @@ fi
 DB_HOST="$(echo "$DB_URL" | sed -E 's|^jdbc:postgresql://([^/@]+@)?([^:/]+).*|\2|')"
 echo "[INFO] Database host: ${DB_HOST}"
 
-exec java -jar \
+# Render free/starter (~512MB): không set -Xmx dễ OOM (exit 137) trước khi bind PORT
+# Override bằng JAVA_OPTS trên Dashboard nếu nâng plan
+JAVA_OPTS="${JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k}"
+echo "[INFO] JAVA_OPTS=${JAVA_OPTS}"
+
+# shellcheck disable=SC2086
+exec java ${JAVA_OPTS} -jar \
   -Dserver.address=0.0.0.0 \
   -Dserver.port="${PORT:-8080}" \
   -Dspring.profiles.active="${SPRING_PROFILES_ACTIVE:-prod}" \
