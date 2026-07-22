@@ -1,6 +1,8 @@
 # Seed Postgres trên Render (External URL) — chạy từ laptop, một lần trước khi BE start.
 # Không có auto-init trong Spring (ddl-auto=validate) — phải chạy script này thủ công.
 #
+# Tour 360 (2026-07-10): 2026-07-10_cu_chi_multi_panoramas.sql + Flyway V15__tour360_multi_scene.sql
+#
 # Yêu cầu: Docker (khuyến nghị) hoặc psql cài sẵn trên máy.
 #
 # Windows chặn .ps1? Dùng file .cmd (không cần ExecutionPolicy):
@@ -70,6 +72,7 @@ $coreSqlFiles = @(
   "docs\database\2026-06-29_cu_chi_panorama_jpg_ext.sql",
   "docs\database\2026-06-30_cu_chi_supplementary_assets.sql",
   "docs\database\2026-07-01_cu_chi_real_panoramas.sql",
+  "docs\database\2026-07-10_cu_chi_multi_panoramas.sql",
   "docs\database\2026-07-04_location_unlock.sql",
   "docs\database\2026-07-04_discovery_bindings_enrich.sql",
   "docs\database\2026-07-04_quest_onsite_flag.sql",

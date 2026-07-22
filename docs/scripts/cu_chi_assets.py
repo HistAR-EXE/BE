@@ -90,20 +90,20 @@ SCENES = [
        ("phat", "IMG_3589.HEIC", "Lư hương & bàn thờ", "Lư hương đồng và bàn thờ trong chính điện đền Bến Dược."),
        ("phat", "IMG_3585.HEIC", "Sân hành lễ", "Quảng trường rộng trước cổng đền — nơi tổ chức lễ tưởng niệm.")]),
 
-    S(3, "3", "bo-tu-lenh", "Căn cứ Bộ Tư lệnh Quân khu Sài Gòn - Gia Định",
-      "Nhà trưng bày tái hiện căn cứ Bộ Tư lệnh: súng bộ binh, bom đạn thu được, bàn thờ và phòng làm việc của ban chỉ huy.",
-      ("hao", "IMG_3308.JPG"), 54.0, 57.0,
-      [("phat", "IMG_3595.HEIC", "Kho bom & đạn", "Bom, đạn thu được xếp trong nhà trưng bày căn cứ."),
-       ("phat", "IMG_3610.HEIC", "Tủ trưng bày súng", "Bộ sưu tập súng bộ binh trong tủ kính."),
-       ("phat", "IMG_3651.HEIC", "Phòng làm việc chỉ huy", "Tái hiện phòng làm việc và bàn thờ trong căn cứ chỉ huy.")]),
-
-    S(4, "4", "khu-trung-bay", "Khu trưng bày",
+    S(3, "4", "khu-trung-bay", "Khu trưng bày",
       "Khu trưng bày khí tài ngoài trời: xe tăng, xe thiết giáp M113, lựu pháo 105mm và máy bay thu được sau chiến tranh.",
       ("hao", "IMG_3316.JPG"), 50.0, 43.0,
       [("phat", "IMG_3620.HEIC", "Xe tăng", "Xe tăng trưng bày dưới tán rừng."),
        ("phat", "IMG_3624.HEIC", "Xe thiết giáp M113", "Xe thiết giáp M113 kèm bảng thông tin."),
        ("phat", "IMG_3637.HEIC", "Lựu pháo 105mm", "Dàn pháo trưng bày dưới mái lưới ngụy trang."),
        ("vy", "DSCF9646.JPG", "Máy bay C-130", "Máy bay vận tải C-130 trưng bày ngoài trời.")]),
+
+    S(4, "3", "bo-tu-lenh", "Căn cứ Bộ Tư lệnh Quân khu Sài Gòn - Gia Định",
+      "Nhà trưng bày tái hiện căn cứ Bộ Tư lệnh: súng bộ binh, bom đạn thu được, bàn thờ và phòng làm việc của ban chỉ huy.",
+      ("hao", "IMG_3308.JPG"), 54.0, 57.0,
+      [("phat", "IMG_3595.HEIC", "Kho bom & đạn", "Bom, đạn thu được xếp trong nhà trưng bày căn cứ."),
+       ("phat", "IMG_3610.HEIC", "Tủ trưng bày súng", "Bộ sưu tập súng bộ binh trong tủ kính."),
+       ("phat", "IMG_3651.HEIC", "Phòng làm việc chỉ huy", "Tái hiện phòng làm việc và bàn thờ trong căn cứ chỉ huy.")]),
 
     S(5, "5", "khu-uy", "Căn cứ Khu ủy Quân khu Sài Gòn - Gia Định",
       "Theo lối đi bên hông Bộ Tư lệnh, du khách vào căn cứ Khu ủy Quân khu Sài Gòn - Gia Định nằm sâu trong rừng.",
@@ -345,6 +345,89 @@ def _full_wrap(strip: Image.Image, sh: int, blend_frac: float = 0.02) -> Image.I
 
 def make_equirect(strip: Image.Image) -> Image.Image:
     return equirect_from(strip)
+
+
+def equalize_exposure_strips(mats):
+    """CLAHE on L channel to reduce brightness mismatch before stitching."""
+    import cv2
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    out = []
+    for mat in mats:
+        lab = cv2.cvtColor(mat, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        l = clahe.apply(l)
+        out.append(cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR))
+    return out
+
+
+def refine_vertical_seam(arr, seam_width: int = 120):
+    """Feather-blend the strongest vertical seam near the panorama centre."""
+    import numpy as np
+
+    rgb = np.asarray(arr, dtype=np.float32)
+    if rgb.ndim != 3 or rgb.shape[1] < seam_width * 2:
+        return arr
+    h, w, _ = rgb.shape
+    gray = rgb.mean(axis=2)
+    gx = np.abs(np.diff(gray, axis=1))
+    lo, hi = int(w * 0.2), int(w * 0.8)
+    if hi <= lo:
+        return arr
+    seam_x = lo + int(np.argmax(gx[:, lo:hi].mean(axis=0)))
+    half = seam_width // 2
+    x0, x1 = seam_x - half, seam_x + half
+    out = rgb.copy()
+    for x in range(max(0, x0), min(w, x1)):
+        t = (x - x0) / max(1, (x1 - x0 - 1))
+        t = t * t * (3.0 - 2.0 * t)
+        src_l = max(0, min(w - 1, seam_x - half + int((1.0 - t) * half)))
+        src_r = max(0, min(w - 1, seam_x + int(t * half)))
+        out[:, x] = rgb[:, src_l] * (1.0 - t) + rgb[:, src_r] * t
+    return out.astype(np.uint8)
+
+
+def fill_nadir(img: Image.Image, pole_frac: float = 0.07) -> Image.Image:
+    """Fill the equirectangular nadir disc using ground-ring content instead of gray blur."""
+    import numpy as np
+
+    arr = np.asarray(img.convert("RGB")).copy().astype(np.float32)
+    h, w, _ = arr.shape
+    pole_h = max(12, int(h * pole_frac))
+    nadir_y0 = h - pole_h
+    source_row = max(0, nadir_y0 - 4)
+    cy = w // 2
+
+    for y in range(nadir_y0, h):
+        frac = (y - nadir_y0 + 1) / pole_h
+        row = np.zeros((w, 3), dtype=np.float32)
+        for x in range(w):
+            dist = abs(x - cy) / max(1.0, w / 2.0)
+            pull = frac * (1.0 - dist * 0.45)
+            sx = int(cy + (x - cy) * (1.0 - pull * 0.35))
+            sx = max(0, min(w - 1, sx))
+            row[x] = arr[source_row, sx]
+        row *= 1.0 - frac * 0.12
+        alpha = frac * frac
+        arr[y] = arr[y] * (1.0 - alpha) + row * alpha
+
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+
+def apply_stitch_post_wide(pano_rgb, stitch_post: dict):
+    """Optional post-process on stitched wide RGB before equirect mapping."""
+    if stitch_post.get("refineSeam", False):
+        width = int(stitch_post.get("seamWidth", 120))
+        pano_rgb = refine_vertical_seam(pano_rgb, seam_width=width)
+    return pano_rgb
+
+
+def apply_stitch_post_equirect(img: Image.Image, stitch_post: dict) -> Image.Image:
+    """Optional post-process on final equirectangular output."""
+    if stitch_post.get("fillNadir", False):
+        frac = float(stitch_post.get("nadirPoleFrac", 0.07))
+        img = fill_nadir(img, pole_frac=frac)
+    return img
 
 
 def _crop_black(arr):

@@ -32,4 +32,12 @@ public class Panorama {
     private String imageUrl;
 
     private String title;
+
+    private String areaSlug;
+
+    private Integer sortOrder;
+
+    private Double defaultYaw;
+
+    private Double defaultPitch;
 }

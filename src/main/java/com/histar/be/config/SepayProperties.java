@@ -19,7 +19,7 @@ public class SepayProperties {
     private String qrBaseUrl = "https://vietqr.app/img";
     private String qrTemplate = "compact";
     private boolean qrShowInfo = true;
-    private int b2cPremiumPriceVnd = 49_000;
+    private int b2cPremiumPriceVnd = 79_000;
     private int orderExpiryMinutes = 15;
     private long maxTimestampSkewSeconds = 300;
 }

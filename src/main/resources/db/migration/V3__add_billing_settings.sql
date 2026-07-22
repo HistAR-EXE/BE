@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS billing_settings (
 );
 
 INSERT INTO billing_settings (setting_key, setting_value, updated_at)
-VALUES ('b2c_premium_price_vnd', '49000', NOW())
+VALUES ('b2c_premium_price_vnd', '79000', NOW())
 ON CONFLICT (setting_key) DO NOTHING;

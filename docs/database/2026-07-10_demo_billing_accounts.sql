@@ -51,10 +51,12 @@ SET is_active = FALSE
 WHERE user_id = (SELECT id FROM profiles WHERE email = 'premium@histar.vn')
   AND is_active = TRUE;
 
-INSERT INTO b2c_subscriptions (user_id, price_vnd, start_date, end_date, is_active, payment_method, created_at)
+-- id phải set tường minh: một số DB tạo bảng không có DEFAULT gen_random_uuid()
+INSERT INTO b2c_subscriptions (id, user_id, price_vnd, start_date, end_date, is_active, payment_method, created_at)
 SELECT
+    gen_random_uuid(),
     p.id,
-    49000,
+    79000,
     CURRENT_DATE,
     DATE '2099-12-31',
     TRUE,
@@ -116,15 +118,15 @@ INSERT INTO profiles (
     org_id, org_subscription, level, total_points, city,
     email_verified, email_verified_at, created_at
 )
-VALUES (
-    'd2222222-2222-2222-2222-222222222222',
+SELECT
+    'd2222222-2222-2222-2222-222222222222'::uuid,
     'org-standard@histar.vn',
     crypt('Demo@2026', gen_salt('bf', 10)),
     'local',
     'TEACHER',
     'FREE',
     'Org Standard Demo',
-  (SELECT id FROM organizations WHERE slug = 'demo-standard-org'),
+    o.id,
     'STANDARD',
     1,
     0,
@@ -132,12 +134,13 @@ VALUES (
     TRUE,
     now(),
     now()
-)
+FROM organizations o
+WHERE o.slug = 'demo-standard-org'
 ON CONFLICT (email) DO UPDATE SET
     password_hash = crypt('Demo@2026', gen_salt('bf', 10)),
     role = 'TEACHER',
     tier = 'FREE',
-    org_id = (SELECT id FROM organizations WHERE slug = 'demo-standard-org'),
+    org_id = EXCLUDED.org_id,
     org_subscription = 'STANDARD',
     email_verified = TRUE,
     email_verified_at = COALESCE(profiles.email_verified_at, now()),
@@ -163,9 +166,10 @@ WHERE organization_id = (SELECT id FROM organizations WHERE slug = 'demo-standar
   AND is_active = TRUE;
 
 INSERT INTO subscriptions (
-    organization_id, plan_type, price_vnd, start_date, end_date, is_active, payment_method, created_at
+    id, organization_id, plan_type, price_vnd, start_date, end_date, is_active, payment_method, created_at
 )
 SELECT
+    gen_random_uuid(),
     o.id,
     'STANDARD',
     15000000,

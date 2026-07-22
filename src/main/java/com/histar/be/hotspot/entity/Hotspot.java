@@ -31,4 +31,5 @@ public class Hotspot {
     private String type;
     private String contentRef;
     private String label;
+    private String markerStyle;
 }

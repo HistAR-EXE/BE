@@ -32,9 +32,9 @@ class BillingSettingsServiceTest {
     void getB2cPremiumPriceVnd_usesFallbackFromEnvWhenDbMissing() {
         when(billingSettingRepository.findById(BillingSettingsService.B2C_PREMIUM_PRICE_KEY))
                 .thenReturn(Optional.empty());
-        when(sepayProperties.getB2cPremiumPriceVnd()).thenReturn(49_000);
+        when(sepayProperties.getB2cPremiumPriceVnd()).thenReturn(79_000);
 
-        assertThat(billingSettingsService.getB2cPremiumPriceVnd()).isEqualTo(49_000);
+        assertThat(billingSettingsService.getB2cPremiumPriceVnd()).isEqualTo(79_000);
     }
 
     @Test
@@ -42,7 +42,7 @@ class BillingSettingsServiceTest {
         when(billingSettingRepository.findById(BillingSettingsService.B2C_PREMIUM_PRICE_KEY))
                 .thenReturn(Optional.of(BillingSetting.builder()
                         .settingKey(BillingSettingsService.B2C_PREMIUM_PRICE_KEY)
-                        .settingValue("49000")
+                        .settingValue("79000")
                         .build()));
         when(billingSettingRepository.findById(BillingSettingsService.CHAT_FREE_DAILY_LIMIT_KEY))
                 .thenReturn(Optional.of(BillingSetting.builder()
@@ -72,7 +72,7 @@ class BillingSettingsServiceTest {
         when(billingSettingRepository.findById(BillingSettingsService.B2C_PREMIUM_PRICE_KEY))
                 .thenReturn(Optional.of(BillingSetting.builder()
                         .settingKey(BillingSettingsService.B2C_PREMIUM_PRICE_KEY)
-                        .settingValue("49000")
+                        .settingValue("79000")
                         .build()));
         when(billingSettingRepository.findById(eq(BillingSettingsService.CHAT_FREE_DAILY_LIMIT_KEY)))
                 .thenReturn(Optional.empty(), Optional.of(BillingSetting.builder()

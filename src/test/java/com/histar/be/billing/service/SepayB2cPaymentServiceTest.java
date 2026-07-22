@@ -80,7 +80,7 @@ class SepayB2cPaymentServiceTest {
                 .provider("SEPAY")
                 .orderCode("HSTABC123")
                 .transferContent("HSTABC123")
-                .amountVnd(49_000)
+                .amountVnd(79_000)
                 .status("PENDING")
                 .expiresAt(Instant.now().plusSeconds(600))
                 .createdAt(Instant.now())
@@ -90,7 +90,7 @@ class SepayB2cPaymentServiceTest {
         when(paymentTransactionRepository.findByOrderCode("HSTABC123")).thenReturn(Optional.of(tx));
 
         String rawBody = """
-                {"id":12345,"gateway":"Vietcombank","transactionDate":"2024-07-02 11:08:33","accountNumber":"0010000000355","subAccount":"","code":"HSTABC123","content":"HSTABC123 chuyen tien","transferType":"in","description":"Thanh toan","transferAmount":49000,"accumulated":100000,"referenceCode":"FT2401"}
+                {"id":12345,"gateway":"Vietcombank","transactionDate":"2024-07-02 11:08:33","accountNumber":"0010000000355","subAccount":"","code":"HSTABC123","content":"HSTABC123 chuyen tien","transferType":"in","description":"Thanh toan","transferAmount":79000,"accumulated":100000,"referenceCode":"FT2401"}
                 """.trim();
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
         String signature = "sha256=" + SepayB2cPaymentService.hmacSha256Hex("whsec-test-secret", timestamp + "." + rawBody);
@@ -112,7 +112,7 @@ class SepayB2cPaymentServiceTest {
                 .thenReturn(Optional.of(B2cPaymentTransaction.builder().build()));
 
         String rawBody = """
-                {"id":999,"gateway":"VCB","transactionDate":"2024-07-02 11:08:33","accountNumber":"","subAccount":"","code":"HST1","content":"HST1","transferType":"in","description":"","transferAmount":49000,"accumulated":0,"referenceCode":""}
+                {"id":999,"gateway":"VCB","transactionDate":"2024-07-02 11:08:33","accountNumber":"","subAccount":"","code":"HST1","content":"HST1","transferType":"in","description":"","transferAmount":79000,"accumulated":0,"referenceCode":""}
                 """.trim();
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
         String signature = "sha256=" + SepayB2cPaymentService.hmacSha256Hex("whsec-test-secret", timestamp + "." + rawBody);

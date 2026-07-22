@@ -20,7 +20,7 @@ UPDATE organizations SET max_ccu = 80, max_verified_accounts = 1000, max_ai_quer
 CREATE TABLE IF NOT EXISTS b2c_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES profiles(id) UNIQUE,
-    price_vnd INT NOT NULL DEFAULT 49000,
+    price_vnd INT NOT NULL DEFAULT 79000,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,

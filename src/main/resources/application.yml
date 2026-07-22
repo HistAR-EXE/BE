@@ -85,7 +85,7 @@ payment:
     qr-base-url: ${SEPAY_QR_BASE_URL:https://vietqr.app/img}
     qr-template: ${SEPAY_QR_TEMPLATE:compact}
     qr-show-info: ${SEPAY_QR_SHOW_INFO:true}
-    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:49000}
+    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:79000}
     order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:15}
     max-timestamp-skew-seconds: ${SEPAY_MAX_TIMESTAMP_SKEW_SECONDS:300}
 

@@ -82,7 +82,7 @@ class BillingServiceTest {
                                 .startDate(LocalDate.now().minusMonths(1))
                                 .endDate(LocalDate.now())
                                 .isActive(false)
-                                .priceVnd(49_000)
+                                .priceVnd(79_000)
                                 .paymentMethod("DEMO")
                                 .createdAt(Instant.now())
                                 .build()));
@@ -90,7 +90,7 @@ class BillingServiceTest {
         var history = billingService.getB2cHistory(userId);
 
         assertThat(history).hasSize(1);
-        assertThat(history.get(0).priceVnd()).isEqualTo(49_000);
+        assertThat(history.get(0).priceVnd()).isEqualTo(79_000);
         assertThat(history.get(0).paymentMethod()).isEqualTo("DEMO");
     }
 

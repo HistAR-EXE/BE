@@ -26,7 +26,7 @@ WHERE plan_type = 'PREMIUM'
 CREATE TABLE IF NOT EXISTS b2c_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES profiles(id),
-    price_vnd INT NOT NULL DEFAULT 49000,
+    price_vnd INT NOT NULL DEFAULT 79000,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
