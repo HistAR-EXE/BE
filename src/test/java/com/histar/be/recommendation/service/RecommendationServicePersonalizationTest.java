@@ -4,12 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
+import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
+import com.histar.be.profile.entity.Profile;
+import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.recommendation.dto.RecommendationItem;
 import com.histar.be.recommendation.dto.RecommendationsResponse;
 import com.histar.be.visit.dto.StartVisitSessionRequest;
 import com.histar.be.visit.service.VisitSessionService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +42,9 @@ class RecommendationServicePersonalizationTest {
     @Autowired
     private LocationRepository locationRepository;
 
+    @Autowired
+    private ProfileRepository profileRepository;
+
     // INJECT JDBC TEMPLATE ĐỂ TRUY VẤN TRỰC TIẾP HOẶC TẠO USER ID HỢP LỆ TRONG BẢNG PROFILES
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -52,16 +59,25 @@ class RecommendationServicePersonalizationTest {
         if (!existingUsers.isEmpty()) {
             testUserId = existingUsers.get(0);
         } else {
-            testUserId = UUID.randomUUID();
-            try {
-                jdbcTemplate.update("INSERT INTO profiles (id, display_name) VALUES (?, ?)", testUserId, "Test User HistAR");
-            } catch (Exception e) {
-                // Nếu bảng profiles có cấu trúc tối giản hơn
-                jdbcTemplate.update("INSERT INTO profiles (id) VALUES (?)", testUserId);
-            }
+            Profile profile = profileRepository.save(Profile.builder()
+                    .email("reco-" + UUID.randomUUID() + "@test.local")
+                    .displayName("Test User HistAR")
+                    .emailVerified(true)
+                    .createdAt(Instant.now())
+                    .build());
+            testUserId = profile.getId();
         }
 
-        // 2. LẤY ID CỦA ĐỊA ĐIỂM ĐẦU TIÊN CÓ SẴN TRONG BẢNG LOCATIONS (VD: CỦ CHI)
+        // 2. H2 create-drop has no seed rows — create a location when the table is empty.
+        if (locationRepository.count() == 0) {
+            locationRepository.save(Location.builder()
+                    .name("Củ Chi Test")
+                    .latitude(11.143)
+                    .longitude(106.461)
+                    .city("TP.HCM")
+                    .createdAt(Instant.now())
+                    .build());
+        }
         testLocationId = locationRepository.findAll().get(0).getId();
 
         // 3. TẠO 2 ĐIỂM POI GIẢ LẬP GẮN VÀO ĐỊA ĐIỂM TRÊN ĐỂ THUẬT TOÁN CÓ DỮ LIỆU TÍNH TOÁN
