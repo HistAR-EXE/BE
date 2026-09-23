@@ -75,6 +75,9 @@ payment:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:https://fe-lake-five.vercel.app}
 
+gemini:
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+
 chat:
   provider: ${CHAT_PROVIDER:gemini}
   hybrid-order: ${CHAT_HYBRID_ORDER:gemini}
