@@ -36,6 +36,7 @@ build/
 .env
 .env.production
 .env.prod
+.env.render-db
 *firebase-adminsdk*.json
 
 ### Docx / extract temp (không commit) ###

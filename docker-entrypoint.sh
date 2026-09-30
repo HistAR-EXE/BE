@@ -52,6 +52,22 @@ fi
 DB_HOST="$(echo "$DB_URL" | sed -E 's|^jdbc:postgresql://([^/@]+@)?([^:/]+).*|\2|')"
 echo "[INFO] Database host: ${DB_HOST}"
 
+# Migrate schema BEFORE Spring Boot so Hibernate validate doesn't race / timeout on free tier.
+# Disable with FLYWAY_PRE_MIGRATE=false on Render if needed.
+if [ "${FLYWAY_PRE_MIGRATE:-true}" = "true" ] && [ -x /opt/flyway/flyway ]; then
+  echo "[INFO] Flyway pre-migrate (baseline 13)..."
+  FLYWAY_ARGS="-url=${DB_URL} -locations=filesystem:/app/db/migration -baselineOnMigrate=true -baselineVersion=13 -connectRetries=15"
+  if [ -n "${DB_USER:-}" ]; then
+    FLYWAY_ARGS="$FLYWAY_ARGS -user=${DB_USER}"
+  fi
+  if [ -n "${DB_PASSWORD:-}" ]; then
+    FLYWAY_ARGS="$FLYWAY_ARGS -password=${DB_PASSWORD}"
+  fi
+  # shellcheck disable=SC2086
+  /opt/flyway/flyway $FLYWAY_ARGS migrate
+  echo "[INFO] Flyway pre-migrate done"
+fi
+
 # Render free/starter (~512MB): không set -Xmx dễ OOM (exit 137) trước khi bind PORT
 # Override bằng JAVA_OPTS trên Dashboard nếu nâng plan
 JAVA_OPTS="${JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k}"
