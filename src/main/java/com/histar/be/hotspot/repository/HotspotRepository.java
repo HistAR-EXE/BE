@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface HotspotRepository extends JpaRepository<Hotspot, UUID> {
 
     List<Hotspot> findByPanoramaId(UUID panoramaId);
+
+    List<Hotspot> findByContentRefAndType(String contentRef, String type);
 }

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.billing.entity.B2cPaymentTransaction;
 import com.histar.be.billing.repository.B2cPaymentTransactionRepository;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.SepayProperties;
 import com.histar.be.profile.entity.Profile;
@@ -54,6 +55,8 @@ class SepayB2cPaymentServiceTest {
         props.setAccountNumber("0010000000355");
         props.setAccountName("CONG TY HISTAR");
         props.setWebhookSecret("whsec-test-secret");
+        props.setApiKey("sk-test-key");
+        props.setWebhookAuthMode("auto");
         props.setMaxTimestampSkewSeconds(300);
         props.setQrTemplate("compact");
         props.setQrShowInfo(true);
@@ -139,5 +142,42 @@ class SepayB2cPaymentServiceTest {
                         rawBody))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Chữ ký");
+    }
+
+    @Test
+    void handleWebhook_acceptsSepayApiKeyAuthorization() {
+        UUID userId = UUID.randomUUID();
+        B2cPaymentTransaction tx = B2cPaymentTransaction.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .provider("SEPAY")
+                .orderCode("HSTAPIKEY1")
+                .transferContent("HSTAPIKEY1")
+                .amountVnd(79_000)
+                .status("PENDING")
+                .expiresAt(Instant.now().plusSeconds(600))
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        when(paymentTransactionRepository.findByProviderTransactionId(77L)).thenReturn(Optional.empty());
+        when(paymentTransactionRepository.findByOrderCode("HSTAPIKEY1")).thenReturn(Optional.of(tx));
+
+        String rawBody = """
+                {"id":77,"gateway":"MBBank","transactionDate":"2024-07-02 11:08:33","accountNumber":"0815330544","subAccount":"","code":"HSTAPIKEY1","content":"HSTAPIKEY1","transferType":"in","description":"Thanh toan","transferAmount":79000,"accumulated":100000,"referenceCode":"FT77"}
+                """.trim();
+
+        sepayB2cPaymentService.handleWebhook(null, null, "Apikey sk-test-key", rawBody);
+
+        assertThat(tx.getStatus()).isEqualTo("PAID");
+        verify(billingService).subscribeB2c(userId, "SEPAY");
+    }
+
+    @Test
+    void handleWebhook_rejectsWrongApiKey() {
+        String rawBody = "{\"id\":1,\"transferType\":\"in\",\"code\":\"HST1\",\"transferAmount\":79000}";
+
+        assertThatThrownBy(() -> sepayB2cPaymentService.handleWebhook(null, null, "Apikey wrong-key", rawBody))
+                .isInstanceOf(AuthException.class);
+        verify(billingService, never()).subscribeB2c(any(), any());
     }
 }

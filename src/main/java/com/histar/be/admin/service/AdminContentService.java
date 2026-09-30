@@ -11,6 +11,8 @@ import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
+import com.histar.be.hotspot.entity.Hotspot;
+import com.histar.be.hotspot.repository.HotspotRepository;
 import com.histar.be.location.service.LocationEraValidationService;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
@@ -30,12 +32,13 @@ public class AdminContentService {
     private final ArtifactRepository artifactRepository;
     private final QuestRepository questRepository;
     private final LocationEraValidationService locationEraValidationService;
+    private final HotspotRepository hotspotRepository;
 
     public List<AdminDiscoveryPointResponse> listDiscoveryPoints(UUID locationId) {
         List<DiscoveryPoint> points = locationId != null
                 ? discoveryPointRepository.findByLocationIdOrderBySortOrder(locationId)
                 : discoveryPointRepository.findAll();
-        return points.stream().map(AdminDiscoveryPointResponse::from).toList();
+        return points.stream().map(this::toDiscoveryResponse).toList();
     }
 
     @Transactional
@@ -48,8 +51,9 @@ public class AdminContentService {
                 .unlockKey(request.unlockKey())
                 .sortOrder(request.sortOrder() != null ? request.sortOrder() : 0)
                 .build());
+        syncSceneHotspotAngles(request.unlockKey(), request.yaw(), request.pitch());
         log.info("admin create discovery-point id={} locationId={}", saved.getId(), saved.getLocationId());
-        return AdminDiscoveryPointResponse.from(saved);
+        return toDiscoveryResponse(saved);
     }
 
     @Transactional
@@ -65,7 +69,62 @@ public class AdminContentService {
         if (request.sortOrder() != null) {
             point.setSortOrder(request.sortOrder());
         }
-        return AdminDiscoveryPointResponse.from(discoveryPointRepository.save(point));
+        DiscoveryPoint saved = discoveryPointRepository.save(point);
+        syncSceneHotspotAngles(request.unlockKey(), request.yaw(), request.pitch());
+        return toDiscoveryResponse(saved);
+    }
+
+    private AdminDiscoveryPointResponse toDiscoveryResponse(DiscoveryPoint point) {
+        Double yaw = null;
+        Double pitch = null;
+        UUID sceneId = parseScenePanoramaId(point.getUnlockKey());
+        if (sceneId != null) {
+            List<Hotspot> inbound = hotspotRepository.findByContentRefAndType(sceneId.toString(), "scene");
+            if (!inbound.isEmpty()) {
+                yaw = inbound.get(0).getYaw();
+                pitch = inbound.get(0).getPitch();
+            }
+        }
+        return AdminDiscoveryPointResponse.from(point, yaw, pitch);
+    }
+
+    /**
+     * When admin sets yaw/pitch on a scene discovery unlockKey {@code scene:{panoramaId}},
+     * update inbound scene-link hotspots that navigate to that panorama.
+     */
+    private void syncSceneHotspotAngles(String unlockKey, Double yaw, Double pitch) {
+        if (yaw == null && pitch == null) {
+            return;
+        }
+        UUID sceneId = parseScenePanoramaId(unlockKey);
+        if (sceneId == null) {
+            return;
+        }
+        List<Hotspot> inbound = hotspotRepository.findByContentRefAndType(sceneId.toString(), "scene");
+        for (Hotspot hotspot : inbound) {
+            if (yaw != null) {
+                hotspot.setYaw(yaw);
+            }
+            if (pitch != null) {
+                hotspot.setPitch(pitch);
+            }
+        }
+        if (!inbound.isEmpty()) {
+            hotspotRepository.saveAll(inbound);
+            log.info("admin synced yaw/pitch for {} inbound hotspots -> scene {}", inbound.size(), sceneId);
+        }
+    }
+
+    private static UUID parseScenePanoramaId(String unlockKey) {
+        if (unlockKey == null || !unlockKey.startsWith("scene:")) {
+            return null;
+        }
+        String raw = unlockKey.substring("scene:".length()).trim();
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     public List<AdminArtifactResponse> listArtifacts(UUID locationId) {

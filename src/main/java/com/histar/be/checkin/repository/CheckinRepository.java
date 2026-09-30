@@ -1,6 +1,7 @@
 package com.histar.be.checkin.repository;
 
 import com.histar.be.checkin.entity.Checkin;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -9,4 +10,6 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
     long countByUserId(UUID userId);
 
     boolean existsByUserIdAndLocationId(UUID userId, UUID locationId);
+
+    List<Checkin> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }

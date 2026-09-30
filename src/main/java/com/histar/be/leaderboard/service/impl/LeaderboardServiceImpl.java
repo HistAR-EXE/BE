@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LeaderboardServiceImpl implements LeaderboardService {
 
+    private static final int FREE_ALL_SCOPE_MAX_ENTRIES = 10;
+
     private final ProfileRepository profileRepository;
     private final StudyGroupMemberRepository studyGroupMemberRepository;
     private final ViralProperties viralProperties;
@@ -44,18 +46,14 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         if (normalizedScope.equals("city") && (city == null || city.isBlank())) {
             throw new BusinessRuleException("scope=city cần tham số city");
         }
-        if (normalizedScope.equals("all")
-                && currentUserId != null
-                && !usageQuotaService.hasPremiumEntitlement(currentUserId)
-                && !hasArchivedOrgReadAccess(currentUserId)) {
-            throw new BusinessRuleException("Bảng xếp hạng toàn cộng đồng chỉ dành cho Premium hoặc thành viên tổ chức B2B.");
-        }
+
+        boolean freeAllScopePreview = isFreeAllScopePreview(normalizedScope, currentUserId);
 
         String cacheKey = normalizedScope + "|" + (city == null ? "" : city);
         CachedLeaderboard cached = cache.get(cacheKey);
         long now = System.currentTimeMillis();
         if (cached != null && now - cached.cachedAtMs() < viralProperties.getLeaderboardCacheSeconds() * 1000L) {
-            return applyCurrentUserHighlight(cached.response(), currentUserId);
+            return finalizeResponse(cached.response(), currentUserId, freeAllScopePreview);
         }
 
         List<Profile> profiles = loadProfiles(normalizedScope, city);
@@ -74,9 +72,9 @@ public class LeaderboardServiceImpl implements LeaderboardService {
                     false));
         }
 
-        LeaderboardResponse response = new LeaderboardResponse(normalizedScope, city, entries);
+        LeaderboardResponse response = new LeaderboardResponse(normalizedScope, city, entries, false);
         cache.put(cacheKey, new CachedLeaderboard(response, now));
-        return applyCurrentUserHighlight(response, currentUserId);
+        return finalizeResponse(response, currentUserId, freeAllScopePreview);
     }
 
     private LeaderboardResponse getGroupLeaderboard(UUID groupId, UUID currentUserId) {
@@ -84,7 +82,7 @@ public class LeaderboardServiceImpl implements LeaderboardService {
                 .map(m -> m.getUserId())
                 .toList();
         if (memberIds.isEmpty()) {
-            return new LeaderboardResponse("group", null, List.of());
+            return new LeaderboardResponse("group", null, List.of(), false);
         }
         List<Profile> profiles = profileRepository.findAllById(memberIds).stream()
                 .filter(p -> p.getTotalPoints() != null)
@@ -102,7 +100,29 @@ public class LeaderboardServiceImpl implements LeaderboardService {
                     profile.getTotalPoints(),
                     false));
         }
-        return applyCurrentUserHighlight(new LeaderboardResponse("group", null, entries), currentUserId);
+        return applyCurrentUserHighlight(
+                new LeaderboardResponse("group", null, entries, false), currentUserId);
+    }
+
+    private boolean isFreeAllScopePreview(String normalizedScope, UUID currentUserId) {
+        if (!"all".equals(normalizedScope) || currentUserId == null) {
+            return false;
+        }
+        if (usageQuotaService.hasPremiumEntitlement(currentUserId)) {
+            return false;
+        }
+        return !hasArchivedOrgReadAccess(currentUserId);
+    }
+
+    private LeaderboardResponse finalizeResponse(
+            LeaderboardResponse source, UUID currentUserId, boolean freeAllScopePreview) {
+        if (freeAllScopePreview) {
+            List<LeaderboardEntryResponse> truncated = source.entries().stream()
+                    .limit(FREE_ALL_SCOPE_MAX_ENTRIES)
+                    .toList();
+            return new LeaderboardResponse(source.scope(), source.city(), truncated, true);
+        }
+        return applyCurrentUserHighlight(source, currentUserId);
     }
 
     private List<Profile> loadProfiles(String scope, String city) {
@@ -126,7 +146,7 @@ public class LeaderboardServiceImpl implements LeaderboardService {
     }
 
     private LeaderboardResponse applyCurrentUserHighlight(LeaderboardResponse source, UUID currentUserId) {
-        if (currentUserId == null) {
+        if (currentUserId == null || source.viewerRankLocked()) {
             return source;
         }
         List<LeaderboardEntryResponse> entries = source.entries().stream()
@@ -138,7 +158,7 @@ public class LeaderboardServiceImpl implements LeaderboardService {
                         e.totalPoints(),
                         currentUserId.equals(e.userId())))
                 .toList();
-        return new LeaderboardResponse(source.scope(), source.city(), entries);
+        return new LeaderboardResponse(source.scope(), source.city(), entries, false);
     }
 
     private record CachedLeaderboard(LeaderboardResponse response, long cachedAtMs) {}

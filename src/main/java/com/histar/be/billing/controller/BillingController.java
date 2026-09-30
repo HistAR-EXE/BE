@@ -1,7 +1,6 @@
 package com.histar.be.billing.controller;
 
 import com.histar.be.billing.dto.B2cSubscribeRequest;
-import com.histar.be.billing.dto.B2b2cInquiryItem;
 import com.histar.be.billing.dto.B2b2cInquiryRequest;
 import com.histar.be.billing.dto.B2b2cInquiryResponse;
 import com.histar.be.billing.dto.B2cSubscribeRequest;
@@ -34,6 +33,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,6 +48,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 @RequestMapping("/api/billing")
 @RequiredArgsConstructor
+@Slf4j
 public class BillingController {
 
     private final BillingService billingService;
@@ -142,20 +143,31 @@ public class BillingController {
     public ResponseEntity<ApiResponse<Void>> sepayWebhook(
             @RequestHeader(value = "X-SePay-Signature", required = false) String signature,
             @RequestHeader(value = "X-SePay-Timestamp", required = false) String timestamp,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody String rawBody) {
-        sepayB2cPaymentService.handleWebhook(timestamp, signature, rawBody);
-        sepayOrgPaymentService.handleWebhook(timestamp, signature, rawBody);
+        RuntimeException b2cError = runWebhook("B2C", () ->
+                sepayB2cPaymentService.handleWebhook(timestamp, signature, authorization, rawBody));
+        RuntimeException orgError = runWebhook("B2B", () ->
+                sepayOrgPaymentService.handleWebhook(timestamp, signature, authorization, rawBody));
+        if (b2cError != null && orgError != null) {
+            throw b2cError;
+        }
         return ResponseEntity.ok(ApiResponse.ok("Webhook received", null));
+    }
+
+    private RuntimeException runWebhook(String lane, Runnable action) {
+        try {
+            action.run();
+            return null;
+        } catch (RuntimeException ex) {
+            log.warn("SePay {} webhook rejected: {}", lane, ex.getMessage());
+            return ex;
+        }
     }
 
     @PostMapping("/b2b2c-inquiry")
     public ApiResponse<B2b2cInquiryResponse> submitB2b2cInquiry(@RequestBody @Valid B2b2cInquiryRequest request) {
         return ApiResponse.ok(b2b2cInquiryService.submit(request));
-    }
-
-    @GetMapping("/admin/b2b2c-inquiries")
-    public ApiResponse<List<B2b2cInquiryItem>> listB2b2cInquiries() {
-        return ApiResponse.ok(b2b2cInquiryService.listAll());
     }
 
     @GetMapping("/org/volume-preview")

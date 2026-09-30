@@ -12,4 +12,6 @@ public record B2b2cInquiryItem(
         String packageType,
         String message,
         String status,
+        String adminNotes,
+        Instant contactedAt,
         Instant createdAt) {}

@@ -25,11 +25,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SepayOrgPaymentService {
 
     private final OrgPaymentTransactionRepository orgPaymentTransactionRepository;
@@ -117,13 +119,15 @@ public class SepayOrgPaymentService {
 
     @Transactional
     public void handleWebhook(String timestampHeader, String signatureHeader, String rawBody) {
+        handleWebhook(timestampHeader, signatureHeader, null, rawBody);
+    }
+
+    @Transactional
+    public void handleWebhook(
+            String timestampHeader, String signatureHeader, String authorizationHeader, String rawBody) {
         ensureEnabled();
-        SepayWebhookPayload payload = SepayB2cPaymentService.parseAndVerifyWebhook(
-                sepayProperties.getWebhookSecret(),
-                sepayProperties.getMaxTimestampSkewSeconds(),
-                timestampHeader,
-                signatureHeader,
-                rawBody);
+        SepayWebhookPayload payload = SepayB2cPaymentService.authenticateAndParse(
+                sepayProperties, timestampHeader, signatureHeader, authorizationHeader, rawBody);
         handleVerifiedWebhook(payload);
     }
 
@@ -142,6 +146,7 @@ public class SepayOrgPaymentService {
         OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCode(code)
                 .orElseGet(() -> orgPaymentTransactionRepository.findByTransferContent(code).orElse(null));
         if (tx == null) {
+            log.info("SePay B2B webhook ignored: no order for code={}", code);
             return;
         }
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
@@ -241,7 +246,7 @@ public class SepayOrgPaymentService {
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
             return "PAID";
         }
-        if (tx.getExpiresAt() != null && tx.getExpiresAt().isBefore(Instant.now())) {
+        if (SepayB2cPaymentService.isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes())) {
             return "EXPIRED";
         }
         return tx.getStatus();

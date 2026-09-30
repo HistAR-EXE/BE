@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 @Setter
 public class HistarOrgProperties {
 
+    /** Sales notification inbox (SALES_INBOX / histar.sales-inbox). Blank skips notify email. */
+    private String salesInbox = "";
+
     private Org org = new Org();
     private Group group = new Group();
     private Tier tier = new Tier();

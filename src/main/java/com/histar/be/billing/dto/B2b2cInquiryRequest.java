@@ -10,4 +10,6 @@ public record B2b2cInquiryRequest(
         @NotBlank @Email String contactEmail,
         String contactPhone,
         @NotBlank @Pattern(regexp = "ONE_TIME|OPEX") String packageType,
-        String message) {}
+        String message,
+        String website,
+        String companyUrl) {}

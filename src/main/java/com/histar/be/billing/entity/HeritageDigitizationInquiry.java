@@ -54,4 +54,10 @@ public class HeritageDigitizationInquiry {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "admin_notes", columnDefinition = "TEXT")
+    private String adminNotes;
+
+    @Column(name = "contacted_at")
+    private Instant contactedAt;
 }

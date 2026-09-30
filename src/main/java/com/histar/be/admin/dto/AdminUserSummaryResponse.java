@@ -10,6 +10,8 @@ public record AdminUserSummaryResponse(
         String email,
         String displayName,
         String role,
+        String tier,
+        Boolean emailVerified,
         Integer level,
         Integer totalPoints,
         Instant createdAt) {
@@ -20,6 +22,8 @@ public record AdminUserSummaryResponse(
                 profile.getEmail(),
                 profile.getDisplayName(),
                 UserRole.fromStored(profile.getRole()).name(),
+                profile.getTier(),
+                profile.getEmailVerified(),
                 profile.getLevel(),
                 profile.getTotalPoints(),
                 profile.getCreatedAt());

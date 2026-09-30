@@ -11,9 +11,15 @@ public record AdminDiscoveryPointResponse(
         BigDecimal mapXPct,
         BigDecimal mapYPct,
         String unlockKey,
-        Integer sortOrder) {
+        Integer sortOrder,
+        Double yaw,
+        Double pitch) {
 
     public static AdminDiscoveryPointResponse from(DiscoveryPoint point) {
+        return from(point, null, null);
+    }
+
+    public static AdminDiscoveryPointResponse from(DiscoveryPoint point, Double yaw, Double pitch) {
         return new AdminDiscoveryPointResponse(
                 point.getId(),
                 point.getLocationId(),
@@ -21,6 +27,8 @@ public record AdminDiscoveryPointResponse(
                 point.getMapXPct(),
                 point.getMapYPct(),
                 point.getUnlockKey(),
-                point.getSortOrder());
+                point.getSortOrder(),
+                yaw,
+                pitch);
     }
 }

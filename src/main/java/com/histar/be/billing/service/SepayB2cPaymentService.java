@@ -8,6 +8,7 @@ import com.histar.be.billing.dto.SepayWebhookPayload;
 import com.histar.be.billing.entity.B2cPaymentTransaction;
 import com.histar.be.billing.repository.B2cPaymentTransactionRepository;
 import com.histar.be.auth.service.EmailVerifiedGuard;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.SepayProperties;
@@ -26,11 +27,13 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SepayB2cPaymentService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -104,19 +107,22 @@ public class SepayB2cPaymentService {
 
     @Transactional
     public void handleWebhook(String timestampHeader, String signatureHeader, String rawBody) {
+        handleWebhook(timestampHeader, signatureHeader, null, rawBody);
+    }
+
+    @Transactional
+    public void handleWebhook(
+            String timestampHeader, String signatureHeader, String authorizationHeader, String rawBody) {
         ensureEnabled();
-        SepayWebhookPayload payload = parseAndVerifyWebhook(
-                sepayProperties.getWebhookSecret(),
-                sepayProperties.getMaxTimestampSkewSeconds(),
-                timestampHeader,
-                signatureHeader,
-                rawBody);
+        SepayWebhookPayload payload = authenticateAndParse(
+                sepayProperties, timestampHeader, signatureHeader, authorizationHeader, rawBody);
         handleVerifiedWebhook(payload);
     }
 
     @Transactional
     void handleVerifiedWebhook(SepayWebhookPayload payload) {
         if (!"in".equalsIgnoreCase(payload.transferType())) {
+            log.info("SePay B2C webhook ignored: transferType={}", payload.transferType());
             return;
         }
         if (paymentTransactionRepository.findByProviderTransactionId(payload.id()).isPresent()) {
@@ -124,11 +130,13 @@ public class SepayB2cPaymentService {
         }
         String code = payload.code() != null && !payload.code().isBlank() ? payload.code().trim() : extractCode(payload.content());
         if (code == null || code.isBlank()) {
+            log.info("SePay B2C webhook ignored: no order code in payload id={}", payload.id());
             return;
         }
         B2cPaymentTransaction tx = paymentTransactionRepository.findByOrderCode(code)
                 .orElseGet(() -> paymentTransactionRepository.findByTransferContent(code).orElse(null));
         if (tx == null) {
+            log.info("SePay B2C webhook ignored: no order for code={}", code);
             return;
         }
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
@@ -140,6 +148,11 @@ public class SepayB2cPaymentService {
             return;
         }
         if (payload.transferAmount() == null || payload.transferAmount() < tx.getAmountVnd()) {
+            log.warn(
+                    "SePay B2C webhook underpaid order={} expected={} got={}",
+                    tx.getOrderCode(),
+                    tx.getAmountVnd(),
+                    payload.transferAmount());
             tx.setProviderPayload(toJson(payload));
             tx.setUpdatedAt(Instant.now());
             paymentTransactionRepository.save(tx);
@@ -154,6 +167,7 @@ public class SepayB2cPaymentService {
         tx.setUpdatedAt(Instant.now());
         paymentTransactionRepository.save(tx);
         billingService.subscribeB2c(tx.getUserId(), "SEPAY");
+        log.info("SePay B2C webhook matched order={} status=PAID", tx.getOrderCode());
     }
 
     private void ensureEnabled() {
@@ -227,10 +241,89 @@ public class SepayB2cPaymentService {
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
             return "PAID";
         }
-        if (tx.getExpiresAt() != null && tx.getExpiresAt().isBefore(Instant.now())) {
+        if (isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes())) {
             return "EXPIRED";
         }
         return tx.getStatus();
+    }
+
+    static boolean isPastGrace(Instant expiresAt, int graceMinutes) {
+        if (expiresAt == null) {
+            return false;
+        }
+        int grace = Math.max(0, graceMinutes);
+        return !expiresAt.plus(grace, ChronoUnit.MINUTES).isAfter(Instant.now());
+    }
+
+    /**
+     * SePay production sends {@code Authorization: Apikey <key>}. Scripts and unit tests still use HMAC
+     * headers. Mode {@code auto} accepts either; {@code apikey} and {@code hmac} force one scheme.
+     */
+    static SepayWebhookPayload authenticateAndParse(
+            SepayProperties properties,
+            String timestampHeader,
+            String signatureHeader,
+            String authorizationHeader,
+            String rawBody) {
+        String mode = properties.getWebhookAuthMode() == null
+                ? "auto"
+                : properties.getWebhookAuthMode().trim().toLowerCase(Locale.ROOT);
+        boolean apiKeyHeader = isApiKeyAuthorization(authorizationHeader);
+        boolean hmacHeaders = timestampHeader != null
+                && !timestampHeader.isBlank()
+                && signatureHeader != null
+                && !signatureHeader.isBlank();
+        if ("hmac".equals(mode)) {
+            return parseAndVerifyWebhook(
+                    properties.getWebhookSecret(),
+                    properties.getMaxTimestampSkewSeconds(),
+                    timestampHeader,
+                    signatureHeader,
+                    rawBody);
+        }
+        if ("apikey".equals(mode) || ("auto".equals(mode) && apiKeyHeader)) {
+            assertApiKey(properties.getApiKey(), authorizationHeader);
+            return parseBody(rawBody);
+        }
+        if ("auto".equals(mode) && hmacHeaders) {
+            return parseAndVerifyWebhook(
+                    properties.getWebhookSecret(),
+                    properties.getMaxTimestampSkewSeconds(),
+                    timestampHeader,
+                    signatureHeader,
+                    rawBody);
+        }
+        throw new AuthException("Webhook SePay không hợp lệ.");
+    }
+
+    static void assertApiKey(String expected, String authorizationHeader) {
+        if (expected == null || expected.isBlank()) {
+            throw new BusinessRuleException("Thiếu cấu hình API key của SePay.");
+        }
+        if (!isApiKeyAuthorization(authorizationHeader)) {
+            throw new AuthException("Webhook SePay không hợp lệ.");
+        }
+        String provided = authorizationHeader.trim().substring("Apikey ".length()).trim();
+        if (!MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8), provided.getBytes(StandardCharsets.UTF_8))) {
+            throw new AuthException("API key webhook SePay không hợp lệ.");
+        }
+    }
+
+    private static boolean isApiKeyAuthorization(String authorizationHeader) {
+        return authorizationHeader != null
+                && authorizationHeader.trim().regionMatches(true, 0, "Apikey ", 0, "Apikey ".length());
+    }
+
+    private static SepayWebhookPayload parseBody(String rawBody) {
+        if (rawBody == null || rawBody.isBlank()) {
+            throw new BusinessRuleException("Webhook payload trống.");
+        }
+        try {
+            return OBJECT_MAPPER.readValue(rawBody, SepayWebhookPayload.class);
+        } catch (JsonProcessingException e) {
+            throw new BusinessRuleException("Webhook payload không phải JSON hợp lệ.");
+        }
     }
 
     private String generateOrderCode() {

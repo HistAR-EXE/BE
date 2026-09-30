@@ -11,4 +11,6 @@ public record AdminDiscoveryPointRequest(
         BigDecimal mapXPct,
         BigDecimal mapYPct,
         @NotBlank String unlockKey,
-        Integer sortOrder) {}
+        Integer sortOrder,
+        Double yaw,
+        Double pitch) {}

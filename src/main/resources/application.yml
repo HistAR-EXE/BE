@@ -82,11 +82,14 @@ payment:
     account-number: ${SEPAY_ACCOUNT_NUMBER:}
     account-name: ${SEPAY_ACCOUNT_NAME:}
     webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    api-key: ${SEPAY_API_KEY:}
+    webhook-auth-mode: ${SEPAY_WEBHOOK_AUTH_MODE:auto}
     qr-base-url: ${SEPAY_QR_BASE_URL:https://vietqr.app/img}
     qr-template: ${SEPAY_QR_TEMPLATE:compact}
     qr-show-info: ${SEPAY_QR_SHOW_INFO:true}
     b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:79000}
     order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:15}
+    expiry-grace-minutes: ${SEPAY_EXPIRY_GRACE_MINUTES:30}
     max-timestamp-skew-seconds: ${SEPAY_MAX_TIMESTAMP_SKEW_SECONDS:300}
 
 cors:
@@ -106,6 +109,7 @@ viral:
   leaderboard-cache-seconds: ${VIRAL_LEADERBOARD_CACHE_SECONDS:60}
 
 histar:
+  sales-inbox: ${SALES_INBOX:}
   app:
     frontend-url: ${FRONTEND_URL:http://localhost:5173}
   mail:
