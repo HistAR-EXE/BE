@@ -6,31 +6,33 @@ spring:
     time-zone: Asia/Ho_Chi_Minh
   jmx:
     enabled: false
+  # Faster cold start on Render free (Tomcat binds sooner).
+  main:
+    lazy-initialization: true
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/timelens}
     username: ${DB_USER:timelens}
     password: ${DB_PASSWORD:}
     hikari:
-      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:5}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:2}
       minimum-idle: 1
+  # Schema is applied from laptop (scripts/flyway-migrate-render.ps1). Skip on boot to save free-tier time.
   flyway:
-    enabled: true
+    enabled: ${FLYWAY_ENABLED:false}
     baseline-on-migrate: true
-    # Manual seed applies V1..V13 via psql; baseline at 13 avoids re-running on Render boot.
     baseline-version: 13
     locations: classpath:db/migration
-  # default (not deferred): EMF must wait for Flyway so V14+ (e.g. admin_notes) apply before validate
   data:
     jpa:
       repositories:
-        bootstrap-mode: default
+        bootstrap-mode: deferred
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           time_zone: Asia/Ho_Chi_Minh
   mail:
