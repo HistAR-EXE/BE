@@ -19,10 +19,11 @@ spring:
     # Manual seed applies V1..V13 via psql; baseline at 13 avoids re-running on Render boot.
     baseline-version: 13
     locations: classpath:db/migration
+  # default (not deferred): EMF must wait for Flyway so V14+ (e.g. admin_notes) apply before validate
   data:
     jpa:
       repositories:
-        bootstrap-mode: deferred
+        bootstrap-mode: default
   jpa:
     hibernate:
       ddl-auto: validate
