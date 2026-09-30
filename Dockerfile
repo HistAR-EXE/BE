@@ -10,13 +10,14 @@ RUN ./mvnw -q package -DskipTests
 FROM flyway/flyway:11.7.2-alpine AS flyway
 
 FROM eclipse-temurin:17-jre-alpine
-RUN apk add --no-cache curl
+# bash required by /opt/flyway/flyway launcher; curl for health checks
+RUN apk add --no-cache curl bash
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 COPY --from=flyway /flyway /opt/flyway
 COPY src/main/resources/db/migration /app/db/migration
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh /opt/flyway/flyway
 ENV PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/docker-entrypoint.sh"]
