@@ -107,15 +107,12 @@ brevo:
 
 histar:
   sales-inbox: ${SALES_INBOX:}
-  test-hooks:
-    enabled: ${HISTAR_TEST_HOOKS_ENABLED:false}
   app:
     frontend-url: ${FRONTEND_URL:https://fe-lake-five.vercel.app}
   mail:
     enabled: ${MAIL_ENABLED:true}
     provider: ${MAIL_PROVIDER:brevo}
     from: ${MAIL_FROM:}
-  sales-inbox: ${SALES_INBOX:}
   test-hooks:
     enabled: ${HISTAR_TEST_HOOKS_ENABLED:false}
     secret: ${HISTAR_TEST_HOOKS_SECRET:}
