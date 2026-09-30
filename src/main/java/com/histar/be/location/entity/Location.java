@@ -42,6 +42,10 @@ public class Location {
     @Column(name = "google_maps_url", columnDefinition = "text")
     private String googleMapsUrl;
 
+    /** Pilot site slug (cu-chi, hoang-thanh-thang-long, dai-noi-hue). */
+    @Column(name = "site_code", length = 64)
+    private String siteCode;
+
     @Column(columnDefinition = "text")
     private String coverImage;
 

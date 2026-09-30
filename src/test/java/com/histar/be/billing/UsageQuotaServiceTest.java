@@ -17,6 +17,7 @@ import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.profile.service.TierAccessService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,9 @@ class UsageQuotaServiceTest {
 
     @Mock
     private BillingSettingsService billingSettingsService;
+
+    @Mock
+    private TierAccessService tierAccessService;
 
     @InjectMocks
     private UsageQuotaService usageQuotaService;
@@ -132,5 +136,25 @@ class UsageQuotaServiceTest {
                     assertThat(quota.getQuotaType()).isEqualTo("ORG_MONTHLY");
                     assertThat(quota.getUpgradePackage()).isEqualTo("PREMIUM");
                 });
+    }
+
+    @Test
+    void shouldIncludeChatSources_trueForJourneyPassAtSite() {
+        UUID userId = UUID.randomUUID();
+        Profile profile = Profile.builder().id(userId).tier(UserTier.FREE.name()).role("USER").build();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(tierAccessService.hasActiveJourneyPass(userId, "cu-chi")).thenReturn(true);
+
+        assertThat(usageQuotaService.shouldIncludeChatSources(userId, "cu-chi")).isTrue();
+    }
+
+    @Test
+    void shouldIncludeChatSources_falseForFreeWithoutPass() {
+        UUID userId = UUID.randomUUID();
+        Profile profile = Profile.builder().id(userId).tier(UserTier.FREE.name()).role("USER").build();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(tierAccessService.hasActiveJourneyPass(userId, "cu-chi")).thenReturn(false);
+
+        assertThat(usageQuotaService.shouldIncludeChatSources(userId, "cu-chi")).isFalse();
     }
 }

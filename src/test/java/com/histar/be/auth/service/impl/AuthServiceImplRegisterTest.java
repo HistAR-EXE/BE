@@ -18,6 +18,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.service.ProfileService;
+import com.histar.be.referral.service.ReferralService;
 import com.histar.be.security.JwtService;
 import java.time.Instant;
 import java.util.Optional;
@@ -58,6 +59,9 @@ class AuthServiceImplRegisterTest {
 
     @Mock
     private HistarMailProperties mailProperties;
+
+    @Mock
+    private ReferralService referralService;
 
     @InjectMocks
     private AuthServiceImpl authService;

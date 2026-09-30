@@ -14,4 +14,5 @@ public record B2b2cInquiryItem(
         String status,
         String adminNotes,
         Instant contactedAt,
-        Instant createdAt) {}
+        Instant createdAt,
+        String interestSiteCode) {}

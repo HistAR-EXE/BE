@@ -24,4 +24,12 @@ public class AdminB2cPaymentController {
             @RequestParam(defaultValue = "20") int limit) {
         return ApiResponse.ok(adminB2cPaymentQueryService.listRecent(limit));
     }
+
+    /** e.g. {@code GET /api/admin/billing/payments?status=UNDERPAID} */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<AdminRecentB2cPaymentItem>> listPayments(
+            @RequestParam(required = false) String status, @RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.ok(adminB2cPaymentQueryService.listByStatus(status, limit));
+    }
 }

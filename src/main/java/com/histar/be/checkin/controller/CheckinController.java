@@ -5,7 +5,7 @@ import com.histar.be.checkin.dto.CheckinResponse;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
-import com.histar.be.gamification.service.GamificationService;
+import com.histar.be.checkin.service.PresenceCheckinService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CheckinController {
 
-    private final GamificationService gamificationService;
+    private final PresenceCheckinService presenceCheckinService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -27,8 +27,7 @@ public class CheckinController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new AuthException("Unauthorized"));
-        var result = gamificationService.processCheckin(
-                userId, request.locationId(), request.latitude(), request.longitude(), request.qrCode());
+        var result = presenceCheckinService.checkin(userId, request);
         return ApiResponse.ok(CheckinResponse.from(result));
     }
 }

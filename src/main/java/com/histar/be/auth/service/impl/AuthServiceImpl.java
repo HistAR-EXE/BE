@@ -20,10 +20,12 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.service.ProfileService;
+import com.histar.be.referral.service.ReferralService;
 import com.histar.be.security.JwtService;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -44,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailVerificationService emailVerificationService;
     private final FirebaseAuthService firebaseAuthService;
     private final HistarMailProperties mailProperties;
+    private final ReferralService referralService;
 
     @Override
     @Transactional
@@ -65,6 +69,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         profileService.save(profile);
         UUID userId = profile.getId();
+        attributeReferralIfPresent(request.referralCode(), userId);
         String debugToken = null;
         if (!mailProperties.isEnabled()) {
             debugToken = emailVerificationService.sendInitialVerificationEmail(userId);
@@ -72,6 +77,17 @@ public class AuthServiceImpl implements AuthService {
             scheduleInitialVerificationEmailAfterCommit(userId);
         }
         return issueTokens(profile, debugToken);
+    }
+
+    private void attributeReferralIfPresent(String referralCode, UUID userId) {
+        if (referralCode == null || referralCode.isBlank()) {
+            return;
+        }
+        try {
+            referralService.recordVisit(referralCode.trim(), userId, "signup:" + userId);
+        } catch (Exception ex) {
+            log.info("Referral attribution skipped for {}: {}", referralCode, ex.getMessage());
+        }
     }
 
     private void scheduleInitialVerificationEmailAfterCommit(UUID userId) {

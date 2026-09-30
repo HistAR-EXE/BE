@@ -4,6 +4,7 @@ import com.histar.be.billing.entity.B2cRenewalReminder;
 import com.histar.be.billing.entity.B2cSubscription;
 import com.histar.be.billing.repository.B2cRenewalReminderRepository;
 import com.histar.be.billing.repository.B2cSubscriptionRepository;
+import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
@@ -31,6 +32,7 @@ public class B2cRenewalReminderService {
     private final ProfileRepository profileRepository;
     private final HistarEmailService histarEmailService;
     private final HistarMailProperties mailProperties;
+    private final HistarAppProperties appProperties;
 
     @Transactional
     public int sendDailyRenewalReminders() {
@@ -68,7 +70,17 @@ public class B2cRenewalReminderService {
             return;
         }
         String text = "Gói Premium của bạn sẽ hết hạn sau " + daysUntil
-                + " ngày (ngày hết hạn: " + endDate + "). Vui lòng gia hạn tại /checkout/b2c";
+                + " ngày (ngày hết hạn: " + endDate + "). Vui lòng gia hạn bằng cách thanh toán mới tại "
+                + checkoutUrl();
         histarEmailService.sendText(to, "[TimeLens] Nhắc gia hạn Premium", text);
+    }
+
+    /** Renewal is a fresh SePay checkout (Premium tier renews via /checkout/b2c). */
+    String checkoutUrl() {
+        String base = appProperties.getFrontendUrl() == null ? "" : appProperties.getFrontendUrl().trim();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/checkout/b2c";
     }
 }

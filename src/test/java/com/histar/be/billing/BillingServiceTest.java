@@ -2,7 +2,9 @@ package com.histar.be.billing.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +12,7 @@ import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.billing.entity.B2cSubscription;
 import com.histar.be.billing.service.CcuSessionService;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.config.DemoProperties;
 import com.histar.be.organization.entity.Organization;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
@@ -57,13 +60,68 @@ class BillingServiceTest {
     @Mock
     private CcuSessionService ccuSessionService;
 
+    @Mock
+    private DemoProperties demoProperties;
+
     @InjectMocks
     private BillingService billingService;
+
+    @Test
+    void subscribeB2c_rejectsDemoWhenDemoDisabled() {
+        UUID userId = UUID.randomUUID();
+        when(demoProperties.isEnabled()).thenReturn(false);
+
+        assertThatThrownBy(() -> billingService.subscribeB2c(userId, "DEMO"))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("demo");
+        verify(profileRepository, never()).findById(any());
+    }
+
+    @Test
+    void subscribeB2cReturningSubscription_allowsSepayWhenDemoDisabled() {
+        UUID userId = UUID.randomUUID();
+        UUID subId = UUID.randomUUID();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(Profile.builder().id(userId).build()));
+        when(billingSettingsService.getB2cPremiumPriceVnd()).thenReturn(49_000);
+        when(b2cSubscriptionRepository.findByUserIdAndIsActiveTrue(userId)).thenReturn(Optional.empty());
+        when(b2cSubscriptionRepository.save(any(B2cSubscription.class))).thenAnswer(inv -> {
+            B2cSubscription s = inv.getArgument(0);
+            s.setId(subId);
+            return s;
+        });
+
+        B2cSubscription created = billingService.subscribeB2cReturningSubscription(userId, "SEPAY");
+
+        assertThat(created.getId()).isEqualTo(subId);
+        assertThat(created.getPaymentMethod()).isEqualTo("SEPAY");
+    }
+
+    @Test
+    void reconcileExpiredB2cSubscriptions_deactivatesAndDowngradesFreeTier() {
+        UUID userId = UUID.randomUUID();
+        B2cSubscription expired = B2cSubscription.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .isActive(true)
+                .endDate(LocalDate.now().minusDays(1))
+                .build();
+        Profile profile = Profile.builder().id(userId).tier("PREMIUM").build();
+        when(b2cSubscriptionRepository.findAllByIsActiveTrueAndEndDateBefore(any(LocalDate.class)))
+                .thenReturn(List.of(expired));
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+
+        int affected = billingService.reconcileExpiredB2cSubscriptions();
+
+        assertThat(affected).isEqualTo(1);
+        assertThat(expired.getIsActive()).isFalse();
+        assertThat(profile.getTier()).isEqualTo("FREE");
+    }
 
     @Test
     void subscribeB2c_rejectsOrgMember() {
         UUID userId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
+        when(demoProperties.isEnabled()).thenReturn(true);
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).orgId(orgId).build()));
 

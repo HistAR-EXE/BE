@@ -1,4 +1,4 @@
-# Fills VITE_FIREBASE_API_KEY and VITE_FIREBASE_APP_ID in FE/.env.production (gitignored).
+# Fills VITE_FIREBASE_API_KEY and VITE_FIREBASE_APP_ID in FE/.env (gitignored).
 # Get values from Firebase Console → Project histar-a08c1 → Project settings → Your apps → Web
 param(
     [Parameter(Mandatory = $true)]
@@ -9,9 +9,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $feRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\FE")
-$envFile = Join-Path $feRoot ".env.production"
+$envFile = Join-Path $feRoot ".env"
 if (-not (Test-Path $envFile)) {
-    Copy-Item (Join-Path $feRoot ".env.production.example") $envFile
+    Copy-Item (Join-Path $feRoot ".env.example") $envFile
 }
 
 $lines = Get-Content $envFile -Encoding UTF8
@@ -21,4 +21,4 @@ $out = foreach ($line in $lines) {
     else { $line }
 }
 $out | Set-Content $envFile -Encoding UTF8
-Write-Host "Updated FE/.env.production Firebase web config. Paste same vars to Vercel."
+Write-Host "Updated FE/.env Firebase web config. Paste same vars to Vercel."

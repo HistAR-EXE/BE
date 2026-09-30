@@ -26,6 +26,9 @@ gamification:
   checkin-radius-meters: 100
   level-thresholds: 0,100,300,700
 
+presence:
+  qr-hmac-secret: ""
+
 visit:
   session:
     idle-timeout-minutes: 30

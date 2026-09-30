@@ -18,7 +18,9 @@ public record CheckinResponse(
         int xpEarned,
         List<UnlockedArtifactDto> newArtifacts,
         QuestProgressSnapshotDto questProgress,
-        List<LocationResponse> newlyUnlockedLocations) {
+        List<LocationResponse> newlyUnlockedLocations,
+        Integer presenceScore,
+        String presenceMethod) {
 
     public static CheckinResponse from(CheckinResultDto result) {
         return new CheckinResponse(
@@ -31,6 +33,8 @@ public record CheckinResponse(
                 result.xpEarned(),
                 result.newArtifacts(),
                 result.questProgress(),
-                result.newlyUnlockedLocations());
+                result.newlyUnlockedLocations(),
+                result.presenceScore(),
+                result.presenceMethod());
     }
 }

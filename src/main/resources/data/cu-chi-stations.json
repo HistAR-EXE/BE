@@ -1,0 +1,140 @@
+[
+  {
+    "code": "ST01",
+    "name": "Phòng họp",
+    "sortOrder": 1,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST01",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Rạng sáng — kế hoạch của ngày",
+        "body": "Phòng họp ngầm là nơi chỉ huy tổng hợp tin tức, phân công nhiệm vụ và giữ kín lộ trình di chuyển. Không gian chật, ánh sáng đèn dầu — mọi cuộc họp đều ngắn gọn và có kế hoạch dự phòng.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: cách tổ chức chỉ huy, giữ bí mật và liên lạc giữa các nhánh hầm. Hotspot gợi ý: bàn họp, đèn dầu, bản đồ và dụng cụ ghi chép.",
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "ST02",
+    "name": "Kho ngầm",
+    "sortOrder": 2,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST02",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Sáng — nuôi quân trong im lặng",
+        "body": "Kho ngầm dự trữ lương thực, nước và dụng cụ sinh hoạt cho hàng trăm người. Nếu bếp Hoàng Cầm nằm trên tuyến tham quan, đây cũng là nơi nấu ăn — khói và mùi phải được xử lý để không lộ vị trí.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: bảo quản lương khô, quy trình giấu khói bếp và an toàn cháy nổ trong hầm. Hotspot gợi ý: hũ/vại, ống dẫn khói, khu bếp.",
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "ST03",
+    "name": "Giếng hầm & thông gió",
+    "sortOrder": 3,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST03",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Trưa — nước và không khí",
+        "body": "Giếng hầm và các lỗ thông hơi giúp duy trì nước sạch và không khí lưu thông trong địa đạo. Miệng giếng thường được ngụy trang cẩn thận để tránh bị phát hiện từ mặt đất.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: cách lấy nước, thông gió và che giấu miệng lỗ trên thực địa. Hotspot gợi ý: chi tiết ngụy trang quanh giếng và lỗ thông hơi.",
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "ST04",
+    "name": "Quân y",
+    "sortOrder": 4,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST04",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Chiều — chăm sóc người bị thương",
+        "body": "Khu quân y dưới hầm vận hành trong điều kiện thiếu thốn: ánh sáng yếu, không gian hẹp, thuốc men và dụng cụ sơ cứu được tận dụng tối đa. Đội ngũ y tá và chiến sĩ được đào tạo sơ cứu cơ bản.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: điều kiện y tế, thuốc thảo dược và quy trình cứu thương dưới ánh đèn dầu. Hotspot gợi ý: giường bệnh, dụng cụ sơ cứu.",
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "ST05",
+    "name": "Xưởng vũ khí",
+    "sortOrder": 5,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST05",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Tối — biến đồng nát thành công cụ",
+        "body": "Xưởng ngầm tái chế đạn dược, vật liệu và dụng cụ từ nguồn thu gom. Lao động diễn ra trong im lặng, có quy tắc an toàn nghiêm ngặt vì tia lửa hoặc rung động có thể gây nguy hiểm trong hầm.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: quy mô xưởng, quy trình tái chế và an toàn lao động. Hotspot gợi ý: bàn thợ, khuôn, phôi vật liệu.",
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "ST06",
+    "name": "Hầm phòng thủ",
+    "sortOrder": 6,
+    "lat": null,
+    "lng": null,
+    "questStepKey": "cu-chi:ST06",
+    "active": true,
+    "blocks": [
+      {
+        "blockType": "TEXT",
+        "title": "Đêm — trực gác và thử thách",
+        "body": "Hệ thống hầm phòng thủ gồm nhiều tầng, cửa thoát hiểm và lỗ quan sát. Chiến sĩ trực gác luân phiên; khi có dấu hiệu bị vây, đoàn phải di chuyển theo lộ trình đã tập và giữ liên lạc với chỉ huy.",
+        "sortOrder": 1
+      },
+      {
+        "blockType": "TEXT",
+        "title": "Điểm cần xác thực (Tuần 0)",
+        "body": "Chủ đề duyệt sử liệu: bố trí phòng thủ, sinh hoạt khi bị vây và lối thoát an toàn. Hotspot gợi ý: cửa thoát, lỗ quan sát, sơ đồ hầm nhiều tầng.",
+        "sortOrder": 2
+      }
+    ]
+  }
+]

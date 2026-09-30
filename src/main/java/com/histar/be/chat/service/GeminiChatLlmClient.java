@@ -19,7 +19,7 @@ public class GeminiChatLlmClient implements ChatLlmClient {
             new ParameterizedTypeReference<>() {};
 
     /** gemini-2.0-* shut down 2026-06-01 and return 404. Try the configured model, then these. */
-    private static final List<String> MODEL_FALLBACKS = List.of("gemini-2.5-flash", "gemini-3.1-flash-lite");
+    private static final List<String> MODEL_FALLBACKS = List.of("gemini-3.6-flash", "gemini-3.1-flash-lite");
 
     private final WebClient geminiWebClient;
     private final String apiKey;

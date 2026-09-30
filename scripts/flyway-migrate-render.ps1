@@ -1,8 +1,8 @@
 # Apply pending Flyway migrations to Render Postgres from your laptop (External URL).
 # Use this when Render free tier times out before Spring Boot finishes migrate+boot.
 #
-# 1) Render → Postgres histar_postgre → Connect → External Database URL
-# 2) Copy BE/.env.render-db.example → BE/.env.render-db and fill values
+# 1) Render -> Postgres histar_postgre -> Connect -> External Database URL
+# 2) Copy BE/.env.render-db.example -> BE/.env.render-db and fill values
 # 3) From BE/:
 #      powershell -ExecutionPolicy Bypass -File .\scripts\flyway-migrate-render.ps1
 #
@@ -58,14 +58,11 @@ if ($databaseUrl -and (-not $PgHost -or -not $Password)) {
 }
 
 if (-not $PgHost -or -not $Password) {
-  Write-Host @"
-Missing PGHOST / PGPASSWORD.
-
-1. Open Render → PostgreSQL → Connect → External Database URL
-2. Copy BE\.env.render-db.example → BE\.env.render-db
-3. Paste host + password (or full DATABASE_URL)
-4. Re-run this script
-"@ -ForegroundColor Yellow
+  Write-Host "Missing PGHOST / PGPASSWORD."
+  Write-Host "1. Open Render -> PostgreSQL -> Connect -> External Database URL"
+  Write-Host "2. Copy BE\.env.render-db.example -> BE\.env.render-db"
+  Write-Host "3. Paste host + password (or full DATABASE_URL)"
+  Write-Host "4. Re-run this script"
   exit 1
 }
 
@@ -80,8 +77,8 @@ $jdbc = "jdbc:postgresql://${PgHost}:${Port}/${DbName}?sslmode=require"
 Write-Host "Target: ${DbUser}@${PgHost}:${Port}/${DbName}"
 Write-Host "Flyway $Command (baseline 13, locations=$migrationDir)"
 
-# Probe connectivity first
-Write-Host "`n=== Probe connection ==="
+Write-Host ""
+Write-Host "=== Probe connection ==="
 docker run --rm `
   -e "PGPASSWORD=$Password" `
   -e "PGSSLMODE=require" `
@@ -90,13 +87,10 @@ docker run --rm `
   "SELECT 'ok db='||current_database()||' flyway_max='||COALESCE((SELECT max(version)::text FROM flyway_schema_history), 'none')||' admin_notes='||EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='heritage_digitization_inquiries' AND column_name='admin_notes');"
 if ($LASTEXITCODE -ne 0) { throw "Cannot connect to Render Postgres (check External host + password)." }
 
-$migMount = ($migrationDir -replace '\\', '/')
-# Docker Desktop on Windows: use path that docker accepts
-$migVol = $migrationDir
-
-Write-Host "`n=== Flyway $Command ==="
+Write-Host ""
+Write-Host "=== Flyway $Command ==="
 docker run --rm `
-  -v "${migVol}:/flyway/sql:ro" `
+  -v "${migrationDir}:/flyway/sql:ro" `
   flyway/flyway:11-alpine `
   -url="$jdbc" `
   -user="$DbUser" `
@@ -109,12 +103,36 @@ docker run --rm `
 
 if ($LASTEXITCODE -ne 0) { throw "Flyway $Command failed (exit $LASTEXITCODE)." }
 
-Write-Host "`n=== Verify admin_notes ==="
-docker run --rm `
-  -e "PGPASSWORD=$Password" `
-  -e "PGSSLMODE=require" `
-  postgres:16-alpine `
-  psql -h $PgHost -p $Port -U $DbUser -d $DbName -tAc `
-  "SELECT column_name FROM information_schema.columns WHERE table_name='heritage_digitization_inquiries' AND column_name IN ('admin_notes','contacted_at') ORDER BY 1;"
+if ($Command -eq "migrate") {
+  Write-Host ""
+  Write-Host "=== Verify V19 admin_notes + V20-V24 MVBP ==="
+  $verifySql = @'
+SELECT concat('flyway_max=', COALESCE((SELECT max(version)::text FROM flyway_schema_history), 'none'));
+SELECT concat('price=', COALESCE((SELECT setting_value FROM billing_settings WHERE setting_key='b2c_premium_price_vnd'), 'missing'));
+SELECT concat('subscription_id_col=', EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='b2c_payment_transactions' AND column_name='subscription_id'));
+SELECT concat('stations_count=', CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='stations')
+  THEN (SELECT count(*)::text FROM stations WHERE site_code='cu-chi') ELSE 'missing' END);
+SELECT concat('story_count=', CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='story_chapters')
+  THEN (SELECT count(*)::text FROM story_chapters WHERE site_code='cu-chi') ELSE 'missing' END);
+SELECT concat('pilot_events=', EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='pilot_events'));
+SELECT concat('checkin_presence=', (
+  EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='checkins' AND column_name='station_code')
+  AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='checkins' AND column_name='presence_score')
+));
+SELECT column_name FROM information_schema.columns
+WHERE table_name='heritage_digitization_inquiries' AND column_name IN ('admin_notes','contacted_at')
+ORDER BY 1;
+'@
+  $verifyFile = Join-Path $env:TEMP "histar-flyway-verify.sql"
+  Set-Content -Path $verifyFile -Value $verifySql -Encoding UTF8
+  docker run --rm `
+    -e "PGPASSWORD=$Password" `
+    -e "PGSSLMODE=require" `
+    -v "${verifyFile}:/verify.sql:ro" `
+    postgres:16-alpine `
+    psql -h $PgHost -p $Port -U $DbUser -d $DbName -v ON_ERROR_STOP=1 -f /verify.sql
+  if ($LASTEXITCODE -ne 0) { throw "Post-migrate verify failed (exit $LASTEXITCODE)." }
+}
 
-Write-Host "`nDone. Redeploy BE on Render (Manual Deploy) — schema is ready, boot should pass validate." -ForegroundColor Green
+Write-Host ""
+Write-Host "Done. Redeploy BE on Render (Manual Deploy). Schema is ready." -ForegroundColor Green

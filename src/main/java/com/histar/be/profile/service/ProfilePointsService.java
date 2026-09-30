@@ -16,6 +16,8 @@ public class ProfilePointsService {
     public static final int XP_DISCOVERY = 10;
     public static final int XP_ARTIFACT_UNLOCK = 5;
     public static final int XP_CHECKIN = 30;
+    /** First check-in at a station within a site (ST01–ST06). */
+    public static final int XP_STATION = 15;
 
     private final ProfileRepository profileRepository;
     private final GamificationProperties gamificationProperties;

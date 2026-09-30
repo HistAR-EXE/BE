@@ -1,5 +1,6 @@
 package com.histar.be.security;
 
+import jakarta.servlet.DispatcherType;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +42,27 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
+                        // SSE (live board): async re-dispatch skips the JWT filter (OncePerRequestFilter); the
+                        // initial request was already authenticated + authorized in the controller.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                        .permitAll()
+                        .requestMatchers("/api/org/*/live-board/**")
+                        .authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/events/batch", "/api/referral/*/visit")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/referral/*", "/api/referral/*/stats")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/locations/*/secret-story")
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/billing/org/plans", "/api/billing/public-pricing")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pilot-sites", "/api/pilot-sites/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/panoramas/**")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/sites/*/stations", "/api/sites/*/stations/*", "/api/sites/*/story", "/api/sites/*/pack", "/api/sites/*/pack/faq_offline.json", "/api/sites/*/stations/*/chat-prompts", "/api/sites/*/stations/*/games", "/api/sites/*/media-manifest")
+                        .permitAll()
+                        .requestMatchers("/ws/squad/**")
                         .permitAll()
                         .requestMatchers(
                                 "/api/health/**",
@@ -103,7 +120,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

@@ -3,6 +3,7 @@ package com.histar.be.profile.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.histar.be.billing.repository.B2cVisitEntitlementRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
@@ -20,6 +21,9 @@ class TierAccessServiceTest {
 
     @Mock
     private ProfileRepository profileRepository;
+
+    @Mock
+    private B2cVisitEntitlementRepository visitEntitlementRepository;
 
     @InjectMocks
     private TierAccessService tierAccessService;

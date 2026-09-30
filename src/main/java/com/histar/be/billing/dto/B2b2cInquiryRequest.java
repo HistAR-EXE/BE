@@ -12,4 +12,6 @@ public record B2b2cInquiryRequest(
         @NotBlank @Pattern(regexp = "ONE_TIME|OPEX") String packageType,
         String message,
         String website,
-        String companyUrl) {}
+        String companyUrl,
+        /** Optional pilot site code: cu-chi | hoang-thanh-thang-long | dai-noi-hue */
+        @Pattern(regexp = "cu-chi|hoang-thanh-thang-long|dai-noi-hue") String interestSiteCode) {}

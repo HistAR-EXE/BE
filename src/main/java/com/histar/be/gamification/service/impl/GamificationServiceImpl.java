@@ -3,6 +3,9 @@ package com.histar.be.gamification.service.impl;
 import com.histar.be.artifact.service.ArtifactService;
 import com.histar.be.badge.service.BadgeAwardService;
 import com.histar.be.checkin.entity.Checkin;
+import com.histar.be.checkin.presence.PresenceInput;
+import com.histar.be.checkin.presence.PresenceMethod;
+import com.histar.be.checkin.presence.PresenceScore;
 import com.histar.be.checkin.repository.CheckinRepository;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.gamification.GeoUtils;
@@ -32,6 +35,7 @@ import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.profile.service.ProfilePointsService;
 import com.histar.be.secret.dto.SecretStoryResponse;
+import com.histar.be.stations.repository.StationRepository;
 import com.histar.be.secret.entity.UserSecretUnlock;
 import com.histar.be.secret.repository.UserSecretUnlockRepository;
 import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
@@ -68,31 +72,121 @@ public class GamificationServiceImpl implements GamificationService {
     private final ProfilePointsService profilePointsService;
     private final EngagementOutcomeService engagementOutcomeService;
     private final LocationUnlockService locationUnlockService;
+    private final StationRepository stationRepository;
 
     @Override
     @Transactional
     public CheckinResultDto processCheckin(
             UUID userId, UUID locationId, double latitude, double longitude, String qrCode) {
-        QrPayload payload = QrPayloadParser.parse(qrCode);
-        if (!payload.locationId().equals(locationId)) {
-            throw new BusinessRuleException("Mã QR không khớp địa điểm");
+        return processCheckin(userId, locationId, latitude, longitude, qrCode, PresenceInput.NONE);
+    }
+
+    @Override
+    @Transactional
+    public CheckinResultDto processCheckin(
+            UUID userId,
+            UUID locationId,
+            Double latitude,
+            Double longitude,
+            String qrCode,
+            PresenceInput presence) {
+        PresenceInput input = presence != null ? presence : PresenceInput.NONE;
+
+        QrPayload payload = null;
+        if (qrCode != null && !qrCode.isBlank()) {
+            payload = QrPayloadParser.parse(qrCode);
+            if (!payload.locationId().equals(locationId)) {
+                throw new BusinessRuleException("Mã QR không khớp địa điểm");
+            }
+        } else if (!input.qrVerified()) {
+            throw new BusinessRuleException("Mã QR không hợp lệ");
         }
 
         Location location = locationService.findById(locationId);
-        double distance = GeoUtils.distanceMeters(
-                latitude, longitude, location.getLatitude(), location.getLongitude());
-        if (distance > gamificationProperties.getCheckinRadiusMeters()) {
+        boolean gpsKnown = latitude != null && longitude != null;
+        double distance = gpsKnown
+                ? GeoUtils.distanceMeters(latitude, longitude, location.getLatitude(), location.getLongitude())
+                : 0.0;
+        boolean gpsWithinRadius = gpsKnown && distance <= gamificationProperties.getCheckinRadiusMeters();
+        if (!gpsWithinRadius && !input.qrVerified()) {
+            if (!gpsKnown) {
+                throw new BusinessRuleException("Thiếu tọa độ GPS");
+            }
             throw new BusinessRuleException(
                     "Bạn đang cách địa điểm quá xa (" + (int) distance + "m). Cần trong "
                             + gamificationProperties.getCheckinRadiusMeters() + "m");
         }
 
-        if (payload.type() == QrPayloadType.SECRET) {
+        if (input.clientUuid() != null) {
+            Optional<Checkin> existing = checkinRepository.findByUserIdAndClientUuid(userId, input.clientUuid());
+            if (existing.isPresent()) {
+                Checkin prior = existing.get();
+                return new CheckinResultDto(
+                        true, distance, List.of(), List.of(), false, 0, 0, List.of(), null, List.of(),
+                        prior.getPresenceScore(), prior.getPresenceMethod());
+            }
+        }
+
+        if (payload != null && payload.type() == QrPayloadType.SECRET) {
             boolean secretUnlocked = tryUnlockSecret(userId, locationId);
             return new CheckinResultDto(true, distance, List.of(), List.of(), secretUnlocked, 0, 0, List.of(), null, List.of());
         }
 
-        return recordVisitAndMaybeReward(userId, locationId, latitude, longitude, distance);
+        boolean sequenceOk = false;
+        if (input.qrVerified() && input.stationCode() != null) {
+            String siteForOrder = resolveSiteCode(locationId, input.siteCode());
+            Integer previousOrder = checkinRepository
+                    .findFirstByUserIdAndLocationIdAndPresenceMethodAndStationCodeIsNotNullOrderByCreatedAtDesc(
+                            userId, locationId, PresenceMethod.QR.name())
+                    .map(c -> stationSortOrder(siteForOrder, c.getStationCode()))
+                    .orElse(null);
+            sequenceOk = PresenceScore.isSequential(
+                    previousOrder, stationSortOrder(siteForOrder, input.stationCode()));
+        }
+        int score = PresenceScore.compute(input.qrVerified(), gpsWithinRadius, sequenceOk);
+        PresenceMethod method = PresenceScore.methodFor(input.qrVerified(), gpsWithinRadius);
+
+        return recordVisitAndMaybeReward(
+                userId,
+                locationId,
+                gpsKnown ? latitude : null,
+                gpsKnown ? longitude : null,
+                distance,
+                input.stationCode(),
+                input.clientUuid(),
+                score,
+                method);
+    }
+
+    /** stations.sort_order when the stations module knows the code; else trailing digits of the code. */
+    private Integer stationSortOrder(String siteCode, String stationCode) {
+        Integer fromTable = null;
+        if (stationCode != null && !stationCode.isBlank()) {
+            if (siteCode != null && !siteCode.isBlank()) {
+                fromTable = stationRepository
+                        .findBySiteCodeAndCodeAndActiveTrue(siteCode.trim(), stationCode.trim())
+                        .map(s -> s.getSortOrder())
+                        .orElse(null);
+            }
+            if (fromTable == null) {
+                fromTable = stationRepository
+                        .findFirstByCodeIgnoreCaseAndActiveTrueOrderBySortOrderAsc(stationCode.trim())
+                        .map(s -> s.getSortOrder())
+                        .orElse(null);
+            }
+        }
+        return PresenceScore.resolveSortOrder(fromTable, stationCode);
+    }
+
+    private String resolveSiteCode(UUID locationId, String hint) {
+        if (hint != null && !hint.isBlank()) {
+            return hint.trim().toLowerCase();
+        }
+        try {
+            return locationService.findById(locationId).getSiteCode();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     @Override
@@ -100,18 +194,44 @@ public class GamificationServiceImpl implements GamificationService {
     public CheckinResultDto processDemoCheckin(UUID userId, UUID locationId) {
         Location location = locationService.findById(locationId);
         return recordVisitAndMaybeReward(
-                userId, locationId, location.getLatitude(), location.getLongitude(), 0.0);
+                userId,
+                locationId,
+                location.getLatitude(),
+                location.getLongitude(),
+                0.0,
+                null,
+                null,
+                0,
+                PresenceMethod.MANUAL);
     }
 
     private CheckinResultDto recordVisitAndMaybeReward(
-            UUID userId, UUID locationId, double latitude, double longitude, double distanceMeters) {
-        boolean firstReward = !checkinRepository.existsByUserIdAndLocationId(userId, locationId);
+            UUID userId,
+            UUID locationId,
+            Double latitude,
+            Double longitude,
+            double distanceMeters,
+            String stationCode,
+            UUID clientUuid,
+            int presenceScore,
+            PresenceMethod presenceMethod) {
+        boolean firstLocationVisit = !checkinRepository.existsByUserIdAndLocationId(userId, locationId);
+        boolean firstStationReward = stationCode != null
+                && !stationCode.isBlank()
+                && !checkinRepository.existsByUserIdAndLocationIdAndStationCodeIgnoreCase(
+                        userId, locationId, stationCode.trim());
+        // Location-level first visit (legacy quests) OR first check-in at this station within the site.
+        boolean awardStationXp = firstStationReward || (stationCode == null && firstLocationVisit);
         Checkin saved = checkinRepository.save(Checkin.builder()
                 .userId(userId)
                 .locationId(locationId)
                 .latitude(latitude)
                 .longitude(longitude)
                 .createdAt(Instant.now())
+                .stationCode(stationCode)
+                .presenceScore(presenceScore)
+                .presenceMethod(presenceMethod.name())
+                .clientUuid(clientUuid)
                 .build());
         visitSessionService.recordCheckinEvent(userId, locationId, saved.getId());
 
@@ -122,7 +242,7 @@ public class GamificationServiceImpl implements GamificationService {
             allBadges.addAll(quest.badgesEarned());
         }
 
-        if (firstReward) {
+        if (firstLocationVisit) {
             applyFirstCheckinUnlocks(userId, locationId);
         }
 
@@ -133,9 +253,16 @@ public class GamificationServiceImpl implements GamificationService {
             allBadges.addAll(onsiteBonus.get().badgesEarned());
         }
 
-        int checkinXp = firstReward ? profilePointsService.award(userId, ProfilePointsService.XP_CHECKIN) : 0;
+        int xpPerStation = stationCode != null && !stationCode.isBlank()
+                ? ProfilePointsService.XP_STATION
+                : ProfilePointsService.XP_CHECKIN;
+        int checkinXp = awardStationXp ? profilePointsService.award(userId, xpPerStation) : 0;
+        // First location visit also awards the classic check-in XP once (on top of first station).
+        if (firstLocationVisit && stationCode != null && !stationCode.isBlank()) {
+            checkinXp += profilePointsService.award(userId, ProfilePointsService.XP_CHECKIN);
+        }
         int xpEarned = checkinXp + bonusXp;
-        List<UnlockedArtifactDto> newArtifacts = collectCheckinArtifacts(userId, locationId, firstReward);
+        List<UnlockedArtifactDto> newArtifacts = collectCheckinArtifacts(userId, locationId, firstLocationVisit);
         QuestProgressSnapshotDto questProgress =
                 engagementOutcomeService.resolveQuestProgress(userId, locationId, "checkin", questsCompleted);
         var newlyUnlocked = locationUnlockService.resolveNewlyUnlocked(userId, questsCompleted);
@@ -151,7 +278,9 @@ public class GamificationServiceImpl implements GamificationService {
                 xpEarned,
                 newArtifacts,
                 questProgress,
-                newlyUnlocked);
+                newlyUnlocked,
+                presenceScore,
+                presenceMethod.name());
     }
 
     private List<UnlockedArtifactDto> collectCheckinArtifacts(UUID userId, UUID locationId, boolean firstReward) {

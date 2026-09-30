@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.histar.be.billing.entity.B2cSubscription;
 import com.histar.be.billing.repository.B2cRenewalReminderRepository;
 import com.histar.be.billing.repository.B2cSubscriptionRepository;
+import com.histar.be.config.HistarAppProperties;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.mail.HistarEmailService;
 import com.histar.be.profile.entity.Profile;
@@ -48,7 +49,12 @@ class B2cRenewalReminderServiceTest {
         mailProperties = new HistarMailProperties();
         mailProperties.setEnabled(false);
         service = new B2cRenewalReminderService(
-                subscriptionRepository, reminderRepository, profileRepository, histarEmailService, mailProperties);
+                subscriptionRepository,
+                reminderRepository,
+                profileRepository,
+                histarEmailService,
+                mailProperties,
+                new HistarAppProperties());
     }
 
     @Test

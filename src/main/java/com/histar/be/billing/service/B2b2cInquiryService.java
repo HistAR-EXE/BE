@@ -45,8 +45,12 @@ public class B2b2cInquiryService {
         enforceSubmitRateLimit(email);
 
         Instant now = Instant.now();
+        String interest = request.interestSiteCode() != null && !request.interestSiteCode().isBlank()
+                ? request.interestSiteCode().trim().toLowerCase()
+                : null;
         HeritageDigitizationInquiry saved = repository.save(HeritageDigitizationInquiry.builder()
                 .siteName(request.siteName().trim())
+                .interestSiteCode(interest)
                 .contactName(request.contactName().trim())
                 .contactEmail(email)
                 .contactPhone(request.contactPhone() != null ? request.contactPhone().trim() : null)
@@ -179,6 +183,7 @@ public class B2b2cInquiryService {
                 inquiry.getStatus(),
                 inquiry.getAdminNotes(),
                 inquiry.getContactedAt(),
-                inquiry.getCreatedAt());
+                inquiry.getCreatedAt(),
+                inquiry.getInterestSiteCode());
     }
 }

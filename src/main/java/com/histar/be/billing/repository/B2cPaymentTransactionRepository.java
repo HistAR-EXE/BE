@@ -18,4 +18,6 @@ public interface B2cPaymentTransactionRepository extends JpaRepository<B2cPaymen
     Optional<B2cPaymentTransaction> findFirstByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
 
     List<B2cPaymentTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    List<B2cPaymentTransaction> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 }

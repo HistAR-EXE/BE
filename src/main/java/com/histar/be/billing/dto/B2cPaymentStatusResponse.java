@@ -8,4 +8,8 @@ public record B2cPaymentStatusResponse(
         Instant expiresAt,
         Instant paidAt,
         String returnToPath,
-        boolean upgraded) {}
+        boolean upgraded,
+        Integer amountVnd,
+        String transferContent,
+        Integer receivedAmountVnd,
+        Integer remainingAmountVnd) {}

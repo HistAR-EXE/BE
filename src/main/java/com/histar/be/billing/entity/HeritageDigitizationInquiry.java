@@ -30,6 +30,10 @@ public class HeritageDigitizationInquiry {
     @Column(name = "site_name", nullable = false)
     private String siteName;
 
+    /** Pilot interest: cu-chi | hoang-thanh-thang-long | dai-noi-hue */
+    @Column(name = "interest_site_code", length = 64)
+    private String interestSiteCode;
+
     @Column(name = "contact_name", nullable = false)
     private String contactName;
 

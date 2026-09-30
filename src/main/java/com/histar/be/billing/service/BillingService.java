@@ -17,6 +17,7 @@ import com.histar.be.billing.repository.B2cSubscriptionRepository;
 import com.histar.be.billing.repository.OrgBillingSubscriptionRepository;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.config.DemoProperties;
 import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.entity.OrganizationMember;
 import com.histar.be.organization.entity.OrgSubscription;
@@ -43,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BillingService {
 
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    public static final String PAYMENT_METHOD_DEMO = "DEMO";
     public static final String ORG_STATUS_ACTIVE = "ACTIVE";
     public static final String ORG_STATUS_EXPIRED = "EXPIRED";
     public static final String ORG_STATUS_TRIAL_ACTIVE = "TRIAL_ACTIVE";
@@ -58,6 +60,7 @@ public class BillingService {
     private final BillingSettingsService billingSettingsService;
     private final CcuSessionService ccuSessionService;
     private final EmailVerifiedGuard emailVerifiedGuard;
+    private final DemoProperties demoProperties;
 
     public static boolean isOrgActive(Organization org) {
         if (org == null) {
@@ -71,8 +74,36 @@ public class BillingService {
         return org.getPlanEndDate() == null || !org.getPlanEndDate().isBefore(LocalDate.now(VN_ZONE));
     }
 
+    /** Rejects the DEMO (free upgrade) payment method when {@code demo.enabled=false} (production default). */
+    public void assertDemoPaymentAllowed(String paymentMethod) {
+        String method = paymentMethod == null || paymentMethod.isBlank() ? PAYMENT_METHOD_DEMO : paymentMethod;
+        if (PAYMENT_METHOD_DEMO.equalsIgnoreCase(method.trim()) && !demoProperties.isEnabled()) {
+            throw new BusinessRuleException(
+                    "Nâng cấp demo đã bị tắt. Vui lòng thanh toán qua QR để nâng cấp Premium.");
+        }
+    }
+
     @Transactional
     public ProfileMeResponse subscribeB2c(UUID userId, String paymentMethod) {
+        assertDemoPaymentAllowed(paymentMethod);
+        createB2cSubscription(userId, paymentMethod);
+        Profile profile = profileRepository
+                .findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return profileMeService.build(profile);
+    }
+
+    /**
+     * Activates B2C Premium and returns the created subscription so callers (e.g. SePay) can link it to a payment.
+     * DEMO is still blocked when demo is disabled.
+     */
+    @Transactional
+    public B2cSubscription subscribeB2cReturningSubscription(UUID userId, String paymentMethod) {
+        assertDemoPaymentAllowed(paymentMethod);
+        return createB2cSubscription(userId, paymentMethod);
+    }
+
+    private B2cSubscription createB2cSubscription(UUID userId, String paymentMethod) {
         emailVerifiedGuard.assertEmailVerified(userId);
         Profile profile = profileRepository
                 .findById(userId)
@@ -85,21 +116,21 @@ public class BillingService {
         LocalDate end = start.plusMonths(1);
         b2cSubscriptionRepository.findByUserIdAndIsActiveTrue(userId).ifPresent(existing -> {
             existing.setIsActive(false);
-            b2cSubscriptionRepository.save(existing);
+            b2cSubscriptionRepository.saveAndFlush(existing);
         });
-        b2cSubscriptionRepository.save(B2cSubscription.builder()
+        B2cSubscription created = b2cSubscriptionRepository.save(B2cSubscription.builder()
                 .userId(userId)
                 .priceVnd(billingSettingsService.getB2cPremiumPriceVnd())
                 .startDate(start)
                 .endDate(end)
                 .isActive(true)
-                .paymentMethod(paymentMethod == null ? "DEMO" : paymentMethod)
+                .paymentMethod(paymentMethod == null || paymentMethod.isBlank() ? PAYMENT_METHOD_DEMO : paymentMethod)
                 .createdAt(Instant.now())
                 .build());
 
         profile.setTier(UserTier.PREMIUM.name());
         profileRepository.save(profile);
-        return profileMeService.build(profile);
+        return created;
     }
 
     @Transactional
@@ -109,6 +140,7 @@ public class BillingService {
 
     @Transactional
     public OrgBillingStatus subscribeOrg(UUID userId, OrgSubscribeRequest request, String paymentMethod) {
+        assertDemoPaymentAllowed(paymentMethod);
         emailVerifiedGuard.assertEmailVerified(userId);
         Profile profile = profileRepository
                 .findById(userId)
@@ -270,6 +302,29 @@ public class BillingService {
         return expiring.size();
     }
 
+    /**
+     * Batch job: deactivates expired active B2C subscriptions and downgrades non-org profiles to FREE.
+     *
+     * @return number of subscriptions expired
+     */
+    @Transactional
+    public int reconcileExpiredB2cSubscriptions() {
+        LocalDate today = LocalDate.now(VN_ZONE);
+        List<B2cSubscription> expired = b2cSubscriptionRepository.findAllByIsActiveTrueAndEndDateBefore(today);
+        for (B2cSubscription sub : expired) {
+            sub.setIsActive(false);
+            b2cSubscriptionRepository.save(sub);
+            profileRepository.findById(sub.getUserId()).ifPresent(profile -> {
+                if (profile.getOrgId() == null
+                        && UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
+                    profile.setTier(UserTier.FREE.name());
+                    profileRepository.save(profile);
+                }
+            });
+        }
+        return expired.size();
+    }
+
     @Transactional
     public BillingStatusResponse getStatus(UUID userId) {
         Profile profile = profileRepository
@@ -329,6 +384,7 @@ public class BillingService {
     public BillingPublicPricingResponse getPublicPricing() {
         return new BillingPublicPricingResponse(
                 billingSettingsService.getB2cPremiumPriceVnd(),
+                billingSettingsService.getB2cJourneyPassPriceVnd(),
                 billingSettingsService.getChatFreeDailyLimit(),
                 listOrgPlans());
     }

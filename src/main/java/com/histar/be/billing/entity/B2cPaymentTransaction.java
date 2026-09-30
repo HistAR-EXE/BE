@@ -63,6 +63,19 @@ public class B2cPaymentTransaction {
     @Column(name = "provider_payload", columnDefinition = "text")
     private String providerPayload;
 
+    /** b2c_subscriptions row activated by this payment (set after PAID). */
+    @Column(name = "subscription_id")
+    private UUID subscriptionId;
+
+    /** PREMIUM (monthly) or JOURNEY_PASS (72h site unlock). */
+    @Column(name = "plan_type", nullable = false, length = 32)
+    @Builder.Default
+    private String planType = "PREMIUM";
+
+    /** Site slug for JOURNEY_PASS (cu-chi, …). */
+    @Column(name = "site_code", length = 64)
+    private String siteCode;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 

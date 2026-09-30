@@ -31,12 +31,16 @@ import com.histar.be.location.entity.Location;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.message.entity.Message;
 import com.histar.be.message.repository.MessageRepository;
+import com.histar.be.rag.dto.RagChatAnswer;
+import com.histar.be.rag.dto.RagChatRequest;
+import com.histar.be.rag.service.RagChatService;
 import java.util.Arrays;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +73,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final PlayerStoryContextService playerStoryContextService;
     private final EmailVerifiedGuard emailVerifiedGuard;
+    private final RagChatService ragChatService;
 
     private void assertEmailVerified(UUID userId) {
         emailVerifiedGuard.assertEmailVerified(userId);
@@ -105,8 +110,9 @@ public class ChatServiceImpl implements ChatService {
                 .build());
 
         chatRateLimiter.recordSuccess(userId);
+        String siteCode = location.getSiteCode();
         return new ChatResponse(
-                reply, conversation.getId(), filterSourcesForUser(userId, resolveSourcesList(location)));
+                reply, conversation.getId(), filterSourcesForUser(userId, siteCode, resolveSourcesList(location)));
     }
 
     @Override
@@ -202,28 +208,52 @@ public class ChatServiceImpl implements ChatService {
 
         String reply;
         List<ChatSource> responseSources;
-        try {
-            RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
-                    request.message(),
-                    PersonaMapper.resolvePersonaKey(character.getName()),
-                    Collections.emptyMap(),
-                    location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                    resolveCiteSources(location),
-                    character.getLocationId(),
-                    historyPayload,
-                    userLevel,
-                    artifactsUnlocked,
-                    discoveriesCount,
-                    playerContext);
-            reply = ragResponse.reply();
-            responseSources = !ragResponse.sources().isEmpty()
-                    ? ragResponse.sources()
-                    : resolveSourcesList(location);
-        } catch (BusinessRuleException ex) {
-            log.warn("RAG AI unavailable, falling back to direct LLM: {}", ex.getMessage());
-            String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
-            reply = chatLlmClient.generate(prompt);
-            responseSources = resolveSourcesList(location);
+        boolean pgVectorRagUsed = false;
+        String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
+                ? request.siteCode().trim().toLowerCase()
+                : location.getSiteCode();
+        Optional<RagChatAnswer> pgVectorAnswer = ragChatService.tryAnswer(new RagChatRequest(
+                request.message(),
+                request.stationCode(),
+                siteCode,
+                PersonaMapper.resolvePersonaKey(character.getName()),
+                character.getPersonaPrompt(),
+                location.getName(),
+                historyTurns));
+        if (pgVectorAnswer != null && pgVectorAnswer.isPresent()) {
+            // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
+            reply = pgVectorAnswer.get().reply();
+            responseSources = pgVectorAnswer.get().sources();
+            pgVectorRagUsed = true;
+        } else {
+            try {
+                RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
+                        request.message(),
+                        PersonaMapper.resolvePersonaKey(character.getName()),
+                        Collections.emptyMap(),
+                        location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                        resolveCiteSources(location),
+                        character.getLocationId(),
+                        historyPayload,
+                        userLevel,
+                        artifactsUnlocked,
+                        discoveriesCount,
+                        playerContext);
+                reply = ragResponse.reply();
+                responseSources = !ragResponse.sources().isEmpty()
+                        ? ragResponse.sources()
+                        : resolveSourcesList(location);
+            } catch (BusinessRuleException ex) {
+                log.warn("RAG AI unavailable, falling back to direct LLM: {}", ex.getMessage());
+                String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
+                reply = chatLlmClient.generate(prompt);
+                responseSources = resolveSourcesList(location);
+            }
+        }
+        List<ChatSource> visibleSources = filterSourcesForUser(userId, siteCode, responseSources);
+        if (pgVectorRagUsed && visibleSources.isEmpty() && !responseSources.isEmpty()) {
+            // Free tier does not show sources: drop the dangling [n] markers too.
+            reply = reply.replaceAll("\\s*\\[\\d{1,2}]", "");
         }
 
         messageRepository.save(Message.builder()
@@ -239,14 +269,14 @@ public class ChatServiceImpl implements ChatService {
                 request.characterId(),
                 conversation.getId());
         chatRateLimiter.recordSuccess(userId);
-        return new ChatResponse(reply, conversation.getId(), filterSourcesForUser(userId, responseSources));
+        return new ChatResponse(reply, conversation.getId(), visibleSources);
     }
 
-    private List<ChatSource> filterSourcesForUser(UUID userId, List<ChatSource> sources) {
+    private List<ChatSource> filterSourcesForUser(UUID userId, String siteCode, List<ChatSource> sources) {
         if (sources == null || sources.isEmpty()) {
             return List.of();
         }
-        return usageQuotaService.shouldIncludeChatSources(userId) ? sources : List.of();
+        return usageQuotaService.shouldIncludeChatSources(userId, siteCode) ? sources : List.of();
     }
 
     @Override

@@ -2,7 +2,6 @@ package com.histar.be.billing.service;
 
 import com.histar.be.billing.entity.UsageQuota;
 import com.histar.be.billing.repository.UsageQuotaRepository;
-import com.histar.be.billing.service.BillingSettingsService;
 import com.histar.be.common.exception.QuotaExceededException;
 import com.histar.be.config.HistarOrgProperties;
 import com.histar.be.organization.entity.Organization;
@@ -12,6 +11,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.profile.service.TierAccessService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -32,6 +32,7 @@ public class UsageQuotaService {
     private final OrganizationRepository organizationRepository;
     private final HistarOrgProperties histarOrgProperties;
     private final BillingSettingsService billingSettingsService;
+    private final TierAccessService tierAccessService;
 
     @Value("${gemini.daily-message-limit:10}")
     private int legacyDailyLimit;
@@ -61,8 +62,20 @@ public class UsageQuotaService {
 
     @Transactional(readOnly = true)
     public boolean shouldIncludeChatSources(UUID userId) {
+        return shouldIncludeChatSources(userId, null);
+    }
+
+    /**
+     * Citations for Premium / unlimited-chat org, or active Journey Pass at {@code siteCode}.
+     * Journey Pass does not grant unlimited chat — only sources for that site.
+     */
+    @Transactional(readOnly = true)
+    public boolean shouldIncludeChatSources(UUID userId, String siteCode) {
         Profile profile = profileRepository.findById(userId).orElse(null);
-        return profile != null && hasUnlimitedChat(profile);
+        if (profile != null && hasUnlimitedChat(profile)) {
+            return true;
+        }
+        return tierAccessService.hasActiveJourneyPass(userId, siteCode);
     }
 
     @Transactional

@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class BillingSettingsService {
 
     public static final String B2C_PREMIUM_PRICE_KEY = "b2c_premium_price_vnd";
+    public static final String B2C_JOURNEY_PASS_PRICE_KEY = "b2c_journey_pass_price_vnd";
     public static final String CHAT_FREE_DAILY_LIMIT_KEY = "chat_free_daily_limit";
+    private static final int DEFAULT_JOURNEY_PASS_PRICE_VND = 29000;
     public static final String ORG_VOLUME_DISCOUNT_PERCENT_KEY = "org_volume_discount_percent";
     public static final String ORG_VOLUME_DISCOUNT_MIN_LICENSES_KEY = "org_volume_discount_min_licenses";
     private static final int DEFAULT_CHAT_FREE_DAILY_LIMIT = 10;
@@ -34,6 +36,14 @@ public class BillingSettingsService {
                 .map(BillingSetting::getSettingValue)
                 .map(Integer::parseInt)
                 .orElseGet(sepayProperties::getB2cPremiumPriceVnd);
+    }
+
+    @Transactional(readOnly = true)
+    public int getB2cJourneyPassPriceVnd() {
+        return billingSettingRepository.findById(B2C_JOURNEY_PASS_PRICE_KEY)
+                .map(BillingSetting::getSettingValue)
+                .map(this::parsePositiveInt)
+                .orElse(DEFAULT_JOURNEY_PASS_PRICE_VND);
     }
 
     @Transactional(readOnly = true)

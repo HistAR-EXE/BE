@@ -58,14 +58,36 @@ chat:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  model: ${GEMINI_MODEL:gemini-3.6-flash}
   daily-message-limit: ${GEMINI_DAILY_MESSAGE_LIMIT:50}
 
+rag:
+  # B5 pgvector RAG. Off by default: chat keeps using the legacy RAG-AI / LLM path.
+  enabled: ${RAG_ENABLED:false}
+  top-k: ${RAG_TOP_K:4}
+  max-distance: ${RAG_MAX_DISTANCE:0.6}
+  embedding:
+    model: ${RAG_EMBEDDING_MODEL:gemini-embedding-001}
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:768}
+    timeout-seconds: ${RAG_EMBEDDING_TIMEOUT_SECONDS:15}
+  cache:
+    enabled: ${RAG_CACHE_ENABLED:false}
+    ttl-minutes: ${RAG_CACHE_TTL_MINUTES:1440}
+    max-distance: ${RAG_CACHE_MAX_DISTANCE:0.05}
+
+pack:
+  # Prefix for API-served pack assets (faq_offline.json). Empty = relative path (FE resolves against VITE_API_URL).
+  api-base-url: ${PACK_API_BASE_URL:}
 gamification:
   checkin-radius-meters: ${GAMIFICATION_CHECKIN_RADIUS_METERS:100}
   level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,600,1000}
   level-names: ${GAMIFICATION_LEVEL_NAMES:Lữ hành mới,Nhà khám phá,Sử học gia,Người gìn giữ di sản,Huyền thoại lịch sử}
   rules-engine-enabled: ${GAMIFICATION_RULES_ENGINE_ENABLED:false}
+
+presence:
+  # Empty = accept unsigned station QR (DEMO only). Set in production to require HMAC-SHA256.
+  qr-hmac-secret: ${PRESENCE_QR_HMAC_SECRET:}
+  qr-max-skew-minutes: ${PRESENCE_QR_MAX_SKEW_MINUTES:15}
 
 visit:
   session:
@@ -87,7 +109,7 @@ payment:
     qr-base-url: ${SEPAY_QR_BASE_URL:https://vietqr.app/img}
     qr-template: ${SEPAY_QR_TEMPLATE:compact}
     qr-show-info: ${SEPAY_QR_SHOW_INFO:true}
-    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:79000}
+    b2c-premium-price-vnd: ${SEPAY_B2C_PREMIUM_PRICE_VND:49000}
     order-expiry-minutes: ${SEPAY_ORDER_EXPIRY_MINUTES:15}
     expiry-grace-minutes: ${SEPAY_EXPIRY_GRACE_MINUTES:30}
     max-timestamp-skew-seconds: ${SEPAY_MAX_TIMESTAMP_SKEW_SECONDS:300}
@@ -101,6 +123,14 @@ minio:
   access-key: ${MINIO_ROOT_USER:minioadmin}
   secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
   bucket: ${MINIO_BUCKET_NAME:timelens-media}
+
+media:
+  base-url: ${MEDIA_BASE_URL:https://fe-lake-five.vercel.app}
+  transcode:
+    ffmpeg-path: ${MEDIA_FFMPEG_PATH:ffmpeg}
+    passthrough-when-no-ffmpeg: ${MEDIA_TRANSCODE_PASSTHROUGH:false}
+    max-bytes: ${MEDIA_TRANSCODE_MAX_BYTES:8388608}
+    poll-ms: ${MEDIA_TRANSCODE_POLL_MS:15000}
 
 viral:
   share-bonus-points: ${VIRAL_SHARE_BONUS_POINTS:15}
@@ -141,6 +171,12 @@ brevo:
 
 server:
   port: 8080
+
+# Optional crash reporting — blank DSN = disabled (docs/SENTRY_ENABLE.md)
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:${SPRING_PROFILES_ACTIVE:local}}
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.0}
 
 management:
   endpoints:

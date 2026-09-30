@@ -6,6 +6,7 @@ import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
+import java.util.List;
 import java.util.UUID;
 
 public record ProfileMeResponse(
@@ -25,7 +26,8 @@ public record ProfileMeResponse(
         Integer pointsToNextLevel,
         Integer levelProgressPercent,
         String city,
-        boolean emailVerified) {
+        boolean emailVerified,
+        List<ActiveVisitSiteDto> activeVisitSites) {
 
     public static ProfileMeResponse from(
             Profile profile,
@@ -33,7 +35,8 @@ public record ProfileMeResponse(
             UUID orgId,
             String orgName,
             String orgSubscription,
-            String orgRole) {
+            String orgRole,
+            List<ActiveVisitSiteDto> activeVisitSites) {
         int points = profile.getTotalPoints() == null ? 0 : profile.getTotalPoints();
         var levelInfo = LevelCalculator.info(
                 points, properties.parseLevelThresholds(), properties.parseLevelNames());
@@ -58,6 +61,7 @@ public record ProfileMeResponse(
                 levelInfo.pointsToNextLevel(),
                 levelInfo.levelProgressPercent(),
                 profile.getCity(),
-                Boolean.TRUE.equals(profile.getEmailVerified()));
+                Boolean.TRUE.equals(profile.getEmailVerified()),
+                activeVisitSites != null ? activeVisitSites : List.of());
     }
 }

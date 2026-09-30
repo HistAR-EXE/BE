@@ -23,7 +23,7 @@ public class SepayProperties {
     private String qrBaseUrl = "https://vietqr.app/img";
     private String qrTemplate = "compact";
     private boolean qrShowInfo = true;
-    private int b2cPremiumPriceVnd = 79_000;
+    private int b2cPremiumPriceVnd = 49_000;
     private int orderExpiryMinutes = 15;
     /** Keep polling PENDING this long after expiresAt so a late webhook can still upgrade. */
     private int expiryGraceMinutes = 30;

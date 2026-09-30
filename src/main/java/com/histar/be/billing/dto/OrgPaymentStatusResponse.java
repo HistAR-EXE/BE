@@ -12,4 +12,8 @@ public record OrgPaymentStatusResponse(
         boolean activated,
         UUID organizationId,
         String planType,
-        String orgName) {}
+        String orgName,
+        Integer amountVnd,
+        String transferContent,
+        Integer receivedAmountVnd,
+        Integer remainingAmountVnd) {}

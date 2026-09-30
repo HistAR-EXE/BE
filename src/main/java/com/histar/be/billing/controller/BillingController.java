@@ -61,8 +61,16 @@ public class BillingController {
     @PostMapping("/b2c/subscribe")
     public ApiResponse<ProfileMeResponse> subscribeB2c(@RequestBody(required = false) B2cSubscribeRequest request) {
         UUID userId = requireUserId();
-        String paymentMethod = request != null ? request.paymentMethod() : "DEMO";
-        return ApiResponse.ok(billingService.subscribeB2c(userId, paymentMethod));
+        String paymentMethod = request != null && request.paymentMethod() != null && !request.paymentMethod().isBlank()
+                ? request.paymentMethod().trim()
+                : BillingService.PAYMENT_METHOD_DEMO;
+        // Only the free DEMO upgrade is self-service; paid methods (e.g. SEPAY) activate via the verified webhook.
+        if (!BillingService.PAYMENT_METHOD_DEMO.equalsIgnoreCase(paymentMethod)) {
+            throw new com.histar.be.common.exception.BusinessRuleException(
+                    "Phương thức thanh toán không hợp lệ. Vui lòng thanh toán qua QR SePay.");
+        }
+        billingService.assertDemoPaymentAllowed(paymentMethod);
+        return ApiResponse.ok(billingService.subscribeB2c(userId, BillingService.PAYMENT_METHOD_DEMO));
     }
 
     @GetMapping("/b2c/status")
@@ -84,7 +92,9 @@ public class BillingController {
     public ApiResponse<B2cPaymentIntentResponse> createB2cPayment(
             @RequestBody(required = false) B2cCreatePaymentRequest request) {
         String returnToPath = request != null ? request.returnToPath() : null;
-        return ApiResponse.ok(sepayB2cPaymentService.createPayment(requireUserId(), returnToPath));
+        String planType = request != null ? request.planType() : null;
+        String siteCode = request != null ? request.siteCode() : null;
+        return ApiResponse.ok(sepayB2cPaymentService.createPayment(requireUserId(), returnToPath, planType, siteCode));
     }
 
     @GetMapping("/b2c/payment/{orderCode}")

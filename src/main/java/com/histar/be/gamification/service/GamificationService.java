@@ -1,5 +1,6 @@
 package com.histar.be.gamification.service;
 
+import com.histar.be.checkin.presence.PresenceInput;
 import com.histar.be.gamification.dto.CheckinResultDto;
 import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.secret.dto.SecretStoryResponse;
@@ -10,6 +11,18 @@ public interface GamificationService {
 
     CheckinResultDto processCheckin(
             UUID userId, UUID locationId, double latitude, double longitude, String qrCode);
+
+    /**
+     * QR-first presence check-in. {@code qrCode} (location QR) and GPS are optional when
+     * {@code presence.qrVerified()} is true.
+     */
+    CheckinResultDto processCheckin(
+            UUID userId,
+            UUID locationId,
+            Double latitude,
+            Double longitude,
+            String qrCode,
+            PresenceInput presence);
 
     CheckinResultDto processDemoCheckin(UUID userId, UUID locationId);
 

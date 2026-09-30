@@ -6,7 +6,13 @@ import com.histar.be.billing.dto.B2cPaymentIntentResponse;
 import com.histar.be.billing.dto.B2cPaymentStatusResponse;
 import com.histar.be.billing.dto.SepayWebhookPayload;
 import com.histar.be.billing.entity.B2cPaymentTransaction;
+import com.histar.be.billing.entity.B2cSubscription;
+import com.histar.be.billing.entity.B2cVisitEntitlement;
 import com.histar.be.billing.repository.B2cPaymentTransactionRepository;
+import com.histar.be.billing.repository.B2cSubscriptionRepository;
+import com.histar.be.billing.repository.B2cVisitEntitlementRepository;
+import com.histar.be.checkin.presence.StationQrService;
+import com.histar.be.mail.HistarEmailService;
 import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
@@ -21,6 +27,8 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.UUID;
@@ -37,6 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class SepayB2cPaymentService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    static final String STATUS_UNDERPAID = "UNDERPAID";
+    public static final String PLAN_PREMIUM = "PREMIUM";
+    public static final String PLAN_JOURNEY_PASS = "JOURNEY_PASS";
+    private static final long JOURNEY_PASS_HOURS = 72L;
 
     private final B2cPaymentTransactionRepository paymentTransactionRepository;
     private final ProfileRepository profileRepository;
@@ -44,41 +57,74 @@ public class SepayB2cPaymentService {
     private final BillingSettingsService billingSettingsService;
     private final SepayProperties sepayProperties;
     private final EmailVerifiedGuard emailVerifiedGuard;
+    private final B2cSubscriptionRepository b2cSubscriptionRepository;
+    private final B2cVisitEntitlementRepository visitEntitlementRepository;
+    private final HistarEmailService histarEmailService;
+
     @Transactional
     public B2cPaymentIntentResponse createPayment(UUID userId, String returnToPath) {
+        return createPayment(userId, returnToPath, PLAN_PREMIUM, null);
+    }
+
+    @Transactional
+    public B2cPaymentIntentResponse createPayment(
+            UUID userId, String returnToPath, String planTypeRaw, String siteCodeRaw) {
         ensureEnabled();
         emailVerifiedGuard.assertEmailVerified(userId);
         Profile profile = profileRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (profile.getOrgId() != null) {
             throw new BusinessRuleException("Bạn thuộc tổ chức — không thể thanh toán gói cá nhân B2C.");
         }
-        if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
+        String planType = planTypeRaw == null || planTypeRaw.isBlank()
+                ? PLAN_PREMIUM
+                : planTypeRaw.trim().toUpperCase(Locale.ROOT);
+        if (!PLAN_PREMIUM.equals(planType) && !PLAN_JOURNEY_PASS.equals(planType)) {
+            throw new BusinessRuleException("planType phải là PREMIUM hoặc JOURNEY_PASS");
+        }
+        String siteCode = null;
+        if (PLAN_JOURNEY_PASS.equals(planType)) {
+            siteCode = StationQrService.normalizeSiteCode(siteCodeRaw);
+        } else if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
             throw new BusinessRuleException("Tài khoản đang là Premium.");
         }
-        int premiumPriceVnd = billingSettingsService.getB2cPremiumPriceVnd();
-        if (premiumPriceVnd <= 0) {
-            throw new BusinessRuleException("Giá gói Premium B2C chưa được cấu hình hợp lệ.");
+        int priceVnd = PLAN_JOURNEY_PASS.equals(planType)
+                ? billingSettingsService.getB2cJourneyPassPriceVnd()
+                : billingSettingsService.getB2cPremiumPriceVnd();
+        if (priceVnd <= 0) {
+            throw new BusinessRuleException("Giá gói B2C chưa được cấu hình hợp lệ.");
         }
 
         Instant now = Instant.now();
         B2cPaymentTransaction pending = paymentTransactionRepository
                 .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
                 .filter(tx -> tx.getExpiresAt() != null && tx.getExpiresAt().isAfter(now))
+                .filter(tx -> planType.equalsIgnoreCase(tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType()))
                 .orElse(null);
         if (pending != null) {
             return toIntentResponse(pending);
         }
+        // UNDERPAID orders stay payable (top-up transfer with same content) until the grace window ends.
+        B2cPaymentTransaction underpaid = paymentTransactionRepository
+                .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, STATUS_UNDERPAID)
+                .filter(tx -> !isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes()))
+                .filter(tx -> planType.equalsIgnoreCase(tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType()))
+                .orElse(null);
+        if (underpaid != null) {
+            return toIntentResponse(underpaid);
+        }
 
         String orderCode = generateOrderCode();
         Instant expiresAt = now.plus(sepayProperties.getOrderExpiryMinutes(), ChronoUnit.MINUTES);
-        String qrUrl = buildQrUrl(orderCode, premiumPriceVnd);
+        String qrUrl = buildQrUrl(orderCode, priceVnd);
         B2cPaymentTransaction tx = paymentTransactionRepository.save(B2cPaymentTransaction.builder()
                 .userId(userId)
                 .provider("SEPAY")
                 .orderCode(orderCode)
                 .transferContent(orderCode)
-                .amountVnd(premiumPriceVnd)
+                .amountVnd(priceVnd)
                 .status("PENDING")
+                .planType(planType)
+                .siteCode(siteCode)
                 .returnToPath(returnToPath)
                 .qrUrl(qrUrl)
                 .expiresAt(expiresAt)
@@ -96,13 +142,41 @@ public class SepayB2cPaymentService {
             throw new BusinessRuleException("Không có quyền xem giao dịch này");
         }
         String status = resolveStatus(tx);
+        boolean journeyPaid =
+                "PAID".equals(status) && PLAN_JOURNEY_PASS.equalsIgnoreCase(tx.getPlanType() == null ? "" : tx.getPlanType());
+        boolean upgraded = ("PAID".equals(status) && hasPremiumEntitlement(userId)) || journeyPaid;
+        int received = STATUS_UNDERPAID.equals(status)
+                ? receivedAmountFromPayload(tx.getProviderPayload())
+                : ("PAID".equals(status) ? tx.getAmountVnd() : 0);
+        int remaining = Math.max(0, tx.getAmountVnd() - received);
         return new B2cPaymentStatusResponse(
                 tx.getOrderCode(),
                 status,
                 tx.getExpiresAt(),
                 tx.getPaidAt(),
                 tx.getReturnToPath(),
-                "PAID".equals(status));
+                upgraded,
+                tx.getAmountVnd(),
+                tx.getTransferContent(),
+                received,
+                remaining);
+    }
+
+    /** PAID alone is not enough: the profile must be PREMIUM or hold an active, unexpired b2c_subscription. */
+    private boolean hasPremiumEntitlement(UUID userId) {
+        boolean premiumTier = profileRepository
+                .findById(userId)
+                .map(p -> UserTier.PREMIUM == UserTier.fromStored(p.getTier()))
+                .orElse(false);
+        if (premiumTier) {
+            return true;
+        }
+        LocalDate today = LocalDate.now(VN_ZONE);
+        return b2cSubscriptionRepository
+                .findByUserIdAndIsActiveTrue(userId)
+                .filter(sub -> Boolean.TRUE.equals(sub.getIsActive()))
+                .filter(sub -> sub.getEndDate() == null || !sub.getEndDate().isBefore(today))
+                .isPresent();
     }
 
     @Transactional
@@ -147,13 +221,21 @@ public class SepayB2cPaymentService {
             }
             return;
         }
-        if (payload.transferAmount() == null || payload.transferAmount() < tx.getAmountVnd()) {
+        long thisTransfer = payload.transferAmount() == null ? 0L : payload.transferAmount();
+        long previouslyReceived =
+                STATUS_UNDERPAID.equalsIgnoreCase(tx.getStatus()) ? receivedAmountFromPayload(tx.getProviderPayload()) : 0L;
+        // Accept overpay (>= amount); top-up transfers with the same content accumulate on an UNDERPAID order.
+        long cumulative = previouslyReceived + thisTransfer;
+        if (cumulative < tx.getAmountVnd()) {
             log.warn(
-                    "SePay B2C webhook underpaid order={} expected={} got={}",
+                    "SePay B2C webhook underpaid order={} expected={} got={} cumulative={}",
                     tx.getOrderCode(),
                     tx.getAmountVnd(),
-                    payload.transferAmount());
-            tx.setProviderPayload(toJson(payload));
+                    payload.transferAmount(),
+                    cumulative);
+            tx.setStatus(STATUS_UNDERPAID);
+            tx.setProviderTransactionId(payload.id());
+            tx.setProviderPayload(toJson(payload, cumulative));
             tx.setUpdatedAt(Instant.now());
             paymentTransactionRepository.save(tx);
             return;
@@ -163,11 +245,77 @@ public class SepayB2cPaymentService {
         tx.setProviderTransactionId(payload.id());
         tx.setProviderReferenceCode(payload.referenceCode());
         tx.setProviderGateway(payload.gateway());
-        tx.setProviderPayload(toJson(payload));
+        tx.setProviderPayload(toJson(payload, cumulative));
         tx.setUpdatedAt(Instant.now());
         paymentTransactionRepository.save(tx);
-        billingService.subscribeB2c(tx.getUserId(), "SEPAY");
+        String plan = tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType();
+        if (PLAN_JOURNEY_PASS.equalsIgnoreCase(plan)) {
+            grantJourneyPass(tx);
+            log.info("SePay B2C webhook matched order={} status=PAID plan=JOURNEY_PASS site={}", tx.getOrderCode(), tx.getSiteCode());
+            sendJourneyPassReceipt(tx);
+            return;
+        }
+        B2cSubscription subscription = billingService.subscribeB2cReturningSubscription(tx.getUserId(), "SEPAY");
+        if (subscription != null && subscription.getId() != null) {
+            tx.setSubscriptionId(subscription.getId());
+            tx.setUpdatedAt(Instant.now());
+            paymentTransactionRepository.save(tx);
+        }
         log.info("SePay B2C webhook matched order={} status=PAID", tx.getOrderCode());
+        sendReceiptEmail(tx, subscription);
+    }
+
+    private void grantJourneyPass(B2cPaymentTransaction tx) {
+        Instant now = Instant.now();
+        visitEntitlementRepository.save(B2cVisitEntitlement.builder()
+                .userId(tx.getUserId())
+                .siteCode(StationQrService.normalizeSiteCode(tx.getSiteCode()))
+                .source("SEPAY")
+                .orderCode(tx.getOrderCode())
+                .startsAt(now)
+                .expiresAt(now.plus(JOURNEY_PASS_HOURS, ChronoUnit.HOURS))
+                .createdAt(now)
+                .build());
+    }
+
+    private void sendJourneyPassReceipt(B2cPaymentTransaction tx) {
+        try {
+            String email = profileRepository
+                    .findById(tx.getUserId())
+                    .map(Profile::getEmail)
+                    .filter(e -> !e.isBlank())
+                    .orElse(null);
+            if (email == null) {
+                return;
+            }
+            String text = "Cảm ơn bạn đã mua Journey Pass TimeLens (" + tx.getSiteCode() + "). Mã đơn: "
+                    + tx.getOrderCode() + ", số tiền: " + tx.getAmountVnd() + "đ. Có hiệu lực 72 giờ.";
+            histarEmailService.sendText(email, "[TimeLens] Xác nhận Journey Pass", text);
+        } catch (RuntimeException ex) {
+            log.warn("SePay Journey Pass receipt email failed for order={}: {}", tx.getOrderCode(), ex.getMessage());
+        }
+    }
+
+    /** Best-effort receipt; a mail failure must never roll back a verified payment. */
+    private void sendReceiptEmail(B2cPaymentTransaction tx, B2cSubscription subscription) {
+        try {
+            String email = profileRepository
+                    .findById(tx.getUserId())
+                    .map(Profile::getEmail)
+                    .filter(e -> !e.isBlank())
+                    .orElse(null);
+            if (email == null) {
+                return;
+            }
+            String until = subscription != null && subscription.getEndDate() != null
+                    ? " Gói có hiệu lực đến " + subscription.getEndDate() + "."
+                    : "";
+            String text = "Cảm ơn bạn đã thanh toán Premium TimeLens. Mã đơn: " + tx.getOrderCode()
+                    + ", số tiền: " + tx.getAmountVnd() + "đ." + until;
+            histarEmailService.sendText(email, "[TimeLens] Xác nhận thanh toán Premium", text);
+        } catch (RuntimeException ex) {
+            log.warn("SePay B2C receipt email failed for order={}: {}", tx.getOrderCode(), ex.getMessage());
+        }
     }
 
     private void ensureEnabled() {
@@ -240,6 +388,9 @@ public class SepayB2cPaymentService {
     private String resolveStatus(B2cPaymentTransaction tx) {
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
             return "PAID";
+        }
+        if (STATUS_UNDERPAID.equalsIgnoreCase(tx.getStatus())) {
+            return STATUS_UNDERPAID;
         }
         if (isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes())) {
             return "EXPIRED";
@@ -369,11 +520,24 @@ public class SepayB2cPaymentService {
         }
     }
 
-    private String toJson(SepayWebhookPayload payload) {
+    /** Sum of transfers recorded on an UNDERPAID order (stored in provider_payload as receivedAmount). */
+    static int receivedAmountFromPayload(String providerPayload) {
+        if (providerPayload == null || providerPayload.isBlank()) {
+            return 0;
+        }
+        try {
+            return OBJECT_MAPPER.readTree(providerPayload).path("receivedAmount").asInt(0);
+        } catch (JsonProcessingException e) {
+            return 0;
+        }
+    }
+
+    private String toJson(SepayWebhookPayload payload, long receivedAmount) {
         return payload == null
                 ? "{}"
                 : "{"
                         + "\"id\":" + payload.id() + ","
+                        + "\"receivedAmount\":" + receivedAmount + ","
                         + "\"code\":\"" + safe(payload.code()) + "\","
                         + "\"gateway\":\"" + safe(payload.gateway()) + "\","
                         + "\"referenceCode\":\"" + safe(payload.referenceCode()) + "\","

@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SepayOrgPaymentService {
 
+    static final String STATUS_UNDERPAID = "UNDERPAID";
+
     private final OrgPaymentTransactionRepository orgPaymentTransactionRepository;
     private final ProfileRepository profileRepository;
     private final OrganizationRepository organizationRepository;
@@ -66,6 +68,16 @@ public class SepayOrgPaymentService {
         long amountVnd = pricing.totalVnd();
 
         Instant now = Instant.now();
+        OrgPaymentTransaction underpaid = orgPaymentTransactionRepository
+                .findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, STATUS_UNDERPAID)
+                .filter(tx -> tx.getExpiresAt() != null
+                        && !SepayB2cPaymentService.isPastGrace(
+                                tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes()))
+                .filter(tx -> tx.getPlanType().equals(plan.name()))
+                .orElse(null);
+        if (underpaid != null) {
+            return toIntentResponse(underpaid, pricing);
+        }
         OrgPaymentTransaction pending = orgPaymentTransactionRepository
                 .findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
                 .filter(tx -> tx.getExpiresAt() != null && tx.getExpiresAt().isAfter(now))
@@ -105,6 +117,11 @@ public class SepayOrgPaymentService {
             throw new BusinessRuleException("Không có quyền xem giao dịch này");
         }
         String status = resolveStatus(tx);
+        int received = STATUS_UNDERPAID.equals(status)
+                ? SepayB2cPaymentService.receivedAmountFromPayload(tx.getProviderPayload())
+                : 0;
+        int amount = tx.getAmountVnd() != null ? tx.getAmountVnd().intValue() : 0;
+        int remaining = Math.max(0, amount - received);
         return new OrgPaymentStatusResponse(
                 tx.getOrderCode(),
                 status,
@@ -114,7 +131,11 @@ public class SepayOrgPaymentService {
                 "PAID".equals(status),
                 tx.getOrganizationId(),
                 tx.getPlanType(),
-                tx.getOrgName());
+                tx.getOrgName(),
+                amount,
+                tx.getTransferContent(),
+                STATUS_UNDERPAID.equals(status) ? received : null,
+                STATUS_UNDERPAID.equals(status) ? remaining : null);
     }
 
     @Transactional
@@ -157,8 +178,21 @@ public class SepayOrgPaymentService {
             }
             return;
         }
-        if (payload.transferAmount() == null || payload.transferAmount() < tx.getAmountVnd()) {
-            tx.setProviderPayload(payload.content());
+        long thisTransfer = payload.transferAmount() == null ? 0L : payload.transferAmount();
+        long previouslyReceived = STATUS_UNDERPAID.equalsIgnoreCase(tx.getStatus())
+                ? SepayB2cPaymentService.receivedAmountFromPayload(tx.getProviderPayload())
+                : 0L;
+        long cumulative = previouslyReceived + thisTransfer;
+        if (cumulative < tx.getAmountVnd()) {
+            log.warn(
+                    "SePay B2B webhook underpaid order={} expected={} got={} cumulative={}",
+                    tx.getOrderCode(),
+                    tx.getAmountVnd(),
+                    payload.transferAmount(),
+                    cumulative);
+            tx.setStatus(STATUS_UNDERPAID);
+            tx.setProviderTransactionId(payload.id());
+            tx.setProviderPayload(toReceivedJson(payload, cumulative));
             tx.setUpdatedAt(Instant.now());
             orgPaymentTransactionRepository.save(tx);
             return;
@@ -169,7 +203,7 @@ public class SepayOrgPaymentService {
         tx.setProviderTransactionId(payload.id());
         tx.setProviderReferenceCode(payload.referenceCode());
         tx.setProviderGateway(payload.gateway());
-        tx.setProviderPayload(payload.content());
+        tx.setProviderPayload(toReceivedJson(payload, cumulative));
         tx.setUpdatedAt(Instant.now());
         orgPaymentTransactionRepository.save(tx);
 
@@ -246,10 +280,27 @@ public class SepayOrgPaymentService {
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
             return "PAID";
         }
+        if (STATUS_UNDERPAID.equalsIgnoreCase(tx.getStatus())) {
+            if (SepayB2cPaymentService.isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes())) {
+                return "EXPIRED";
+            }
+            return STATUS_UNDERPAID;
+        }
         if (SepayB2cPaymentService.isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes())) {
             return "EXPIRED";
         }
         return tx.getStatus();
+    }
+
+    private static String toReceivedJson(SepayWebhookPayload payload, long receivedAmount) {
+        String content = payload.content() == null ? "" : payload.content().replace("\"", "\\\"");
+        return "{\"id\":"
+                + payload.id()
+                + ",\"receivedAmount\":"
+                + receivedAmount
+                + ",\"content\":\""
+                + content
+                + "\"}";
     }
 
     private String generateOrderCode() {

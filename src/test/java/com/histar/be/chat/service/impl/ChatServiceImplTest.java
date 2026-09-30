@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +26,7 @@ import com.histar.be.location.entity.Location;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.rag.service.RagChatService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,6 +66,8 @@ class ChatServiceImplTest {
     private PlayerStoryContextService playerStoryContextService;
     @Mock
     private EmailVerifiedGuard emailVerifiedGuard;
+    @Mock
+    private RagChatService ragChatService;
 
     @InjectMocks
     private ChatServiceImpl chatService;
@@ -84,6 +88,7 @@ class ChatServiceImplTest {
         Location location = Location.builder()
                 .id(locationId)
                 .name("Củ Chi")
+                .siteCode("cu-chi")
                 .sources("Bảo tàng Chứng tích Chiến tranh")
                 .build();
         Conversation conversation = Conversation.builder()
@@ -104,13 +109,13 @@ class ChatServiceImplTest {
                 .thenReturn(new RagChatResponse(
                         "reply",
                         List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"))));
-        when(usageQuotaService.shouldIncludeChatSources(userId)).thenReturn(false);
+        when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(false);
 
         var response = chatService.sendOrchestrated(
-                userId, new ChatMessageRequest(characterId, "hello", conversationId));
+                userId, new ChatMessageRequest(characterId, "hello", conversationId, null, "cu-chi"));
 
         assertThat(response.sources()).isEmpty();
-        verify(usageQuotaService).shouldIncludeChatSources(userId);
+        verify(usageQuotaService).shouldIncludeChatSources(userId, "cu-chi");
     }
 
     @Test
@@ -126,7 +131,7 @@ class ChatServiceImplTest {
                 .locationId(locationId)
                 .personaPrompt("persona")
                 .build();
-        Location location = Location.builder().id(locationId).name("Củ Chi").build();
+        Location location = Location.builder().id(locationId).name("Củ Chi").siteCode("cu-chi").build();
         Conversation conversation = Conversation.builder()
                 .id(conversationId)
                 .userId(userId)
@@ -144,11 +149,51 @@ class ChatServiceImplTest {
         when(ragAiChatClient.generateWithSources(
                         any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
                 .thenReturn(new RagChatResponse("reply", sources));
-        when(usageQuotaService.shouldIncludeChatSources(userId)).thenReturn(true);
+        when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(true);
 
         var response = chatService.sendOrchestrated(
-                userId, new ChatMessageRequest(characterId, "hello", conversationId));
+                userId, new ChatMessageRequest(characterId, "hello", conversationId, null, "cu-chi"));
 
         assertThat(response.sources()).hasSize(1);
+    }
+
+    @Test
+    void sendOrchestrated_keepsSourcesForJourneyPassViaSiteCode() {
+        UUID userId = UUID.randomUUID();
+        UUID characterId = UUID.randomUUID();
+        UUID locationId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+
+        CharacterEntity character = CharacterEntity.builder()
+                .id(characterId)
+                .name("Chị Năm")
+                .locationId(locationId)
+                .personaPrompt("persona")
+                .build();
+        Location location = Location.builder().id(locationId).name("Củ Chi").siteCode("cu-chi").build();
+        Conversation conversation = Conversation.builder()
+                .id(conversationId)
+                .userId(userId)
+                .characterId(characterId)
+                .build();
+        List<ChatSource> sources = List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"));
+
+        when(characterService.findById(characterId)).thenReturn(character);
+        when(locationService.findById(locationId)).thenReturn(location);
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+        when(profileRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userArtifactRepository.findByUserId(userId)).thenReturn(List.of());
+        when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
+        when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
+        when(ragAiChatClient.generateWithSources(
+                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+                .thenReturn(new RagChatResponse("reply", sources));
+        when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(true);
+
+        var response = chatService.sendOrchestrated(
+                userId, new ChatMessageRequest(characterId, "hello", conversationId, "ST01", "cu-chi"));
+
+        assertThat(response.sources()).hasSize(1);
+        verify(usageQuotaService).shouldIncludeChatSources(userId, "cu-chi");
     }
 }

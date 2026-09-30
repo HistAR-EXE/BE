@@ -1,5 +1,6 @@
 package com.histar.be.checkin.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,4 +32,16 @@ public class Checkin {
     private Double latitude;
     private Double longitude;
     private Instant createdAt;
+
+    @Column(name = "station_code", length = 64)
+    private String stationCode;
+
+    @Column(name = "presence_score")
+    private Integer presenceScore;
+
+    @Column(name = "presence_method", length = 16)
+    private String presenceMethod;
+
+    @Column(name = "client_uuid")
+    private UUID clientUuid;
 }
