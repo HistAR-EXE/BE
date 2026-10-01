@@ -49,7 +49,7 @@ public class DataInitialize implements ApplicationRunner {
                 badges);
 
         if (locations == 0) {
-            log.warn("No locations in DB. Run docs/database/TimeLens_DB_Schema.sql or docker compose up -d");
+            log.warn("No locations in DB. Run docs/sql/schema/TimeLens_DB_Schema.sql or docker compose up -d");
         }
         if (panoramas == 0 || hotspots == 0) {
             log.warn(

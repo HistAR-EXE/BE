@@ -10,7 +10,7 @@ import com.histar.be.quest.service.impl.QuestStepProgressServiceImpl;
 import com.histar.be.recommendation.dto.RecommendationItem;
 import com.histar.be.recommendation.dto.RecommendationsResponse;
 import com.histar.be.recommendation.service.RecommendationService;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.entity.VisitSession;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import java.util.ArrayList;

@@ -1,7 +1,7 @@
 package com.histar.be.billing.service;
 
 import com.histar.be.auth.service.EmailVerifiedGuard;
-import com.histar.be.billing.OrgPlanLimits;
+import com.histar.be.billing.policy.OrgPlanLimits;
 import com.histar.be.billing.dto.OrgCreatePaymentRequest;
 import com.histar.be.billing.service.BillingSettingsService;
 import com.histar.be.billing.dto.OrgPaymentIntentResponse;

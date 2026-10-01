@@ -5,7 +5,7 @@ import com.histar.be.hotspot.dto.HotspotResponse;
 import com.histar.be.hotspot.entity.Hotspot;
 import com.histar.be.hotspot.repository.HotspotRepository;
 import com.histar.be.hotspot.service.HotspotService;
-import com.histar.be.hotspotcontent.repository.HotspotContentRepository;
+import com.histar.be.hotspot.content.repository.HotspotContentRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

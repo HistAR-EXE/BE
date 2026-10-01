@@ -1,6 +1,6 @@
 package com.histar.be.billing.service;
 
-import com.histar.be.billing.OrgPlanLimits;
+import com.histar.be.billing.policy.OrgPlanLimits;
 import com.histar.be.billing.entity.OrgActiveSession;
 import com.histar.be.billing.entity.OrgActiveSession.OrgActiveSessionId;
 import com.histar.be.billing.repository.OrgActiveSessionRepository;

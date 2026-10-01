@@ -14,7 +14,7 @@ import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.QuestProgressService;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;

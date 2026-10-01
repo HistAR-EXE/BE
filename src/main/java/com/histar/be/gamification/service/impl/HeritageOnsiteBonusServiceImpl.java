@@ -13,7 +13,7 @@ import com.histar.be.gamification.service.HeritageOnsiteBonusService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.repository.QuestRepository;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;

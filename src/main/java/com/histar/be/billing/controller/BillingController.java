@@ -5,7 +5,7 @@ import com.histar.be.billing.dto.B2b2cInquiryRequest;
 import com.histar.be.billing.dto.B2b2cInquiryResponse;
 import com.histar.be.billing.dto.B2cSubscribeRequest;
 import com.histar.be.billing.dto.OrgVolumePreviewResponse;
-import com.histar.be.billing.OrgPlanLimits;
+import com.histar.be.billing.policy.OrgPlanLimits;
 import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.billing.dto.B2cCreatePaymentRequest;
 import com.histar.be.billing.dto.B2cPaymentIntentResponse;

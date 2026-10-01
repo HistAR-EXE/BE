@@ -38,7 +38,7 @@ import com.histar.be.secret.dto.SecretStoryResponse;
 import com.histar.be.stations.repository.StationRepository;
 import com.histar.be.secret.entity.UserSecretUnlock;
 import com.histar.be.secret.repository.UserSecretUnlockRepository;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.service.VisitSessionService;
 import java.time.Instant;
 import java.util.ArrayList;

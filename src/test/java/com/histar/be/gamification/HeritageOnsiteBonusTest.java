@@ -21,7 +21,7 @@ import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestProgressService;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

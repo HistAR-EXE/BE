@@ -12,43 +12,17 @@ run_sql() {
   psql -v ON_ERROR_STOP=1 -f "/seed/${file}"
 }
 
-# Schema + compat: docker-entrypoint-initdb.d (01, 02) trên volume mới.
-# Script này chạy migration/seed còn lại (idempotent).
-run_sql "2026-06-02_fe_compat_indexes_seed.sql"
-run_sql "2026-06-02_fe_compat_data_topup.sql"
-run_sql "2026-06-11_cp3_gamification_upgrade.sql"
-run_sql "2026-06-11_admin_seed.sql"
-run_sql "2026-06-11_unlock_rules.sql"
-run_sql "2026-06-12_photo_scene_unlock_keys.sql"
-run_sql "2026-06-12_discovery_artifact_links.sql"
-run_sql "2026-06-12_quest_completion_trigger.sql"
-run_sql "2026-06-12_value_layer_upgrade.sql"
-run_sql "2026-06-13_phase_b_upgrade.sql"
-run_sql "2026-06-14_phase1_hardening.sql"
-run_sql "2026-06-15_visit_session_event_snapshot.sql"
-run_sql "2026-06-16_analytics_event_metadata.sql"
-run_sql "2026-06-17_cu_chi_artifacts_story_admin.sql"
-run_sql "2026-06-18_cu_chi_only_cleanup.sql"
-run_sql "2026-06-19_heritage_sites_from_dataset.sql"
-run_sql "2026-06-20_fix_den_hung_vuong_name.sql"
-run_sql "2026-06-21_heritage_quests_seed.sql"
-run_sql "2026-06-22_fix_quest_progress_current_step.sql"
-run_sql "2026-06-23_quest_mission_keys.sql"
-run_sql "2026-06-24_quest_visual_artifact_keys.sql"
-run_sql "2026-06-25_quest_mixed_visual_pipeline.sql"
-run_sql "2026-06-26_heritage_quest_discovery_points.sql"
-run_sql "2026-06-27_heritage_p2_checkin_bonus.sql"
-run_sql "2026-06-30_cu_chi_supplementary_assets.sql"
-run_sql "2026-07-10_cu_chi_multi_panoramas.sql"
-run_sql "2026-07-04_location_unlock.sql"
-run_sql "2026-07-04_discovery_bindings_enrich.sql"
-run_sql "2026-07-04_quest_onsite_flag.sql"
-run_sql "2026-07-04_profile_tier.sql"
-run_sql "2026-07-04_org_members_seed.sql"
-run_sql "2026-07-05_ensure_admin_accounts.sql"
-run_sql "2026-07-06_org_rbac_and_groups.sql"
-run_sql "2026-07-07_monetization_p0.sql"
-run_sql "2026-07-09_shedlock.sql"
-run_sql "2026-07-10_demo_billing_accounts.sql"
+if [ ! -f /seed-manifest.txt ]; then
+  echo "Missing /seed-manifest.txt"
+  exit 1
+fi
+
+while IFS= read -r line || [ -n "$line" ]; do
+  line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  case "$line" in
+    ''|'#'*) continue ;;
+    *) run_sql "$line" ;;
+  esac
+done < /seed-manifest.txt
 
 echo "Postgres seed completed."

@@ -14,7 +14,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.service.QuestProgressService;
 import com.histar.be.support.CuChiTestFixture;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.entity.EndReason;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import com.histar.be.visit.service.VisitSessionService;

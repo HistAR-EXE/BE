@@ -20,7 +20,7 @@ import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import java.time.Instant;
 import java.util.ArrayList;

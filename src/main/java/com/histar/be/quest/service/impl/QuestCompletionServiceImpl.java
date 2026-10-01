@@ -10,7 +10,7 @@ import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestProgressCompleter;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

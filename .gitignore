@@ -39,6 +39,10 @@ build/
 .env.render-db
 *firebase-adminsdk*.json
 
+### Docs tooling temp (không commit) ###
+docs/scripts/_cu_chi_work/
+**/node_modules/
+
 ### Docx / extract temp (không commit) ###
 _docx_extract/
 _docx_temp.zip

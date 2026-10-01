@@ -1,7 +1,7 @@
 package com.histar.be.billing.service;
 
 import com.histar.be.auth.service.EmailVerifiedGuard;
-import com.histar.be.billing.OrgPlanLimits;
+import com.histar.be.billing.policy.OrgPlanLimits;
 import com.histar.be.billing.dto.B2cBillingStatus;
 import com.histar.be.billing.dto.B2cSubscriptionHistoryItem;
 import com.histar.be.billing.dto.BillingStatusResponse;

@@ -9,7 +9,7 @@ import com.histar.be.location.service.LocationService;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

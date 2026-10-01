@@ -6,7 +6,7 @@ import com.histar.be.location.dto.LocationResponse;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.profile.service.ProfileAccessPolicy;
-import com.histar.be.userquestprogress.repository.UserQuestProgressRepository;
+import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

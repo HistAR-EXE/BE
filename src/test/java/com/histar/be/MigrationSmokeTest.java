@@ -35,16 +35,17 @@ class MigrationSmokeTest {
     }
 
     @Test
-    void runAllSeedScript_listsAllCriticalMigrationsInOrder() throws Exception {
-        Path runAllSeed = Path.of("docs/scripts/run-all-seed.ps1");
-        assertThat(Files.exists(runAllSeed))
-                .as("run-all-seed.ps1 must exist at BE/docs/scripts/")
+    void seedManifest_listsAllCriticalMigrationsInOrder() throws Exception {
+        Path manifest = Path.of("docs/seed-manifest.txt");
+        assertThat(Files.exists(manifest))
+                .as("seed-manifest.txt must exist at BE/docs/")
                 .isTrue();
+        assertThat(Files.exists(Path.of("docs/scripts/Invoke-HistarSeed.ps1"))).isTrue();
 
-        String script = Files.readString(runAllSeed);
+        String manifestText = Files.readString(manifest);
         for (String migration : CRITICAL_MIGRATIONS) {
-            assertThat(script).as("script must reference " + migration).contains(migration);
-            Path sqlFile = Path.of("docs/database", migration);
+            assertThat(manifestText).as("manifest must reference " + migration).contains(migration);
+            Path sqlFile = Path.of("docs/sql/seed", migration);
             assertThat(Files.exists(sqlFile))
                     .as("migration file must exist: " + sqlFile)
                     .isTrue();
@@ -53,8 +54,8 @@ class MigrationSmokeTest {
         for (int i = 0; i < CRITICAL_MIGRATIONS.size() - 1; i++) {
             String current = CRITICAL_MIGRATIONS.get(i);
             String next = CRITICAL_MIGRATIONS.get(i + 1);
-            int idxA = script.indexOf(current);
-            int idxB = script.indexOf(next);
+            int idxA = manifestText.indexOf(current);
+            int idxB = manifestText.indexOf(next);
             assertThat(idxA).as("missing " + current).isGreaterThanOrEqualTo(0);
             assertThat(idxB).as("missing " + next).isGreaterThanOrEqualTo(0);
             assertThat(idxA).as("order: " + current + " before " + next).isLessThan(idxB);
