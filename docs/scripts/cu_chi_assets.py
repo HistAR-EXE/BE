@@ -41,7 +41,7 @@ RAW_ROOT = os.path.join(REPO, "Tour 360")
 FE_MEDIA = os.path.join(REPO, "FE", "public", "media", "cu-chi")
 PANO_DIR = os.path.join(FE_MEDIA, "panoramas")
 GALLERY_DIR = os.path.join(FE_MEDIA, "gallery")
-SQL_OUT = os.path.join(REPO, "BE", "docs", "database", "2026-07-01_cu_chi_real_panoramas.sql")
+SQL_OUT = os.path.join(REPO, "BE", "docs", "database", "2026-07-10_cu_chi_multi_panoramas.sql")
 
 CU_CHI = "11111111-1111-1111-1111-111111111111"
 U = "22222222-2222-2222-2222-22222222222"  # + last hex digit

@@ -41,6 +41,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     private final TrialEntitlementGuard trialEntitlementGuard;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<QuestResponse> listByLocation(UUID locationId, Pageable pageable) {
         List<QuestResponse> quests = (locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
                 .stream().map(QuestResponse::from).toList();

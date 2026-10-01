@@ -23,7 +23,14 @@ public class OrgCcuController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        ccuSessionService.assertCcuAvailable(userId);
+        // Keep CCU limit enforcement; unexpected DB errors stay best-effort so they do not spam FE.
+        try {
+            ccuSessionService.assertCcuAvailable(userId);
+        } catch (com.histar.be.common.exception.CcuLimitException ex) {
+            throw ex;
+        } catch (RuntimeException ignored) {
+            // no-op
+        }
         return ApiResponse.ok(Map.of("status", "ok"));
     }
 }

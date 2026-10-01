@@ -20,7 +20,7 @@ foreach ($h in $scene) {
 }
 
 $panoramas = Invoke-RestMethod -Uri "$BaseUrl/api/panoramas/by-location/$cuChiId"
-Write-Host "Panoramas at Cu Chi: $($panoramas.data.Count) (expect >= 3 after week-3 SQL)"
+Write-Host "Panoramas at Cu Chi: $($panoramas.data.Count) (expect >= 9 after 2026-07-10 multi-panoramas)"
 
 $uuidPattern = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 $bad = $scene | Where-Object { $_.contentRef -notmatch $uuidPattern }
