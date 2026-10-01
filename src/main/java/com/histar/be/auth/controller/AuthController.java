@@ -3,6 +3,11 @@ package com.histar.be.auth.controller;
 import com.histar.be.auth.dto.AuthResponse;
 import com.histar.be.auth.dto.LoginRequest;
 import com.histar.be.auth.dto.LogoutRequest;
+import com.histar.be.auth.dto.PasswordResetConfirmDto;
+import com.histar.be.auth.dto.PasswordResetRequestDto;
+import com.histar.be.auth.dto.PasswordResetRequestResponse;
+import com.histar.be.auth.dto.PasswordResetVerifyOtpDto;
+import com.histar.be.auth.dto.PasswordResetVerifyResponse;
 import com.histar.be.auth.dto.RefreshTokenRequest;
 import com.histar.be.auth.dto.RegisterRequest;
 import com.histar.be.auth.dto.GoogleLoginRequest;
@@ -10,6 +15,7 @@ import com.histar.be.auth.dto.VerifyEmailConfirmRequest;
 import com.histar.be.auth.dto.VerifyEmailStatusResponse;
 import com.histar.be.auth.service.AuthService;
 import com.histar.be.auth.service.EmailVerificationService;
+import com.histar.be.auth.service.PasswordResetService;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
 import jakarta.validation.Valid;
@@ -27,6 +33,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping("/register")
@@ -73,5 +80,23 @@ public class AuthController {
         var result = emailVerificationService.confirmToken(request.token());
         return ApiResponse.ok(new VerifyEmailStatusResponse(
                 result.verified(), "Email " + result.email() + " đã được xác thực thành công."));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ApiResponse<PasswordResetRequestResponse> requestPasswordReset(
+            @RequestBody @Valid PasswordResetRequestDto request) {
+        return ApiResponse.ok(passwordResetService.requestReset(request.email()));
+    }
+
+    @PostMapping("/password-reset/verify-otp")
+    public ApiResponse<PasswordResetVerifyResponse> verifyPasswordResetOtp(
+            @RequestBody @Valid PasswordResetVerifyOtpDto request) {
+        return ApiResponse.ok(passwordResetService.verifyOtp(request.email(), request.code()));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ApiResponse<Void> confirmPasswordReset(@RequestBody @Valid PasswordResetConfirmDto request) {
+        passwordResetService.confirmReset(request.resetToken(), request.password());
+        return ApiResponse.ok("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.", null);
     }
 }

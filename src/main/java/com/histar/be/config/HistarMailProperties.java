@@ -15,4 +15,10 @@ public class HistarMailProperties {
     private String from = "noreply@histar.vn";
     private int verificationTtlHours = 24;
     private int resendCooldownSeconds = 60;
+    /** Password-reset OTP lifetime (minutes). */
+    private int passwordResetOtpTtlMinutes = 10;
+    /** Max wrong OTP attempts per challenge. */
+    private int passwordResetMaxAttempts = 5;
+    /** Reset token lifetime after OTP verified (minutes). */
+    private int passwordResetTokenTtlMinutes = 15;
 }

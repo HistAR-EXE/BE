@@ -148,6 +148,9 @@ histar:
     from: ${MAIL_FROM:noreply@histar.vn}
     verification-ttl-hours: 24
     resend-cooldown-seconds: 60
+    password-reset-otp-ttl-minutes: ${PASSWORD_RESET_OTP_TTL_MINUTES:10}
+    password-reset-max-attempts: ${PASSWORD_RESET_MAX_ATTEMPTS:5}
+    password-reset-token-ttl-minutes: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:15}
   firebase:
     enabled: ${FIREBASE_ENABLED:false}
     service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}
