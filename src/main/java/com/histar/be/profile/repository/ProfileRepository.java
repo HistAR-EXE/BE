@@ -27,6 +27,10 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     List<Profile> findLeaderboard(
             @Param("city") String city, org.springframework.data.domain.Pageable pageable);
 
+    @Query("SELECT p FROM Profile p WHERE p.orgId = :orgId AND p.totalPoints IS NOT NULL ORDER BY p.totalPoints DESC")
+    List<Profile> findLeaderboardByOrgId(
+            @Param("orgId") UUID orgId, org.springframework.data.domain.Pageable pageable);
+
     @Query(
             """
             SELECT DISTINCT p FROM Profile p

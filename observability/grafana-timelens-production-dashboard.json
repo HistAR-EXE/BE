@@ -41,6 +41,38 @@
       "id": 5,
       "targets": [{ "expr": "sum(rate(histar_minigame_attempts_total{outcome=\"failed\"}[5m])) / sum(rate(histar_minigame_attempts_total{outcome=~\"passed|failed\"}[5m]))", "refId": "A" }],
       "title": "Minigame failure rate", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 6,
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(histar_chat_first_token_latency_seconds_bucket[5m])) by (le))", "refId": "A" }],
+      "title": "Guided chat p95 time to first event", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 7,
+      "targets": [{ "expr": "sum(rate(histar_chat_stream_total{outcome=\"error\"}[5m])) / sum(rate(histar_chat_stream_total[5m]))", "refId": "A" }],
+      "title": "Guided stream error rate", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 8,
+      "targets": [{ "expr": "sum(rate(histar_chat_grounded_answers_total{outcome=\"grounded\"}[5m])) / sum(rate(histar_chat_grounded_answers_total[5m]))", "refId": "A" }],
+      "title": "Grounded answer rate", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 9,
+      "targets": [{ "expr": "sum(rate(histar_teacher_ai_draft_evaluation_total{outcome=\"passed\"}[5m])) / sum(rate(histar_teacher_ai_draft_evaluation_total[5m]))", "refId": "A" }],
+      "title": "Teacher draft evaluation pass rate", "type": "timeseries"
     }
   ],
   "schemaVersion": 39,

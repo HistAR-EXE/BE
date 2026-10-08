@@ -38,6 +38,37 @@ public class ProductionMetrics {
                 .increment();
     }
 
+    public void recordChatFirstToken(Duration duration) {
+        Timer.builder("histar.chat.first_token.latency")
+                .description("Server time until the first guided stream event is ready")
+                .register(registry)
+                .record(duration);
+    }
+
+    public void recordChatStream(boolean complete) {
+        counter("histar.chat.stream.total", "outcome", complete ? "complete" : "error");
+    }
+
+    public void recordSafetyBlocked() {
+        Counter.builder("histar.chat.safety_blocks.total").register(registry).increment();
+    }
+
+    public void recordGroundedAnswer(boolean grounded) {
+        counter("histar.chat.grounded_answers.total", "outcome", grounded ? "grounded" : "ungrounded");
+    }
+
+    public void recordMemoryOptOut() {
+        Counter.builder("histar.chat.memory_opt_out.total").register(registry).increment();
+    }
+
+    public void recordVoiceFallback() {
+        Counter.builder("histar.chat.voice_fallback.total").register(registry).increment();
+    }
+
+    public void recordTeacherDraftEvaluation(boolean passed) {
+        counter("histar.teacher_ai_draft.evaluation.total", "outcome", passed ? "passed" : "failed");
+    }
+
     public void recordQuestStarted() {
         recordQuestFunnel("started");
     }
@@ -61,5 +92,9 @@ public class ProductionMetrics {
                 .tag("event", event)
                 .register(registry)
                 .increment();
+    }
+
+    private void counter(String name, String tag, String value) {
+        Counter.builder(name).tag(tag, value).register(registry).increment();
     }
 }

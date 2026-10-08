@@ -59,4 +59,26 @@ class ProductionMetricsTest {
                 .contains("histar_quest_funnel_total")
                 .contains("histar_minigame_attempts_total");
     }
+
+    @Test
+    void recordsStageTwoGuidedChatAndTeacherSignals() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ProductionMetrics metrics = new ProductionMetrics(registry);
+
+        metrics.recordChatFirstToken(Duration.ofMillis(80));
+        metrics.recordChatStream(false);
+        metrics.recordSafetyBlocked();
+        metrics.recordGroundedAnswer(true);
+        metrics.recordMemoryOptOut();
+        metrics.recordVoiceFallback();
+        metrics.recordTeacherDraftEvaluation(false);
+
+        assertThat(registry.find("histar.chat.first_token.latency").timer().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.stream.total").tag("outcome", "error").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.safety_blocks.total").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.grounded_answers.total").tag("outcome", "grounded").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.memory_opt_out.total").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.voice_fallback.total").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.teacher_ai_draft.evaluation.total").tag("outcome", "failed").counter().count()).isEqualTo(1);
+    }
 }

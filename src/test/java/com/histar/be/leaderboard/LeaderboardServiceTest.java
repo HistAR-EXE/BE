@@ -92,4 +92,20 @@ class LeaderboardServiceTest {
         assertEquals(true, result.viewerRankLocked());
         assertEquals(false, result.entries().stream().anyMatch(e -> e.currentUser()));
     }
+
+    @Test
+    void schoolScope_ranksOnlyMembersOfTheViewerOrganization() {
+        UUID userId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
+        when(profileRepository.findById(userId))
+                .thenReturn(Optional.of(Profile.builder().id(userId).orgId(organizationId).build()));
+        when(profileRepository.findLeaderboardByOrgId(org.mockito.ArgumentMatchers.eq(organizationId), any(Pageable.class)))
+                .thenReturn(List.of(Profile.builder().id(userId).displayName("Student").totalPoints(300).build()));
+
+        var result = leaderboardService.getLeaderboard("school", null, userId, null);
+
+        assertEquals("school", result.scope());
+        assertEquals(1, result.entries().size());
+        assertEquals(true, result.entries().get(0).currentUser());
+    }
 }

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
+import com.histar.be.observability.ProductionMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ public class JourneyMemoryService {
 
     private static final long RETENTION_DAYS = 90;
     private final JourneyMemoryRepository repository;
+    private final ProductionMetrics productionMetrics;
 
     @Transactional(readOnly = true)
     public Optional<JourneyMemory> findActive(UUID userId, UUID locationId) {
@@ -63,6 +65,9 @@ public class JourneyMemoryService {
         JourneyMemory memory = repository.findByUserIdAndLocationId(userId, locationId)
                 .orElseGet(() -> JourneyMemory.disabled(userId, locationId));
         memory.setEnabled(enabled);
+        if (!enabled) {
+            productionMetrics.recordMemoryOptOut();
+        }
         memory.setUpdatedAt(Instant.now());
         if (enabled && !memory.getExpiresAt().isAfter(Instant.now())) {
             memory.setExpiresAt(Instant.now().plus(RETENTION_DAYS, ChronoUnit.DAYS));

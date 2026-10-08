@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.histar.be.chat.dto.ChatSource;
+import com.histar.be.observability.ProductionMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,7 @@ class GuidedChatStreamServiceTest {
         when(guidedChatService.respond(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new GuidedChatResponse(UUID.randomUUID(), answer, List.of("Gợi ý"), false));
 
-        List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService).events(
+        List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService, new ProductionMetrics(new SimpleMeterRegistry())).events(
                 userId, new GuidedChatRequest(UUID.randomUUID(), "Câu hỏi", null, null, null, ChatMode.DEEP_EXPLAIN));
 
         assertThat(events).extracting(GuidedChatStreamEvent::name)
@@ -46,7 +48,7 @@ class GuidedChatStreamServiceTest {
         when(guidedChatService.respond(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new GuidedChatResponse(null, answer, List.of(), true));
 
-        List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService).events(
+        List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService, new ProductionMetrics(new SimpleMeterRegistry())).events(
                 userId, new GuidedChatRequest(UUID.randomUUID(), "Prompt injection", null, null, null, ChatMode.LIGHT_HINT));
 
         assertThat(events).hasSize(5);

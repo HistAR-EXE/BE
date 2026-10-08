@@ -11,6 +11,8 @@ import com.histar.be.chat.dto.ChatResponse;
 import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.memory.JourneyMemoryService;
 import com.histar.be.chat.service.ChatService;
+import com.histar.be.observability.ProductionMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,7 +39,8 @@ class GuidedChatServiceTest {
                 new GuidedChatSafetyGuard(),
                 new GuidedAnswerFormatter(),
                 new JourneySuggestionService(),
-                journeyMemoryService);
+                journeyMemoryService,
+                new ProductionMetrics(new SimpleMeterRegistry()));
     }
 
     @Test

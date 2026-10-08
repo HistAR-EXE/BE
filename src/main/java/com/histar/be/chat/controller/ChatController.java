@@ -9,6 +9,7 @@ import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.guided.GuidedChatRequest;
 import com.histar.be.chat.guided.GuidedChatStreamService;
 import com.histar.be.chat.service.ChatService;
+import com.histar.be.observability.ProductionMetrics;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.response.PageResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
@@ -36,6 +37,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final GuidedChatStreamService guidedChatStreamService;
+    private final ProductionMetrics productionMetrics;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -78,6 +80,7 @@ public class ChatController {
                 }
                 emitter.complete();
             } catch (Exception ex) {
+                productionMetrics.recordChatStream(false);
                 try {
                     emitter.send(SseEmitter.event().name("error").data(Map.of("message", "Không thể hoàn tất câu trả lời AI.")));
                 } catch (Exception ignored) {
@@ -87,6 +90,15 @@ public class ChatController {
             }
         });
         return emitter;
+    }
+
+    /** Records only browser capability fallback; never audio, transcript, or user identifiers. */
+    @PostMapping("/telemetry/voice-fallback")
+    public ApiResponse<Void> recordVoiceFallback() {
+        currentUserAccessor.getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        productionMetrics.recordVoiceFallback();
+        return ApiResponse.ok(null);
     }
 
     @PostMapping("/sync")
