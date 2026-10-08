@@ -48,3 +48,6 @@ _docx_extract/
 _docx_temp.zip
 temp.zip
 *.docx.tmp
+
+### Local Git worktrees ###
+.worktrees/
