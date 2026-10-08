@@ -37,12 +37,14 @@ public class GeminiChatLlmClient implements ChatLlmClient {
     private final String apiKey;
     private final String model;
     private final List<String> modelFallbacks;
+    private final AiResilienceExecutor resilience;
 
     public GeminiChatLlmClient(
             WebClient geminiWebClient,
             @Value("${gemini.api-key:}") String apiKey,
             @Value("${gemini.model}") String model,
-            @Value("${gemini.fallbacks:}") String fallbacks) {
+            @Value("${gemini.fallbacks:}") String fallbacks,
+            AiResilienceExecutor resilience) {
         this.geminiWebClient = geminiWebClient;
         this.apiKey = apiKey;
         this.model = model;
@@ -54,6 +56,7 @@ public class GeminiChatLlmClient implements ChatLlmClient {
                     .filter(item -> !item.isEmpty())
                     .toList();
         }
+        this.resilience = resilience;
     }
 
     @Override
@@ -76,7 +79,7 @@ public class GeminiChatLlmClient implements ChatLlmClient {
             models.add(model.trim());
         }
         models.addAll(modelFallbacks);
-        WebClientResponseException lastError = null;
+        RuntimeException lastError = null;
         for (String candidate : new ArrayList<>(models)) {
             try {
                 String reply = generateWithModel(prompt, candidate);
@@ -90,16 +93,22 @@ public class GeminiChatLlmClient implements ChatLlmClient {
                     continue;
                 }
                 throw mapGeminiError(ex);
+            } catch (AiServiceUnavailableException | AiCircuitOpenException ex) {
+                lastError = ex;
+                log.info("gemini_model_skip model={} error_type=resilience", candidate);
             }
         }
-        throw mapGeminiError(lastError);
+        if (lastError instanceof WebClientResponseException responseException) {
+            throw mapGeminiError(responseException);
+        }
+        throw lastError == null ? new BusinessRuleException("Gemini không khả dụng") : lastError;
     }
 
     private String generateWithModel(String prompt, String modelId) {
         Map<String, Object> body = Map.of(
                 "contents",
                 List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
-        Map<String, Object> response = geminiWebClient
+        Map<String, Object> response = resilience.execute("gemini", () -> geminiWebClient
                 .post()
                 .uri("/v1beta/models/{model}:generateContent", modelId)
                 .header("x-goog-api-key", apiKey)
@@ -107,7 +116,7 @@ public class GeminiChatLlmClient implements ChatLlmClient {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(MAP_TYPE)
-                .block();
+                .block());
         if (response == null) {
             throw new BusinessRuleException("Gemini trả về response rỗng");
         }

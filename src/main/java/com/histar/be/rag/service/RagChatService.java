@@ -10,6 +10,7 @@ import com.histar.be.rag.dto.RetrievalResult;
 import com.histar.be.rag.dto.RetrievedChunk;
 import com.histar.be.rag.entity.ChatQualityLog;
 import com.histar.be.rag.repository.ChatQualityLogRepository;
+import com.histar.be.observability.ProductionMetrics;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -48,6 +49,7 @@ public class RagChatService {
     private final ChatLlmClient chatLlmClient;
     private final ChatQualityLogRepository qualityLogRepository;
     private final RagProperties ragProperties;
+    private final ProductionMetrics productionMetrics;
 
     public boolean isEnabled() {
         return ragProperties.isEnabled();
@@ -78,6 +80,7 @@ public class RagChatService {
             if (cached.isPresent()) {
                 List<ChatSource> sources = citedSources(cached.get(), chunks);
                 logQuality(request, chunks.size(), !sources.isEmpty(), startNanos);
+                productionMetrics.recordRagCitation(!sources.isEmpty());
                 return Optional.of(new RagChatAnswer(cached.get(), sources, false, true));
             }
 
@@ -86,6 +89,7 @@ public class RagChatService {
             List<ChatSource> sources = citedSources(reply, chunks);
             boolean cited = !sources.isEmpty();
             logQuality(request, chunks.size(), cited, startNanos);
+            productionMetrics.recordRagCitation(cited);
 
             if (!cited) {
                 return Optional.of(new RagChatAnswer(SOFT_REFUSE_REPLY, List.of(), true, false));

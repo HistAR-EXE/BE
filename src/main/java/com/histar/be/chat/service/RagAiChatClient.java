@@ -23,11 +23,13 @@ public class RagAiChatClient {
 
     private final WebClient ragAiWebClient;
     private final int timeoutSeconds;
+    private final AiResilienceExecutor resilience;
 
-    public RagAiChatClient(ChatProperties chatProperties) {
+    public RagAiChatClient(ChatProperties chatProperties, AiResilienceExecutor resilience) {
         String baseUrl = chatProperties.getRagAi().getBaseUrl();
         this.timeoutSeconds = chatProperties.getRagAi().getTimeoutSeconds();
         this.ragAiWebClient = WebClient.builder().baseUrl(baseUrl).build();
+        this.resilience = resilience;
     }
 
     public String generate(
@@ -110,14 +112,14 @@ public class RagAiChatClient {
             body.put("player_context", playerContext);
         }
         try {
-            Map<String, Object> response = ragAiWebClient
+            Map<String, Object> response = resilience.execute("rag-ai", () -> ragAiWebClient
                     .post()
                     .uri("/ai/chat")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
-                    .block(Duration.ofSeconds(timeoutSeconds));
+                    .block(Duration.ofSeconds(timeoutSeconds)));
             if (response == null) {
                 throw new BusinessRuleException("RAG AI trả về response rỗng");
             }

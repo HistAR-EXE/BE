@@ -34,7 +34,7 @@ public class PhotoPair {
     @Column(columnDefinition = "text")
     private String currentImage;
 
-    @Column(name = "year")
+    @Column(name = "\"year\"")
     private Integer year;
     private String caption;
     private Integer sortOrder;

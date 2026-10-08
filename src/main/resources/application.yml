@@ -53,6 +53,12 @@ chat:
   rag-ai:
     base-url: ${RAG_AI_BASE_URL:http://localhost:8100}
     timeout-seconds: ${RAG_AI_TIMEOUT_SECONDS:120}
+  resilience:
+    timeout: ${CHAT_AI_TIMEOUT:15s}
+    max-attempts: ${CHAT_AI_MAX_ATTEMPTS:2}
+    initial-backoff: ${CHAT_AI_INITIAL_BACKOFF:100ms}
+    failure-threshold: ${CHAT_AI_FAILURE_THRESHOLD:3}
+    open-duration: ${CHAT_AI_CIRCUIT_OPEN_DURATION:30s}
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
@@ -186,7 +192,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics
+        include: health,metrics,prometheus
   endpoint:
     health:
       show-details: always

@@ -34,6 +34,7 @@ import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.observability.ProductionMetrics;
 import java.util.Arrays;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -71,6 +72,7 @@ public class ChatServiceImpl implements ChatService {
     private final PlayerStoryContextService playerStoryContextService;
     private final EmailVerifiedGuard emailVerifiedGuard;
     private final RagChatService ragChatService;
+    private final ProductionMetrics productionMetrics;
 
     private void assertEmailVerified(UUID userId) {
         emailVerifiedGuard.assertEmailVerified(userId);
@@ -255,7 +257,7 @@ public class ChatServiceImpl implements ChatService {
                     answerSource = "fallback";
                     responseSources = resolveSourcesList(location);
                 } catch (RuntimeException fallback) {
-                    logAnswer(answerSource, startedNanos, fallback.getClass().getSimpleName());
+                    recordChatAnswer(answerSource, startedNanos, false);
                     throw fallback;
                 }
             }
@@ -278,7 +280,7 @@ public class ChatServiceImpl implements ChatService {
                 userId,
                 request.characterId(),
                 conversation.getId());
-        logAnswer(answerSource, startedNanos, "");
+        recordChatAnswer(answerSource, startedNanos, true);
         if (!questHint) {
             chatRateLimiter.recordSuccess(userId);
         }
@@ -287,19 +289,20 @@ public class ChatServiceImpl implements ChatService {
 
     private static String publicAnswerSource(String cache) {
         if (cache == null || cache.isBlank()) {
-            return "fallback";
+            return "rag-ai";
         }
         return switch (cache) {
             case "curated", "faq" -> cache;
             case "semantic_cache", "semantic" -> "semantic";
-            case "llm", "gemini" -> "gemini";
-            default -> "fallback";
+            case "llm", "gemini" -> "rag-ai";
+            default -> "rag-ai";
         };
     }
 
-    private void logAnswer(String source, long startedNanos, String errorType) {
+    private void recordChatAnswer(String source, long startedNanos, boolean successful) {
         long latencyMs = (System.nanoTime() - startedNanos) / 1_000_000L;
-        log.info("answer_source={} latency_ms={} error_type={}", source, latencyMs, errorType);
+        productionMetrics.recordChat(java.time.Duration.ofMillis(latencyMs), source, successful);
+        log.info("answer_source={} latency_ms={} outcome={}", source, latencyMs, successful ? "success" : "error");
     }
 
     private List<ChatSource> filterSourcesForUser(UUID userId, String siteCode, List<ChatSource> sources) {

@@ -19,14 +19,17 @@ public class HistoryAiChatLlmClient implements ChatLlmClient {
     private final WebClient historyAiWebClient;
     private final boolean enabled;
     private final int timeoutSeconds;
+    private final AiResilienceExecutor resilience;
 
     public HistoryAiChatLlmClient(
             WebClient historyAiWebClient,
             @Value("${chat.history-ai.enabled}") boolean enabled,
-            @Value("${chat.history-ai.timeout-seconds}") int timeoutSeconds) {
+            @Value("${chat.history-ai.timeout-seconds}") int timeoutSeconds,
+            AiResilienceExecutor resilience) {
         this.historyAiWebClient = historyAiWebClient;
         this.enabled = enabled;
         this.timeoutSeconds = timeoutSeconds;
+        this.resilience = resilience;
     }
 
     @Override
@@ -36,20 +39,7 @@ public class HistoryAiChatLlmClient implements ChatLlmClient {
 
     @Override
     public boolean isAvailable() {
-        if (!enabled) {
-            return false;
-        }
-        try {
-            historyAiWebClient
-                    .get()
-                    .uri("/health")
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block(Duration.ofSeconds(3));
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+        return enabled && !resilience.isCircuitOpen("history-ai");
     }
 
     @Override
@@ -59,14 +49,14 @@ public class HistoryAiChatLlmClient implements ChatLlmClient {
         }
         Map<String, Object> body = Map.of("prompt", prompt);
         try {
-            Map<String, Object> response = historyAiWebClient
+            Map<String, Object> response = resilience.execute("history-ai", () -> historyAiWebClient
                     .post()
                     .uri("/api/chat")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
-                    .block(Duration.ofSeconds(timeoutSeconds));
+                    .block(Duration.ofSeconds(timeoutSeconds)));
             if (response == null) {
                 throw new BusinessRuleException("History AI trả về response rỗng");
             }

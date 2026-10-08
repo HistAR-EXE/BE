@@ -100,7 +100,7 @@ class GroupCodeConcurrencyTest {
         billingService.subscribeOrg(
                 teacher.getId(),
                 new OrgSubscribeRequest(prefix + " Org", "STANDARD", teacher.getEmail(), null),
-                "DEMO");
+                "SEPAY");
         return profileRepository.findById(teacher.getId()).orElseThrow();
     }
 }

@@ -6,15 +6,20 @@ import com.histar.be.chat.dto.ChatRequest;
 import com.histar.be.chat.dto.ChatResponse;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
+import com.histar.be.chat.guided.GuidedChatRequest;
+import com.histar.be.chat.guided.GuidedChatStreamService;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.response.PageResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
 import jakarta.validation.Valid;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -29,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatController {
 
     private final ChatService chatService;
+    private final GuidedChatStreamService guidedChatStreamService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -55,6 +62,31 @@ public class ChatController {
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
         return ApiResponse.ok(chatService.sendOrchestrated(userId, request));
+    }
+
+    /** Progressive browser contract; the synchronous endpoint remains for existing clients. */
+    @PostMapping(path = "/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessage(@RequestBody @Valid GuidedChatRequest request) {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        SseEmitter emitter = new SseEmitter(60_000L);
+        CompletableFuture.runAsync(() -> {
+            try {
+                for (var event : guidedChatStreamService.events(userId, request)) {
+                    emitter.send(SseEmitter.event().name(event.name()).data(event.data()));
+                }
+                emitter.complete();
+            } catch (Exception ex) {
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(Map.of("message", "Không thể hoàn tất câu trả lời AI.")));
+                } catch (Exception ignored) {
+                    // Client may already have disconnected.
+                }
+                emitter.completeWithError(ex);
+            }
+        });
+        return emitter;
     }
 
     @PostMapping("/sync")

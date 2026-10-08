@@ -1,0 +1,10 @@
+# Merge this job into the Prometheus configuration used for the staging network.
+# Keep the endpoint private or protect it through the monitoring proxy.
+- job_name: timelens-staging
+  scheme: https
+  metrics_path: /actuator/prometheus
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  static_configs:
+    - targets:
+        - <staging-backend-host>
