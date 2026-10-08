@@ -9,6 +9,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+    encoding: UTF-8
+    placeholder-replacement: false
     locations: classpath:db/migration
   jpa:
     hibernate:
@@ -43,11 +45,7 @@ jwt:
 
 chat:
   provider: ${CHAT_PROVIDER:hybrid}
-  hybrid-order: ${CHAT_HYBRID_ORDER:history-ai,ollama,gemini}
-  ollama:
-    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-    model: ${OLLAMA_MODEL:qwen2.5:3b-instruct}
-    timeout-seconds: ${OLLAMA_TIMEOUT_SECONDS:120}
+  hybrid-order: ${CHAT_HYBRID_ORDER:history-ai,gemini}
   history-ai:
     base-url: ${HISTORY_AI_BASE_URL:http://localhost:8000}
     enabled: ${HISTORY_AI_ENABLED:true}
@@ -59,6 +57,7 @@ chat:
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-3.6-flash}
+  fallbacks: "${GEMINI_MODEL_FALLBACKS:gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite,gemini-3.1-flash-lite-preview,gemini-3.7-flash,gemini-3.5-flash-lite,gemma-4-31b-it,gemini-2.5-flash,gemini-2.5-flash-lite,gemini-3-flash}"
   daily-message-limit: ${GEMINI_DAILY_MESSAGE_LIMIT:50}
 
 rag:
@@ -139,6 +138,8 @@ viral:
   leaderboard-cache-seconds: ${VIRAL_LEADERBOARD_CACHE_SECONDS:60}
 
 histar:
+  quests:
+    expose-dev-minigame: true
   sales-inbox: ${SALES_INBOX:}
   app:
     frontend-url: ${FRONTEND_URL:http://localhost:5173}

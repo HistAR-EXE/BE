@@ -4,8 +4,10 @@ import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.response.PageResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
+import com.histar.be.quest.dto.ChapterBonusResponse;
 import com.histar.be.quest.dto.QuestProgressResponse;
 import com.histar.be.quest.dto.QuestResponse;
+import com.histar.be.quest.service.QuestChapterBonusService;
 import com.histar.be.quest.service.QuestProgressService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class QuestController {
 
     private final QuestProgressService questProgressService;
+    private final QuestChapterBonusService questChapterBonusService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @GetMapping("/quests")
@@ -58,6 +61,16 @@ public class QuestController {
                 .getUserId()
                 .orElseThrow(() -> new AuthException("Unauthorized"));
         return ApiResponse.ok(questProgressService.startQuest(userId, questId));
+    }
+
+    @PostMapping("/quests/chapter-bonus")
+    public ApiResponse<ChapterBonusResponse> claimChapterBonus(
+            @RequestParam UUID locationId,
+            @RequestParam String unlockKey) {
+        UUID userId = currentUserAccessor
+                .getUserId()
+                .orElseThrow(() -> new AuthException("Unauthorized"));
+        return ApiResponse.ok(questChapterBonusService.claim(userId, locationId, unlockKey));
     }
 
     @GetMapping("/quests/{id}/progress")

@@ -13,7 +13,13 @@ public record ArtifactResponse(
         String unlockKey,
         String reliability,
         Integer sortOrder,
-        boolean unlocked) {
+        boolean unlocked,
+        String collectionName,
+        String rarity,
+        String sourceUrl,
+        String imageSource,
+        String imageLicense,
+        boolean factVerified) {
 
     public static ArtifactResponse from(Artifact artifact, boolean unlocked) {
         return new ArtifactResponse(
@@ -26,6 +32,12 @@ public record ArtifactResponse(
                 artifact.getUnlockKey(),
                 artifact.getReliability(),
                 artifact.getSortOrder(),
-                unlocked);
+                unlocked,
+                artifact.getCollectionName(),
+                artifact.getRarity(),
+                artifact.getSourceUrl(),
+                artifact.getImageSource(),
+                artifact.getImageLicense(),
+                Boolean.TRUE.equals(artifact.getFactVerified()));
     }
 }

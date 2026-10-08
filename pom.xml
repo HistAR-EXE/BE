@@ -183,7 +183,8 @@
                         <location>filesystem:src/main/resources/db/migration</location>
                     </locations>
                     <baselineOnMigrate>true</baselineOnMigrate>
-                    <baselineVersion>13</baselineVersion>
+                    <baselineVersion>0</baselineVersion>
+                    <placeholderReplacement>false</placeholderReplacement>
                 </configuration>
                 <dependencies>
                     <dependency>

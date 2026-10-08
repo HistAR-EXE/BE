@@ -125,7 +125,9 @@ public class RagAiChatClient {
             if (!(reply instanceof String s) || s.isBlank()) {
                 throw new BusinessRuleException("RAG AI không trả lời được");
             }
-            return new RagChatResponse(s.trim(), parseSources(response.get("sources")));
+            Object cache = response.get("cache");
+            String cacheName = cache instanceof String value ? value : "";
+            return new RagChatResponse(s.trim(), parseSources(response.get("sources")), cacheName);
         } catch (WebClientResponseException ex) {
             throw new BusinessRuleException("Gọi RAG AI thất bại: " + ex.getStatusCode());
         } catch (BusinessRuleException ex) {

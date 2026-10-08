@@ -17,7 +17,10 @@ public record QuestResponse(
         String coverImage,
         String completionTrigger,
         Boolean requireOnsiteCheckin,
-        List<QuestStepResponse> steps
+        Integer requiredOrder,
+        List<QuestStepResponse> steps,
+        UUID unlockAfterQuestId,
+        String unlockDiscoveryKeys
 ) {
 
     public static QuestResponse from(Quest quest) {
@@ -40,7 +43,10 @@ public record QuestResponse(
                 quest.getCoverImage(),
                 quest.getCompletionTrigger(),
                 requireOnsite,
-                stepResponses
+                quest.getRequiredOrder(),
+                stepResponses,
+                quest.getUnlockAfterQuestId(),
+                quest.getUnlockDiscoveryKeys()
         );
     }
 }

@@ -1,0 +1,4 @@
+-- Cố ý chưa gắn mật lệnh thật.
+-- dao_gap và san_co_vat ở mật lệnh thử 33333333-3333-3333-3333-333333333336 (ẩn trên production).
+-- phong_van id a1000001-0000-4000-8000-000000000015 không gắn mật lệnh thật.
+-- Production chỉ chơi 4 engine: xep_tang, soi_nap, duong_khoi, im_lang.

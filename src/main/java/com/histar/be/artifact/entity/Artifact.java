@@ -41,4 +41,25 @@ public class Artifact {
     private String unlockKey;
     private String reliability;
     private Integer sortOrder;
+
+    @Column(name = "collection_name")
+    private String collectionName;
+
+    private String rarity;
+
+    @Column(name = "source_url", columnDefinition = "text")
+    private String sourceUrl;
+
+    @Column(name = "image_source", columnDefinition = "text")
+    private String imageSource;
+
+    @Column(name = "image_license", columnDefinition = "text")
+    private String imageLicense;
+
+    @Column(name = "fact_verified", nullable = false)
+    @Builder.Default
+    private Boolean factVerified = false;
+
+    @Column(name = "unlock_minigame_id")
+    private UUID unlockMinigameId;
 }

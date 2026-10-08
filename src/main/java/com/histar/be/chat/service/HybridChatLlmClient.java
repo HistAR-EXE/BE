@@ -49,13 +49,13 @@ public class HybridChatLlmClient implements ChatLlmClient {
 
     private String buildFailureMessage(Map<String, String> failures) {
         if (failures.isEmpty()) {
-            return "Không có AI provider nào được cấu hình. Bật History AI / Ollama hoặc set GEMINI_API_KEY.";
+            return "Không có AI provider nào được cấu hình. Bật History AI hoặc set GEMINI_API_KEY.";
         }
         StringBuilder message = new StringBuilder("Tất cả AI providers đều thất bại. ");
         failures.forEach((provider, reason) ->
                 message.append('[').append(provider).append(": ").append(reason).append("] "));
         message.append(
-                "Gợi ý: chạy history-ai (port 8000), ollama serve, hoặc set GEMINI_API_KEY trong .env rồi restart BE.");
+                "Gợi ý: chạy history-ai (port 8000), hoặc set GEMINI_API_KEY trong .env rồi restart BE.");
         return message.toString().trim();
     }
 }

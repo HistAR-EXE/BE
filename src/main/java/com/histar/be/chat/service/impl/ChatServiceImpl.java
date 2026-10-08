@@ -57,9 +57,6 @@ public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_HISTORY_TURNS = 6;
 
-    private static final String OUT_OF_SCOPE_REPLY =
-            "Mình chưa có thông tin chính xác về điều này. Bạn nên tham khảo tài liệu chính thức từ Ban quản lý di tích.";
-
     private final CharacterService characterService;
     private final LocationService locationService;
     private final ConversationRepository conversationRepository;
@@ -179,7 +176,11 @@ public class ChatServiceImpl implements ChatService {
             throw new AuthException("Unauthorized");
         }
         assertEmailVerified(userId);
-        chatRateLimiter.checkAndIncrement(userId);
+        boolean questHint = com.histar.be.chat.service.QuestChatHints.isExempt(request.message());
+        if (!questHint) {
+            chatRateLimiter.checkAndIncrement(userId);
+        }
+        long startedNanos = System.nanoTime();
 
         CharacterEntity character = characterService.findById(request.characterId());
         Location location = resolveLocation(character.getLocationId());
@@ -208,6 +209,7 @@ public class ChatServiceImpl implements ChatService {
 
         String reply;
         List<ChatSource> responseSources;
+        String answerSource = "fallback";
         boolean pgVectorRagUsed = false;
         String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
                 ? request.siteCode().trim().toLowerCase()
@@ -224,6 +226,7 @@ public class ChatServiceImpl implements ChatService {
             // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
             reply = pgVectorAnswer.get().reply();
             responseSources = pgVectorAnswer.get().sources();
+            answerSource = "semantic";
             pgVectorRagUsed = true;
         } else {
             try {
@@ -240,14 +243,21 @@ public class ChatServiceImpl implements ChatService {
                         discoveriesCount,
                         playerContext);
                 reply = ragResponse.reply();
+                answerSource = publicAnswerSource(ragResponse.cache());
                 responseSources = !ragResponse.sources().isEmpty()
                         ? ragResponse.sources()
                         : resolveSourcesList(location);
             } catch (BusinessRuleException ex) {
                 log.warn("RAG AI unavailable, falling back to direct LLM: {}", ex.getMessage());
                 String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
-                reply = chatLlmClient.generate(prompt);
-                responseSources = resolveSourcesList(location);
+                try {
+                    reply = chatLlmClient.generate(prompt);
+                    answerSource = "fallback";
+                    responseSources = resolveSourcesList(location);
+                } catch (RuntimeException fallback) {
+                    logAnswer(answerSource, startedNanos, fallback.getClass().getSimpleName());
+                    throw fallback;
+                }
             }
         }
         List<ChatSource> visibleSources = filterSourcesForUser(userId, siteCode, responseSources);
@@ -268,8 +278,28 @@ public class ChatServiceImpl implements ChatService {
                 userId,
                 request.characterId(),
                 conversation.getId());
-        chatRateLimiter.recordSuccess(userId);
+        logAnswer(answerSource, startedNanos, "");
+        if (!questHint) {
+            chatRateLimiter.recordSuccess(userId);
+        }
         return new ChatResponse(reply, conversation.getId(), visibleSources);
+    }
+
+    private static String publicAnswerSource(String cache) {
+        if (cache == null || cache.isBlank()) {
+            return "fallback";
+        }
+        return switch (cache) {
+            case "curated", "faq" -> cache;
+            case "semantic_cache", "semantic" -> "semantic";
+            case "llm", "gemini" -> "gemini";
+            default -> "fallback";
+        };
+    }
+
+    private void logAnswer(String source, long startedNanos, String errorType) {
+        long latencyMs = (System.nanoTime() - startedNanos) / 1_000_000L;
+        log.info("answer_source={} latency_ms={} error_type={}", source, latencyMs, errorType);
     }
 
     private List<ChatSource> filterSourcesForUser(UUID userId, String siteCode, List<ChatSource> sources) {
@@ -318,7 +348,6 @@ public class ChatServiceImpl implements ChatService {
 
     private String buildPrompt(String personaPrompt, Location location, UUID conversationId) {
         String locationName = location.getName() != null ? location.getName() : "di tích lịch sử";
-        String citeSources = resolveCiteSources(location);
 
         StringBuilder prompt = new StringBuilder(personaPrompt)
                 .append("\n\n")
@@ -328,14 +357,13 @@ public class ChatServiceImpl implements ChatService {
                 .append(locationName)
                 .append(" và nhân vật bạn đang đóng.\n\n")
                 .append("QUY TẮC BẮT BUỘC:\n")
-                .append("1. Cuối MỖI câu trả lời, thêm một dòng riêng bắt đầu bằng \"Nguồn: \" và chọn một trong các nguồn hợp lệ sau: ")
-                .append(citeSources)
+                .append("1. Trả lời các vế có trong dữ kiện. Mỗi vế vài câu hoặc vài gạch đầu dòng. Không mở mục không được hỏi.\n")
+                .append("2. Vế không có trong dữ kiện thì nói chưa đủ tư liệu cho vế đó. Không thay cả câu trả lời bằng một câu từ chối khi câu hỏi nói về ")
+                .append(locationName)
                 .append(".\n")
-                .append("2. Nếu câu hỏi NGOÀI phạm vi dữ kiện được cung cấp hoặc bạn không chắc chắn, trả lời chính xác: \"")
-                .append(OUT_OF_SCOPE_REPLY)
-                .append("\" — TUYỆT ĐỐI KHÔNG bịa số liệu, ngày tháng hay sự kiện.\n")
-                .append("3. Giữ giọng nhân vật trong persona ở trên (thân thiện, xưng hô phù hợp).\n")
-                .append("4. Chỉ dựa trên dữ kiện lịch sử có thật; nếu không rõ, nói thật là không rõ.");
+                .append("3. Xưng mình, gọi người hỏi là bạn. Không ghi dòng Nguồn.\n")
+                .append("4. Kết thúc đúng một dòng: Chrono là một AI và có thể mắc sai sót.\n")
+                .append("5. Chỉ dựa trên dữ kiện được cung cấp; không bịa số liệu, ngày tháng hay sự kiện.");
 
         if (location.getKnowledgeContext() != null && !location.getKnowledgeContext().isBlank()) {
             prompt.append("\n\nDỮ KIỆN ĐÃ XÁC MINH (ưu tiên, trả lời ngắn gọn):\n")

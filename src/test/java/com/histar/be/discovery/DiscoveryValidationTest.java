@@ -89,4 +89,27 @@ class DiscoveryValidationTest {
                 .build());
         assertFalse(discoveryService.record(admin.getId(), "era:1968", locationId));
     }
+
+    @Test
+    void record_premiumEra_requiresEntitlementAndDoesNotScoreTwice() {
+        discoveryPointRepository.save(DiscoveryPoint.builder()
+                .locationId(locationId)
+                .name("Cổng 1968")
+                .mapXPct(BigDecimal.valueOf(40))
+                .mapYPct(BigDecimal.valueOf(40))
+                .unlockKey("era:1968")
+                .sortOrder(2)
+                .build());
+        assertThrows(
+                BusinessRuleException.class,
+                () -> discoveryService.record(userId, "era:1968", locationId));
+        assertFalse(discoveryPointRepository.findByUnlockKeyAndLocationId("era:1968", locationId).isEmpty());
+
+        Profile profile = profileRepository.findById(userId).orElseThrow();
+        profile.setTier("PREMIUM");
+        profileRepository.save(profile);
+
+        assertTrue(discoveryService.record(userId, "era:1968", locationId));
+        assertFalse(discoveryService.record(userId, "era:1968", locationId));
+    }
 }

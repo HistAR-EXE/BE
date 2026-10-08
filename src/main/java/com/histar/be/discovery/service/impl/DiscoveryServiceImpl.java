@@ -1,5 +1,6 @@
 package com.histar.be.discovery.service.impl;
 
+import com.histar.be.billing.service.UsageQuotaService;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.GamificationProperties;
 import com.histar.be.discovery.bridge.DiscoveryArtifactBridge;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DiscoveryServiceImpl implements DiscoveryService {
 
     private static final List<String> LEGACY_CHECKIN_KEYS = List.of("era:2026", "photo:cua-ham", "photo:gieng");
+    private static final Set<String> PREMIUM_ERA_KEYS = Set.of("era:1948", "era:1968");
 
     private final DiscoveryPointRepository discoveryPointRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
@@ -38,6 +40,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private final UnlockRuleRepository unlockRuleRepository;
     private final GamificationProperties gamificationProperties;
     private final ProfileAccessPolicy profileAccessPolicy;
+    private final UsageQuotaService usageQuotaService;
 
     @Override
     @Transactional(readOnly = true)
@@ -95,6 +98,9 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         if (userDiscoveryRepository.existsByUserIdAndLocationIdAndDiscoveryKey(
                 userId, resolvedLocationId, unlockKey)) {
             return false;
+        }
+        if (PREMIUM_ERA_KEYS.contains(unlockKey) && !usageQuotaService.hasPremiumEntitlement(userId)) {
+            throw new BusinessRuleException("Cổng 1948 và 1968 cần Premium.");
         }
         userDiscoveryRepository.save(UserDiscovery.builder()
                 .userId(userId)

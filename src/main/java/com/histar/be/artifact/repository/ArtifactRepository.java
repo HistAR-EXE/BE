@@ -13,4 +13,6 @@ public interface ArtifactRepository extends JpaRepository<Artifact, UUID> {
     Optional<Artifact> findByLocationIdAndUnlockKey(UUID locationId, String unlockKey);
 
     List<Artifact> findByUnlockKey(String unlockKey);
+
+    List<Artifact> findByUnlockMinigameIdAndRarity(UUID unlockMinigameId, String rarity);
 }

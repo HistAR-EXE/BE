@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -13,25 +14,46 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
+@Slf4j
 public class GeminiChatLlmClient implements ChatLlmClient {
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
             new ParameterizedTypeReference<>() {};
 
-    /** gemini-2.0-* shut down 2026-06-01 and return 404. Try the configured model, then these. */
-    private static final List<String> MODEL_FALLBACKS = List.of("gemini-3.6-flash", "gemini-3.1-flash-lite");
+    /** Hết lượt (429) hoặc model bận thì thử tên kế tiếp. */
+    private static final List<String> MODEL_FALLBACKS = List.of(
+            "gemini-3.5-flash",
+            "gemini-3.8-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-3.1-flash-lite-preview",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash-lite",
+            "gemma-4-31b-it",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-3-flash");
 
     private final WebClient geminiWebClient;
     private final String apiKey;
     private final String model;
+    private final List<String> modelFallbacks;
 
     public GeminiChatLlmClient(
             WebClient geminiWebClient,
             @Value("${gemini.api-key:}") String apiKey,
-            @Value("${gemini.model}") String model) {
+            @Value("${gemini.model}") String model,
+            @Value("${gemini.fallbacks:}") String fallbacks) {
         this.geminiWebClient = geminiWebClient;
         this.apiKey = apiKey;
         this.model = model;
+        if (fallbacks == null || fallbacks.isBlank()) {
+            this.modelFallbacks = MODEL_FALLBACKS;
+        } else {
+            this.modelFallbacks = List.of(fallbacks.split(",")).stream()
+                    .map(String::trim)
+                    .filter(item -> !item.isEmpty())
+                    .toList();
+        }
     }
 
     @Override
@@ -53,20 +75,24 @@ public class GeminiChatLlmClient implements ChatLlmClient {
         if (model != null && !model.isBlank()) {
             models.add(model.trim());
         }
-        models.addAll(MODEL_FALLBACKS);
-        WebClientResponseException lastNotFound = null;
+        models.addAll(modelFallbacks);
+        WebClientResponseException lastError = null;
         for (String candidate : new ArrayList<>(models)) {
             try {
-                return generateWithModel(prompt, candidate);
+                String reply = generateWithModel(prompt, candidate);
+                log.info("gemini_model_ok model={}", candidate);
+                return reply;
             } catch (WebClientResponseException ex) {
-                if (ex.getStatusCode().value() == 404) {
-                    lastNotFound = ex;
+                int code = ex.getStatusCode().value();
+                if (code == 404 || code == 400 || code == 429 || code == 503) {
+                    lastError = ex;
+                    log.info("gemini_model_skip model={} error_type=http_{}", candidate, code);
                     continue;
                 }
                 throw mapGeminiError(ex);
             }
         }
-        throw mapGeminiError(lastNotFound);
+        throw mapGeminiError(lastError);
     }
 
     private String generateWithModel(String prompt, String modelId) {

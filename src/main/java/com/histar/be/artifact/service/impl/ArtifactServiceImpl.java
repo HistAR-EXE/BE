@@ -8,12 +8,16 @@ import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.artifact.repository.UserArtifactRepository;
 import com.histar.be.artifact.service.ArtifactService;
 import com.histar.be.gamification.dto.UnlockedArtifactDto;
+import com.histar.be.discovery.entity.UserDiscovery;
+import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.profile.service.ProfileAccessPolicy;
+import com.histar.be.profile.service.TierAccessService;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,8 @@ public class ArtifactServiceImpl implements ArtifactService {
     private final ArtifactRepository artifactRepository;
     private final UserArtifactRepository userArtifactRepository;
     private final ProfileAccessPolicy profileAccessPolicy;
+    private final UserDiscoveryRepository userDiscoveryRepository;
+    private final TierAccessService tierAccessService;
 
     @Override
     @Transactional(readOnly = true)
@@ -50,11 +56,33 @@ public class ArtifactServiceImpl implements ArtifactService {
         if (!previewAll) {
             userArtifactRepository.findByUserId(userId).forEach(ua -> unlockedIds.add(ua.getArtifactId()));
         }
+        Set<String> keys = userDiscoveryRepository.findByUserIdAndLocationId(userId, locationId).stream()
+                .map(UserDiscovery::getDiscoveryKey)
+                .collect(Collectors.toSet());
+        boolean premium = tierAccessService.hasPremiumAccess(userId);
         List<ArtifactResponse> items = catalog.stream()
-                .map(a -> ArtifactResponse.from(a, previewAll || unlockedIds.contains(a.getId())))
+                .map(a -> ArtifactResponse.from(a, previewAll || isUnlocked(a, unlockedIds, keys, premium)))
                 .toList();
-        int collected = (int) items.stream().filter(ArtifactResponse::unlocked).count();
-        return new MyArtifactsResponse(items, collected, items.size());
+        List<ArtifactResponse> collection = items.stream()
+                .filter(item -> item.collectionName() != null && !item.collectionName().isBlank())
+                .toList();
+        if (collection.isEmpty()) {
+            int collected = (int) items.stream().filter(ArtifactResponse::unlocked).count();
+            return new MyArtifactsResponse(items, collected, items.size(), 0, 0);
+        }
+        int collectedFree = (int) collection.stream().filter(item -> !isEpic(item) && item.unlocked()).count();
+        int totalFree = (int) collection.stream().filter(item -> !isEpic(item)).count();
+        int collectedPremium = (int) collection.stream().filter(item -> isEpic(item) && item.unlocked()).count();
+        int totalPremium = (int) collection.stream().filter(this::isEpic).count();
+        return new MyArtifactsResponse(items, collectedFree, totalFree, collectedPremium, totalPremium);
+    }
+
+    @Override
+    @Transactional
+    public void unlockRareByMinigame(UUID userId, UUID minigameId) {
+        for (Artifact artifact : artifactRepository.findByUnlockMinigameIdAndRarity(minigameId, "rare")) {
+            unlockIfAbsent(userId, artifact.getId());
+        }
     }
 
     @Override
@@ -99,6 +127,17 @@ public class ArtifactServiceImpl implements ArtifactService {
     @Transactional(readOnly = true)
     public long count() {
         return artifactRepository.count();
+    }
+
+    private boolean isUnlocked(Artifact artifact, Set<UUID> unlockedIds, Set<String> keys, boolean premium) {
+        if ("epic".equalsIgnoreCase(artifact.getRarity())) {
+            return premium && (keys.contains("era:1948") || keys.contains("era:1968"));
+        }
+        return unlockedIds.contains(artifact.getId());
+    }
+
+    private boolean isEpic(ArtifactResponse item) {
+        return "epic".equalsIgnoreCase(item.rarity());
     }
 
     private void unlockIfAbsent(UUID userId, UUID artifactId) {

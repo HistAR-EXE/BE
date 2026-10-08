@@ -51,6 +51,12 @@ public class Quest {
     @Column(name = "step_discovery_keys", columnDefinition = "text")
     private String stepDiscoveryKeys;
 
+    @Column(name = "unlock_after_quest_id")
+    private UUID unlockAfterQuestId;
+
+    @Column(name = "unlock_discovery_keys", columnDefinition = "text")
+    private String unlockDiscoveryKeys;
+
     @Column(name = "require_onsite_checkin", nullable = false)
     @Builder.Default
     private Boolean requireOnsiteCheckin = false;

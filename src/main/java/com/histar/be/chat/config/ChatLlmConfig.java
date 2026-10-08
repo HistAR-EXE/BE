@@ -4,7 +4,6 @@ import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.chat.service.GeminiChatLlmClient;
 import com.histar.be.chat.service.HistoryAiChatLlmClient;
 import com.histar.be.chat.service.HybridChatLlmClient;
-import com.histar.be.chat.service.OllamaChatLlmClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,11 +25,6 @@ public class ChatLlmConfig {
     }
 
     @Bean
-    public WebClient ollamaWebClient(@Value("${chat.ollama.base-url}") String baseUrl) {
-        return WebClient.builder().baseUrl(baseUrl).build();
-    }
-
-    @Bean
     public WebClient historyAiWebClient(@Value("${chat.history-ai.base-url}") String baseUrl) {
         return WebClient.builder().baseUrl(baseUrl).build();
     }
@@ -41,13 +35,11 @@ public class ChatLlmConfig {
             @Value("${chat.provider}") String provider,
             @Value("${chat.hybrid-order}") String hybridOrder,
             GeminiChatLlmClient gemini,
-            OllamaChatLlmClient ollama,
             HistoryAiChatLlmClient historyAi) {
         Map<String, ChatLlmClient> byName =
-                Map.of("gemini", gemini, "ollama", ollama, "history-ai", historyAi);
+                Map.of("gemini", gemini, "history-ai", historyAi);
         return switch (provider.toLowerCase(Locale.ROOT)) {
             case "gemini" -> gemini;
-            case "ollama" -> ollama;
             case "history-ai" -> historyAi;
             default -> new HybridChatLlmClient(resolveHybridOrder(hybridOrder, byName));
         };

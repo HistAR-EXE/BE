@@ -67,4 +67,7 @@ public class QuestStep {
 
     @Column(name = "preview_image")
     private String previewImage;
+
+    @Column(name = "minigame_id")
+    private UUID minigameId;
 }

@@ -16,7 +16,8 @@ public record QuestStepResponse(
         Integer xpPartial,
         String chatPrompt,
         Integer portalEra,
-        String previewImage
+        String previewImage,
+        UUID minigameId
 ) {
     public static QuestStepResponse from(QuestStep entity) {
         return new QuestStepResponse(
@@ -32,7 +33,8 @@ public record QuestStepResponse(
                 entity.getXpPartial(),
                 entity.getChatPrompt(),
                 entity.getPortalEra(),
-                entity.getPreviewImage()
+                entity.getPreviewImage(),
+                entity.getMinigameId()
         );
     }
 }

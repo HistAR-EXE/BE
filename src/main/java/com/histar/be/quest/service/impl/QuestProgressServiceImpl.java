@@ -3,6 +3,7 @@ package com.histar.be.quest.service.impl;
 import com.histar.be.analytics.service.AnalyticsEventService;
 import com.histar.be.checkin.repository.CheckinRepository;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.common.gamification.QuestStatus;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.quest.dto.QuestProgressResponse;
@@ -12,6 +13,8 @@ import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestProgressService;
 import com.histar.be.quest.service.QuestService;
+import com.histar.be.quest.service.QuestUnlockGate;
+import com.histar.be.quest.service.QuestVisibility;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
 import com.histar.be.organization.service.TrialEntitlementGuard;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
@@ -39,11 +42,13 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     private final VisitSessionRepository visitSessionRepository;
     private final CheckinRepository checkinRepository;
     private final TrialEntitlementGuard trialEntitlementGuard;
+    private final QuestVisibility questVisibility;
+    private final QuestUnlockGate questUnlockGate;
 
     @Override
     @Transactional(readOnly = true)
     public Page<QuestResponse> listByLocation(UUID locationId, Pageable pageable) {
-        List<QuestResponse> quests = (locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
+        List<QuestResponse> quests = visible(locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
                 .stream().map(QuestResponse::from).toList();
         return toPage(quests, pageable);
     }
@@ -51,7 +56,7 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     @Override
     @Transactional(readOnly = true)
     public Page<QuestProgressResponse> listMyQuests(UUID userId, UUID locationId, String status, Pageable pageable) {
-        List<QuestProgressResponse> items = (locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
+        List<QuestProgressResponse> items = visible(locationId == null ? questService.findAll() : questService.findByLocationId(locationId))
                 .stream()
                 .map(quest -> toProgress(userId, quest))
                 .filter(progress -> status == null || status.isBlank() || status.equals(progress.status()))
@@ -64,6 +69,10 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     public QuestProgressResponse startQuest(UUID userId, UUID questId) {
         trialEntitlementGuard.assertStudentCanWrite(userId);
         Quest quest = questService.findById(questId);
+        if (!questVisibility.visible(quest)) {
+            throw new ResourceNotFoundException("Quest not found");
+        }
+        questUnlockGate.assertUnlocked(userId, quest);
         UserQuestProgress progress = userQuestProgressRepository
                 .findByUserIdAndQuestId(userId, questId)
                 .orElseGet(() -> UserQuestProgress.builder()
@@ -114,7 +123,14 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     @Transactional(readOnly = true)
     public QuestProgressResponse getProgress(UUID userId, UUID questId) {
         Quest quest = questService.findById(questId);
+        if (!questVisibility.visible(quest)) {
+            throw new ResourceNotFoundException("Quest not found");
+        }
         return toProgress(userId, quest);
+    }
+
+    private List<Quest> visible(List<Quest> quests) {
+        return quests.stream().filter(questVisibility::visible).toList();
     }
 
     private QuestProgressResponse toProgress(UUID userId, Quest quest) {

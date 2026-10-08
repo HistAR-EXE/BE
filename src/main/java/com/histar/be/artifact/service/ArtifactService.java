@@ -18,5 +18,7 @@ public interface ArtifactService {
 
     void unlockOnCheckin(UUID userId, UUID locationId);
 
+    void unlockRareByMinigame(UUID userId, UUID minigameId);
+
     long count();
 }
