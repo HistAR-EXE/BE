@@ -33,6 +33,13 @@ visit:
   session:
     idle-timeout-minutes: 30
 
+# E2E provisions isolated B2C and organization fixtures through the DEMO payment
+# method.  Production keeps this disabled; this profile is only selected by local
+# and CI test runs against the disposable H2 database.
+demo:
+  enabled: true
+  secret: dev-test-demo-secret
+
 minio:
   endpoint: http://localhost:9000
   public-url: http://localhost:9000

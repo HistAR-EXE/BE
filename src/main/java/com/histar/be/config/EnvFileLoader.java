@@ -21,6 +21,10 @@ public final class EnvFileLoader {
     private EnvFileLoader() {}
 
     public static void loadIfPresent() {
+        if (!isDotEnvEnabled()) {
+            log.info("Skipping .env loading because histar.dotenv.enabled is false");
+            return;
+        }
         Path baseDir = Path.of(System.getProperty("user.dir"));
         List<Path> candidates = new ArrayList<>();
         candidates.add(baseDir.resolve(".env"));
@@ -34,6 +38,14 @@ public final class EnvFileLoader {
         if (totalLoaded > 0) {
             log.info("Loaded {} env entries from {}", totalLoaded, candidates);
         }
+    }
+
+    private static boolean isDotEnvEnabled() {
+        String configured = System.getProperty("histar.dotenv.enabled");
+        if (configured == null || configured.isBlank()) {
+            configured = System.getenv("HISTAR_DOTENV_ENABLED");
+        }
+        return configured == null || configured.isBlank() || Boolean.parseBoolean(configured);
     }
 
     private static boolean isProdProfile() {
