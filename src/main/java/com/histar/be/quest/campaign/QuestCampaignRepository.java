@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 public interface QuestCampaignRepository extends JpaRepository<QuestCampaign, UUID> {
     @Query("SELECT c FROM QuestCampaign c WHERE c.enabled = true AND c.startsAt <= :now AND c.endsAt > :now ORDER BY c.endsAt")
     List<QuestCampaign> findActive(Instant now);
+    @Query("SELECT c FROM QuestCampaign c WHERE c.enabled = true AND c.endsAt <= :now") List<QuestCampaign> findActiveBefore(Instant now);
+    List<QuestCampaign> findByQuestIdAndCampaignTypeAndStartsAtLessThanAndEndsAtGreaterThan(UUID questId, String campaignType, Instant endsAt, Instant startsAt);
 }

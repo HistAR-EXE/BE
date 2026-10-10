@@ -1,0 +1,33 @@
+groups:
+  - name: histar-stage2-and-quest-pilot
+    rules:
+      - alert: HistARChatFallbackRateHigh
+        expr: sum(rate(histar_chat_fallback_total[10m])) / clamp_min(sum(rate(histar_chat_latency_seconds_count[10m])), 1) > 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "HistAR chat fallback rate exceeds 10%"
+      - alert: HistARRagCitationRateLow
+        expr: sum(rate(histar_rag_citations_total{outcome="cited"}[15m])) / clamp_min(sum(rate(histar_rag_citations_total[15m])), 1) < 0.80
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Grounded RAG citation rate is below 80%"
+      - alert: HistARGuidedStreamErrorsHigh
+        expr: sum(rate(histar_chat_stream_total{outcome="error"}[10m])) / clamp_min(sum(rate(histar_chat_stream_total[10m])), 1) > 0.05
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Guided chat streaming error rate exceeds 5%"
+      - alert: HistARQuestAbandonmentHigh
+        expr: clamp_min(1 - (sum(increase(histar_quest_funnel_total{event="completed"}[24h])) / clamp_min(sum(increase(histar_quest_funnel_total{event="started"}[24h])), 1)), 0) > 0.55
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Quest abandonment exceeds 55% over the last 24 hours"
+      - alert: HistARMinigameFailureRateHigh
+        expr: sum(rate(histar_minigame_attempts_total{outcome="failed"}[15m])) / clamp_min(sum(rate(histar_minigame_attempts_total{outcome=~"passed|failed"}[15m])), 1) > 0.35
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Minigame failure rate exceeds 35%"

@@ -6,4 +6,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record CreateAssignmentRequest(
-        @NotBlank String title, @NotNull UUID questId, Instant dueAt) {}
+        @NotBlank String title, @NotNull UUID questId, UUID campaignId, Instant dueAt) {}

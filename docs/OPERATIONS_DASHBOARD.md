@@ -14,7 +14,8 @@ panels over a five-minute window:
 | Quest abandonment rate | `clamp_min(1 - (sum(increase(histar_quest_funnel_total{event="completed"}[24h])) / sum(increase(histar_quest_funnel_total{event="started"}[24h]))), 0)` |
 | Minigame failure rate | `sum(rate(histar_minigame_attempts_total{outcome="failed"}[5m])) / sum(rate(histar_minigame_attempts_total{outcome=~"passed|failed"}[5m]))` |
 | Guided time to first event | `histogram_quantile(0.95, sum(rate(histar_chat_first_token_latency_seconds_bucket[5m])) by (le))` |
-| Stream error rate | `sum(rate(histar_chat_stream_total{outcome="error"}[5m])) / sum(rate(histar_chat_stream_total[5m]))` |
+| AI provider p95 latency | `histogram_quantile(0.95, sum(rate(histar_chat_provider_latency_seconds_bucket[5m])) by (le))` |
+| Stream error/cancel rate | `sum(rate(histar_chat_stream_total{outcome=~"error|cancelled"}[5m])) / sum(rate(histar_chat_stream_total[5m]))` |
 | Safety block rate | `sum(rate(histar_chat_safety_blocks_total[5m])) / sum(rate(histar_chat_stream_total[5m]))` |
 | Grounded answer rate | `sum(rate(histar_chat_grounded_answers_total{outcome="grounded"}[5m])) / sum(rate(histar_chat_grounded_answers_total[5m]))` |
 | Memory opt-out rate | `sum(rate(histar_chat_memory_opt_out_total[24h]))` |

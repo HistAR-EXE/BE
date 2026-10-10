@@ -8,6 +8,7 @@ public record AssignmentResponse(
         UUID id,
         String title,
         UUID questId,
+        UUID campaignId,
         String questTitle,
         Instant dueAt,
         Instant createdAt,

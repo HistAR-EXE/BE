@@ -4,7 +4,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $backendRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $migrationDirectory = Join-Path $backendRoot 'src/main/resources/db/migration'
-$requiredMigrations = 38..45 | ForEach-Object { "V$($_)__" }
+$requiredMigrations = 38..57 | ForEach-Object { "V$($_)__" }
 
 foreach ($prefix in $requiredMigrations) {
     $matches = @(Get-ChildItem $migrationDirectory -Filter "$prefix*.sql")
@@ -39,4 +39,4 @@ foreach ($entry in $seedManifest.GetEnumerator()) {
     }
 }
 
-Write-Host 'Migration ledger V38–V45 and controlled seed hashes passed.'
+Write-Host 'Migration ledger V38–V57 and controlled seed hashes passed.'

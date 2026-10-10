@@ -1,6 +1,7 @@
 package com.histar.be.leaderboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
@@ -76,21 +77,13 @@ class LeaderboardServiceTest {
     }
 
     @Test
-    void allScope_freeUsersGetTruncatedPreviewWithoutRankHighlight() {
+    void allScope_freeUsersAreBlockedFromGlobalXpLeaderboard() {
         UUID userId = UUID.randomUUID();
         when(usageQuotaService.hasPremiumEntitlement(userId)).thenReturn(false);
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).build()));
-        when(profileRepository.findLeaderboard(isNull(), any(Pageable.class)))
-                .thenReturn(List.of(
-                        Profile.builder().id(userId).displayName("Free").totalPoints(900).build(),
-                        Profile.builder().id(UUID.randomUUID()).displayName("B").totalPoints(800).build()));
-
-        var result = leaderboardService.getLeaderboard("all", null, userId, null);
-
-        assertEquals(2, result.entries().size());
-        assertEquals(true, result.viewerRankLocked());
-        assertEquals(false, result.entries().stream().anyMatch(e -> e.currentUser()));
+        assertThatThrownBy(() -> leaderboardService.getLeaderboard("all", null, userId, null))
+                .hasMessageContaining("Premium");
     }
 
     @Test

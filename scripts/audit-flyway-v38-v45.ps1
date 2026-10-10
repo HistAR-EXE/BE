@@ -8,19 +8,41 @@ param(
     [string]$DatabasePassword
 )
 
+# Historical filename retained for existing runbook references; the audit covers V38–V57.
+
 $ErrorActionPreference = 'Stop'
-if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
-    throw 'psql is required for the read-only Flyway audit.'
+$hasPsql = $null -ne (Get-Command psql -ErrorAction SilentlyContinue)
+if (-not $hasPsql -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw 'psql or Docker is required for the read-only Flyway audit.'
+}
+
+function Invoke-ReadOnlyQuery([string]$Query) {
+    if ($hasPsql) {
+        return & psql --dbname=$psqlDatabaseUrl --username=$DatabaseUser --no-align --tuples-only --field-separator='|' --set=ON_ERROR_STOP=1 --command $Query
+    }
+
+    # Keep the audit usable on developer/CI hosts that do not install the
+    # PostgreSQL client. Docker receives the password through its environment,
+    # never in a command line or log.
+    $uri = [Uri]$psqlDatabaseUrl
+    $database = $uri.AbsolutePath.TrimStart('/')
+    return & docker run --rm --env PGPASSWORD --env PGSSLMODE=require postgres:17 `
+        psql --host $uri.Host --port $uri.Port --username $DatabaseUser --dbname $database `
+        --no-align --tuples-only --field-separator='|' --set=ON_ERROR_STOP=1 --command $Query
 }
 
 $env:PGPASSWORD = $DatabasePassword
+# psql understands PostgreSQL connection URIs, but not JDBC URLs copied from
+# Spring/Render configuration.  Normalize the latter so the runbook works as
+# written without leaking credentials into a command line.
+$psqlDatabaseUrl = $DatabaseUrl -replace '^jdbc:', ''
 try {
-    $history = & psql --dbname=$DatabaseUrl --username=$DatabaseUser --no-align --tuples-only --field-separator='|' --set=ON_ERROR_STOP=1 --command "SELECT version, success FROM flyway_schema_history WHERE version IN ('38','39','40','41','42','43','44','45') ORDER BY version::int;"
+    $history = Invoke-ReadOnlyQuery "SELECT version, success FROM flyway_schema_history WHERE version BETWEEN '38' AND '57' ORDER BY version::int;"
     if ($LASTEXITCODE -ne 0) {
         throw 'Unable to read flyway_schema_history.'
     }
 
-    $expectedVersions = 38..45 | ForEach-Object { [string]$_ }
+    $expectedVersions = 38..57 | ForEach-Object { [string]$_ }
     $observed = @{}
     foreach ($line in $history) {
         $parts = $line.Trim().Split('|')
@@ -34,7 +56,7 @@ try {
         }
     }
 
-    $counts = & psql --dbname=$DatabaseUrl --username=$DatabaseUser --no-align --tuples-only --field-separator='|' --set=ON_ERROR_STOP=1 --command "SELECT (SELECT count(*) FROM quests), (SELECT count(*) FROM quest_steps), (SELECT count(*) FROM discovery_points), (SELECT count(*) FROM quest_minigames), (SELECT count(*) FROM artifacts WHERE unlock_minigame_id IS NOT NULL);"
+    $counts = Invoke-ReadOnlyQuery "SELECT (SELECT count(*) FROM quests), (SELECT count(*) FROM quest_steps), (SELECT count(*) FROM discovery_points), (SELECT count(*) FROM quest_minigames), (SELECT count(*) FROM artifacts WHERE unlock_minigame_id IS NOT NULL);"
     if ($LASTEXITCODE -ne 0) {
         throw 'Unable to read quest smoke counts.'
     }
@@ -42,7 +64,7 @@ try {
     if ($countParts.Count -ne 5 -or ($countParts | ForEach-Object { [int]$_ }) -contains 0) {
         throw "Quest smoke count is incomplete: $counts"
     }
-    Write-Host "Flyway V38-V45 passed. quests=$($countParts[0]) steps=$($countParts[1]) discovery=$($countParts[2]) minigames=$($countParts[3]) minigameArtifacts=$($countParts[4])"
+    Write-Host "Flyway V38-V57 passed. quests=$($countParts[0]) steps=$($countParts[1]) discovery=$($countParts[2]) minigames=$($countParts[3]) minigameArtifacts=$($countParts[4])"
 } finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
 }

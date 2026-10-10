@@ -3,6 +3,9 @@
 #
 2026-06-02_fe_compat_indexes_seed.sql
 2026-06-02_fe_compat_data_topup.sql
+# CP3 inserts hotspots for the fixed 221/223 panorama UUIDs.  The multi-scene
+# seed creates those UUIDs (and the required panorama columns) first.
+2026-07-10_cu_chi_multi_panoramas.sql
 2026-06-11_cp3_gamification_upgrade.sql
 2026-06-11_admin_seed.sql
 2026-06-11_unlock_rules.sql
@@ -26,7 +29,6 @@
 2026-06-26_heritage_quest_discovery_points.sql
 2026-06-27_heritage_p2_checkin_bonus.sql
 2026-06-30_cu_chi_supplementary_assets.sql
-2026-07-10_cu_chi_multi_panoramas.sql
 2026-07-04_location_unlock.sql
 2026-07-04_discovery_bindings_enrich.sql
 2026-07-04_quest_onsite_flag.sql

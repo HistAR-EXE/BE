@@ -38,6 +38,7 @@ public class TestOrgQuotaController {
     private final OrganizationRepository organizationRepository;
 
     public record SetOrgQuotaRequest(@NotNull @Min(0) Integer usedAiQueries) {}
+    public record SetMaxVerifiedAccountsRequest(@NotNull @Min(1) Integer maxAccounts) {}
 
     @PostMapping("/{orgId}/quota")
     public ApiResponse<Void> setOrgQuota(
@@ -57,6 +58,20 @@ public class TestOrgQuotaController {
                         .build());
         quota.setUsedAiQueries(request.usedAiQueries());
         usageQuotaRepository.save(quota);
+        return ApiResponse.ok(null);
+    }
+
+    /** E2E-only boundary fixture; it mutates the same datasource as the API under test. */
+    @PostMapping("/{orgId}/max-verified-accounts")
+    public ApiResponse<Void> setMaxVerifiedAccounts(
+            @PathVariable UUID orgId,
+            @RequestBody @Valid SetMaxVerifiedAccountsRequest request,
+            @RequestHeader(value = TEST_HOOK_SECRET_HEADER, required = false) String secret) {
+        assertTestHook(secret);
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        org.setMaxVerifiedAccounts(request.maxAccounts());
+        organizationRepository.save(org);
         return ApiResponse.ok(null);
     }
 

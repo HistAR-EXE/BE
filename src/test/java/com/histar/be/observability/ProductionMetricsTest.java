@@ -72,6 +72,8 @@ class ProductionMetricsTest {
         metrics.recordMemoryOptOut();
         metrics.recordVoiceFallback();
         metrics.recordTeacherDraftEvaluation(false);
+        metrics.recordChatProviderLatency(Duration.ofMillis(42));
+        metrics.recordChatStreamCancelled();
 
         assertThat(registry.find("histar.chat.first_token.latency").timer().count()).isEqualTo(1);
         assertThat(registry.find("histar.chat.stream.total").tag("outcome", "error").counter().count()).isEqualTo(1);
@@ -80,5 +82,7 @@ class ProductionMetricsTest {
         assertThat(registry.find("histar.chat.memory_opt_out.total").counter().count()).isEqualTo(1);
         assertThat(registry.find("histar.chat.voice_fallback.total").counter().count()).isEqualTo(1);
         assertThat(registry.find("histar.teacher_ai_draft.evaluation.total").tag("outcome", "failed").counter().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.provider.latency").timer().count()).isEqualTo(1);
+        assertThat(registry.find("histar.chat.stream.total").tag("outcome", "cancelled").counter().count()).isEqualTo(1);
     }
 }

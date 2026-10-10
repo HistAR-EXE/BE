@@ -21,6 +21,7 @@ import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.quest.campaign.QuestCampaignRepository;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.time.Instant;
@@ -56,6 +57,9 @@ class LmsAssignmentServiceTest {
 
     @Mock
     private UserQuestProgressRepository userQuestProgressRepository;
+
+    @Mock
+    private QuestCampaignRepository campaignRepository;
 
     @InjectMocks
     private LmsAssignmentService lmsAssignmentService;
@@ -171,7 +175,7 @@ class LmsAssignmentServiceTest {
 
         assertThatThrownBy(() ->
                         lmsAssignmentService.createAssignment(
-                                teacherId, new CreateAssignmentRequest("Bai tap 1", questId, null)))
+                                teacherId, new CreateAssignmentRequest("Bai tap 1", questId, null, null)))
                 .isInstanceOf(LmsPremiumRequiredException.class)
                 .satisfies(ex -> {
                     LmsPremiumRequiredException lmsEx = (LmsPremiumRequiredException) ex;

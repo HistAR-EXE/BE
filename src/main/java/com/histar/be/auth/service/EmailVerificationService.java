@@ -103,6 +103,10 @@ public class EmailVerificationService {
                 .build());
 
         dispatchEmail(userId, profile.getEmail(), profile.getDisplayName(), rawToken);
+        // The initial send counts for the resend cooldown even when delivery is
+        // disabled in an E2E environment. Otherwise a user can bypass the
+        // throttle simply because mail transport is mocked.
+        lastResendAt.put(userId, now);
         if (testHookProperties.isEnabled() || !mailProperties.isEnabled()) {
             return rawToken;
         }
@@ -179,7 +183,6 @@ public class EmailVerificationService {
                         .formatted(name, link, mailProperties.getVerificationTtlHours());
         try {
             histarEmailService.sendHtml(to, "Xác thực email TimeLens", html);
-            lastResendAt.put(userId, Instant.now());
         } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email xác thực. Thử lại sau.");
         }

@@ -1,6 +1,7 @@
 package com.histar.be.chat.service;
 
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.observability.ProductionMetrics;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,12 +13,16 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.http.codec.ServerSentEvent;
+import java.util.function.Consumer;
 
 @Component
 @Slf4j
 public class GeminiChatLlmClient implements ChatLlmClient {
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<ServerSentEvent<Map<String, Object>>> STREAM_EVENT_TYPE =
             new ParameterizedTypeReference<>() {};
 
     /** Hết lượt (429) hoặc model bận thì thử tên kế tiếp. */
@@ -38,13 +43,15 @@ public class GeminiChatLlmClient implements ChatLlmClient {
     private final String model;
     private final List<String> modelFallbacks;
     private final AiResilienceExecutor resilience;
+    private final ProductionMetrics productionMetrics;
 
     public GeminiChatLlmClient(
             WebClient geminiWebClient,
             @Value("${gemini.api-key:}") String apiKey,
             @Value("${gemini.model}") String model,
             @Value("${gemini.fallbacks:}") String fallbacks,
-            AiResilienceExecutor resilience) {
+            AiResilienceExecutor resilience,
+            ProductionMetrics productionMetrics) {
         this.geminiWebClient = geminiWebClient;
         this.apiKey = apiKey;
         this.model = model;
@@ -57,6 +64,7 @@ public class GeminiChatLlmClient implements ChatLlmClient {
                     .toList();
         }
         this.resilience = resilience;
+        this.productionMetrics = productionMetrics;
     }
 
     @Override
@@ -71,6 +79,17 @@ public class GeminiChatLlmClient implements ChatLlmClient {
 
     @Override
     public String generate(String prompt) {
+        StringBuilder reply = new StringBuilder();
+        stream(prompt, reply::append);
+        if (reply.isEmpty()) {
+            throw new BusinessRuleException("Gemini không trả lời được");
+        }
+        return reply.toString();
+    }
+
+    /** Gemini's documented streamGenerateContent endpoint; each SSE event is a partial response. */
+    @Override
+    public void stream(String prompt, Consumer<String> onDelta) {
         if (!isAvailable()) {
             throw new BusinessRuleException("GEMINI_API_KEY chưa được cấu hình");
         }
@@ -82,20 +101,17 @@ public class GeminiChatLlmClient implements ChatLlmClient {
         RuntimeException lastError = null;
         for (String candidate : new ArrayList<>(models)) {
             try {
-                String reply = generateWithModel(prompt, candidate);
-                log.info("gemini_model_ok model={}", candidate);
-                return reply;
+                streamWithModel(prompt, candidate, onDelta);
+                log.info("gemini_stream_model_ok model={}", candidate);
+                return;
             } catch (WebClientResponseException ex) {
                 int code = ex.getStatusCode().value();
                 if (code == 404 || code == 400 || code == 429 || code == 503) {
                     lastError = ex;
-                    log.info("gemini_model_skip model={} error_type=http_{}", candidate, code);
+                    log.info("gemini_stream_model_skip model={} error_type=http_{}", candidate, code);
                     continue;
                 }
                 throw mapGeminiError(ex);
-            } catch (AiServiceUnavailableException | AiCircuitOpenException ex) {
-                lastError = ex;
-                log.info("gemini_model_skip model={} error_type=resilience", candidate);
             }
         }
         if (lastError instanceof WebClientResponseException responseException) {
@@ -127,6 +143,30 @@ public class GeminiChatLlmClient implements ChatLlmClient {
         return text;
     }
 
+    private void streamWithModel(String prompt, String modelId, Consumer<String> onDelta) {
+        long startedNanos = System.nanoTime();
+        Map<String, Object> body = Map.of(
+                "contents",
+                List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
+        geminiWebClient
+                .post()
+                .uri("/v1beta/models/{model}:streamGenerateContent?alt=sse", modelId)
+                .header("x-goog-api-key", apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToFlux(STREAM_EVENT_TYPE)
+                .map(ServerSentEvent::data)
+                .map(GeminiChatLlmClient::extractReplyTextFromStreamChunk)
+                .filter(text -> text != null && !text.isBlank())
+                .doOnNext(onDelta)
+                .then()
+                .block();
+        productionMetrics.recordChatProviderLatency(
+                java.time.Duration.ofNanos(System.nanoTime() - startedNanos));
+    }
+
     private BusinessRuleException mapGeminiError(WebClientResponseException ex) {
         if (ex != null && ex.getStatusCode().value() == 429) {
             return new BusinessRuleException(
@@ -138,6 +178,11 @@ public class GeminiChatLlmClient implements ChatLlmClient {
 
     @SuppressWarnings("unchecked")
     private String extractReplyText(Map<String, Object> response) {
+        return extractReplyTextFromStreamChunk(response);
+    }
+
+    @SuppressWarnings("unchecked")
+    static String extractReplyTextFromStreamChunk(Map<String, Object> response) {
         Object candidatesObj = response.get("candidates");
         if (!(candidatesObj instanceof List<?> candidates) || candidates.isEmpty()) {
             return null;

@@ -51,6 +51,9 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         }
 
         boolean freeAllScopePreview = isFreeAllScopePreview(normalizedScope, currentUserId);
+        if (freeAllScopePreview) {
+            throw new BusinessRuleException("Bảng xếp hạng toàn cục yêu cầu gói Premium");
+        }
 
         String cacheKey = normalizedScope + "|" + (city == null ? "" : city);
         CachedLeaderboard cached = cache.get(cacheKey);

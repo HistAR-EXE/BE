@@ -25,4 +25,8 @@ public class NarrativeInvestigation {
     @Column(name = "graph_json", nullable = false, columnDefinition = "text") private String graphJson;
     @Column(name = "created_at", nullable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Column(name = "review_status", nullable = false) private String reviewStatus;
+    @Column(name = "approved_locales_json", nullable = false, columnDefinition = "text") private String approvedLocalesJson;
+    @Column(name = "reviewed_by") private String reviewedBy;
+    @Column(name = "reviewed_at") private Instant reviewedAt;
 }

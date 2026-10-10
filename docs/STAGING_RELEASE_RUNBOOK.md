@@ -20,11 +20,14 @@ the deployment secret store.
 1. Build and test the backend: `./mvnw.cmd test`.
 2. Run `./scripts/verify-migration-ledger.ps1` and `./scripts/verify-quest-integrity.ps1 -Environment local`.
 3. Review `docs/MIGRATION_LEDGER_V38_V45.md`; only deploy a build whose database is compatible with its
-   recorded V38--V45 sequence.
+   recorded V38--V57 sequence.
 4. Confirm the deployment environment has `SPRING_PROFILES_ACTIVE=prod`, a valid database URL, required
    AI credentials, allowed CORS origins, and an intentionally chosen `FLYWAY_ENABLED` value.
 5. Record the currently deployed image/revision and confirm a rollback target exists before applying the
    new release.
+6. Keep `PILOT_CHAT_STREAMING`, `PILOT_GUIDED_MODES`, `PILOT_JOURNEY_MEMORY`,
+   `PILOT_TEACHER_AI_DRAFTS`, `PILOT_NARRATIVE_INVESTIGATION`, and `PILOT_QUEST_CAMPAIGNS` set to
+   `false` until all staging gates below pass.
 
 ## Staging deployment and verification
 

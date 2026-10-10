@@ -9,6 +9,9 @@ import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.guided.GuidedChatRequest;
 import com.histar.be.chat.guided.GuidedChatStreamService;
 import com.histar.be.chat.service.ChatService;
+import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.QuotaExceededException;
+import com.histar.be.config.PilotFeatureProperties;
 import com.histar.be.observability.ProductionMetrics;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.response.PageResponse;
@@ -17,6 +20,7 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,6 +42,7 @@ public class ChatController {
     private final ChatService chatService;
     private final GuidedChatStreamService guidedChatStreamService;
     private final ProductionMetrics productionMetrics;
+    private final PilotFeatureProperties pilotFeatures;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -72,24 +77,70 @@ public class ChatController {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        if (!pilotFeatures.isChatStreaming()) {
+            throw new BusinessRuleException("Chat streaming chưa được bật cho cohort này.");
+        }
         SseEmitter emitter = new SseEmitter(60_000L);
-        CompletableFuture.runAsync(() -> {
+        AtomicBoolean completed = new AtomicBoolean(false);
+        CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
             try {
-                for (var event : guidedChatStreamService.events(userId, request)) {
+                guidedChatStreamService.stream(userId, request, event -> {
+                    try {
                     emitter.send(SseEmitter.event().name(event.name()).data(event.data()));
-                }
+                    } catch (java.io.IOException ex) {
+                        throw new StreamDisconnectedException(ex);
+                    }
+                });
+                completed.set(true);
                 emitter.complete();
+            } catch (StreamDisconnectedException ex) {
+                productionMetrics.recordChatStreamCancelled();
             } catch (Exception ex) {
                 productionMetrics.recordChatStream(false);
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(Map.of("message", "Không thể hoàn tất câu trả lời AI.")));
+                    emitter.send(SseEmitter.event().name("error").data(streamErrorPayload(ex)));
                 } catch (Exception ignored) {
                     // Client may already have disconnected.
                 }
-                emitter.completeWithError(ex);
+                // The structured SSE error is the browser contract. Completing exceptionally can
+                // terminate the HTTP response before the buffered error frame reaches fetch().
+                emitter.complete();
+            }
+        });
+        emitter.onCompletion(() -> {
+            if (!completed.get() && !task.isDone()) {
+                task.cancel(true);
+                productionMetrics.recordChatStreamCancelled();
+            }
+        });
+        emitter.onTimeout(() -> {
+            if (!completed.get()) {
+                task.cancel(true);
+                productionMetrics.recordChatStreamCancelled();
             }
         });
         return emitter;
+    }
+
+    private static Map<String, Object> streamErrorPayload(Exception exception) {
+        if (exception instanceof QuotaExceededException quota) {
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("message", quota.getMessage());
+            payload.put("code", quota.getErrorCode().getCode());
+            payload.put("quotaType", quota.getQuotaType());
+            payload.put("upgradeUrl", quota.getUpgradeUrl());
+            if (quota.getUpgradePackage() != null) {
+                payload.put("upgradePackage", quota.getUpgradePackage());
+            }
+            return payload;
+        }
+        return Map.of("message", "Không thể hoàn tất câu trả lời AI.", "code", "INTERNAL_ERROR");
+    }
+
+    private static final class StreamDisconnectedException extends RuntimeException {
+        private StreamDisconnectedException(java.io.IOException cause) {
+            super(cause);
+        }
     }
 
     /** Records only browser capability fallback; never audio, transcript, or user identifiers. */

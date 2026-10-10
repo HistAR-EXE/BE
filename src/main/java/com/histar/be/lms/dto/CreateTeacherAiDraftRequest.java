@@ -11,6 +11,7 @@ import java.util.UUID;
 public record CreateTeacherAiDraftRequest(
         @NotBlank String title,
         @NotNull UUID questId,
+        @NotNull UUID campaignId,
         @NotBlank String sourceVersion,
         @NotNull List<GuidedAnswerBlock> answerBlocks,
         @NotNull Set<String> approvedLocales,

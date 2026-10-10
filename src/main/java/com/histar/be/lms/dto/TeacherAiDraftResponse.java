@@ -11,6 +11,7 @@ public record TeacherAiDraftResponse(
         UUID id,
         String title,
         UUID questId,
+        UUID campaignId,
         String sourceVersion,
         List<GuidedAnswerBlock> answerBlocks,
         Set<String> approvedLocales,

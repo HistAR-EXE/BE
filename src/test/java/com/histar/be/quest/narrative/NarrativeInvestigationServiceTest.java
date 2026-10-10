@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.quest.narrative.entity.NarrativeInvestigation;
+import com.histar.be.profile.repository.ProfileRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,6 +21,9 @@ class NarrativeInvestigationServiceTest {
 
     @Mock
     private NarrativeInvestigationRepository repository;
+    @Mock private UserNarrativeInvestigationProgressRepository progressRepository;
+    @Mock private NarrativeRewardService rewardService;
+    @Mock private ProfileRepository profileRepository;
 
     @Test
     void returnsOnlyEnabledInvestigationAsTypedGraph() {
@@ -34,10 +38,11 @@ class NarrativeInvestigationServiceTest {
                         """)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
+                .reviewStatus("APPROVED").approvedLocalesJson("[\"vi\"]").reviewedAt(Instant.now())
                 .build();
         when(repository.findByQuestIdAndEnabledTrue(questId)).thenReturn(Optional.of(investigation));
 
-        NarrativeInvestigationResponse response = new NarrativeInvestigationService(repository, new ObjectMapper())
+        NarrativeInvestigationResponse response = new NarrativeInvestigationService(repository, new ObjectMapper(), progressRepository, rewardService, profileRepository)
                 .forQuest(questId);
 
         assertThat(response.questId()).isEqualTo(questId);
@@ -50,7 +55,7 @@ class NarrativeInvestigationServiceTest {
         UUID questId = UUID.randomUUID();
         when(repository.findByQuestIdAndEnabledTrue(questId)).thenReturn(Optional.empty());
 
-        NarrativeInvestigationService service = new NarrativeInvestigationService(repository, new ObjectMapper());
+        NarrativeInvestigationService service = new NarrativeInvestigationService(repository, new ObjectMapper(), progressRepository, rewardService, profileRepository);
 
         assertThatThrownBy(() -> service.forQuest(questId))
                 .isInstanceOf(ResourceNotFoundException.class);

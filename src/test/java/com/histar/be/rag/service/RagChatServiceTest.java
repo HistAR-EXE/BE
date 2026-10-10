@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.rag.config.RagProperties;
@@ -19,6 +20,8 @@ import com.histar.be.observability.ProductionMetrics;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -161,5 +164,27 @@ class RagChatServiceTest {
         when(ragService.retrieve(anyString(), any(), any())).thenThrow(new IllegalStateException("embedding down"));
 
         assertThat(service.tryAnswer(request())).isEmpty();
+    }
+
+    @Test
+    void streaming_publishes_only_text_terminated_by_a_valid_citation() {
+        List<RetrievedChunk> chunks = List.of(chunk("Nguồn A", "Nội dung A"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
+        when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.empty());
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked") Consumer<String> consumer = invocation.getArgument(1);
+            consumer.accept("Thông tin chưa có nguồn. Dữ kiện đã kiểm chứng [1] Phần không có nguồn");
+            return null;
+        }).when(chatLlmClient).stream(anyString(), any());
+        List<com.histar.be.rag.dto.RagStreamChunk> published = new ArrayList<>();
+
+        RagChatAnswer answer = service.tryAnswerStreaming(request(), published::add).orElseThrow();
+
+        assertThat(published).singleElement().satisfies(chunk -> {
+            assertThat(chunk.content()).contains("[1]");
+            assertThat(chunk.sources()).hasSize(1);
+            assertThat(chunk.content()).doesNotContain("Phần không có nguồn");
+        });
+        assertThat(answer.reply()).doesNotContain("Phần không có nguồn");
     }
 }

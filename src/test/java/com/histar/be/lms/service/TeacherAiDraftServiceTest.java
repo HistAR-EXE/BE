@@ -18,6 +18,8 @@ import com.histar.be.lms.entity.TeacherAiDraftStatus;
 import com.histar.be.lms.repository.TeacherAiDraftRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.observability.ProductionMetrics;
+import com.histar.be.quest.campaign.QuestCampaign;
+import com.histar.be.quest.campaign.QuestCampaignRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Optional;
@@ -36,12 +38,13 @@ class TeacherAiDraftServiceTest {
 
     @Mock private TeacherAiDraftRepository draftRepository;
     @Mock private LmsAssignmentService lmsAssignmentService;
+    @Mock private QuestCampaignRepository campaignRepository;
     private TeacherAiDraftService service;
 
     @BeforeEach
     void setUp() {
         service = new TeacherAiDraftService(
-                draftRepository, lmsAssignmentService, new HistoricalContentEvaluator(), new ObjectMapper(), new ProductionMetrics(new SimpleMeterRegistry()));
+                draftRepository, lmsAssignmentService, new HistoricalContentEvaluator(), new ObjectMapper(), new ProductionMetrics(new SimpleMeterRegistry()), campaignRepository);
     }
 
     @Test
@@ -49,9 +52,11 @@ class TeacherAiDraftServiceTest {
         UUID teacherId = UUID.randomUUID();
         Profile teacher = Profile.builder().id(teacherId).orgId(UUID.randomUUID()).build();
         when(lmsAssignmentService.requirePremiumTeacher(teacherId)).thenReturn(teacher);
+        UUID questId = UUID.randomUUID();
+        when(campaignRepository.findById(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(QuestCampaign.builder().questId(questId).build()));
         when(draftRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.create(teacherId, validRequest());
+        service.create(teacherId, validRequest(questId));
 
         ArgumentCaptor<TeacherAiDraft> saved = ArgumentCaptor.forClass(TeacherAiDraft.class);
         verify(draftRepository).save(saved.capture());
@@ -76,9 +81,10 @@ class TeacherAiDraftServiceTest {
                 .hasMessageContaining("review");
     }
 
-    private CreateTeacherAiDraftRequest validRequest() {
+    private CreateTeacherAiDraftRequest validRequest(UUID questId) {
         return new CreateTeacherAiDraftRequest(
                 "Củ Chi — kiểm tra chứng cứ",
+                questId,
                 UUID.randomUUID(),
                 "cu-chi-v1",
                 List.of(new GuidedAnswerBlock(

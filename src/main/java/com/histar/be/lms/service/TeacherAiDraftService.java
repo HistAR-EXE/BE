@@ -17,6 +17,8 @@ import com.histar.be.lms.entity.TeacherAiDraftStatus;
 import com.histar.be.lms.repository.TeacherAiDraftRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.observability.ProductionMetrics;
+import com.histar.be.quest.campaign.QuestCampaign;
+import com.histar.be.quest.campaign.QuestCampaignRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +39,7 @@ public class TeacherAiDraftService {
     private final HistoricalContentEvaluator historicalContentEvaluator;
     private final ObjectMapper objectMapper;
     private final ProductionMetrics productionMetrics;
+    private final QuestCampaignRepository campaignRepository;
 
     @Transactional
     public TeacherAiDraftResponse create(UUID teacherId, CreateTeacherAiDraftRequest request) {
@@ -91,7 +94,7 @@ public class TeacherAiDraftService {
             throw new BusinessRuleException("Draft chưa đạt historical evaluation");
         }
         AssignmentResponse assignment = lmsAssignmentService.createAssignment(
-                teacherId, new CreateAssignmentRequest(draft.getTitle(), draft.getQuestId(), draft.getDueAt()));
+                teacherId, new CreateAssignmentRequest(draft.getTitle(), draft.getQuestId(), draft.getCampaignId(), draft.getDueAt()));
         draft.setPublishedAssignmentId(assignment.id());
         draft.setStatus(TeacherAiDraftStatus.PUBLISHED);
         draft.setUpdatedAt(Instant.now());
@@ -103,6 +106,7 @@ public class TeacherAiDraftService {
                 .orgId(teacher.getOrgId())
                 .teacherId(teacher.getId())
                 .questId(request.questId())
+                .campaignId(request.campaignId())
                 .title(request.title().trim())
                 .sourceVersion(request.sourceVersion().trim())
                 .dueAt(request.dueAt())
@@ -118,6 +122,12 @@ public class TeacherAiDraftService {
         HistoricalEvaluation evaluation = historicalContentEvaluator.evaluate(request.answerBlocks(), request.approvedLocales());
         productionMetrics.recordTeacherDraftEvaluation(evaluation.passed());
         draft.setQuestId(request.questId());
+        QuestCampaign campaign = campaignRepository.findById(request.campaignId())
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign not found"));
+        if (!request.questId().equals(campaign.getQuestId())) {
+            throw new BusinessRuleException("Campaign không thuộc quest đã chọn");
+        }
+        draft.setCampaignId(request.campaignId());
         draft.setTitle(request.title().trim());
         draft.setSourceVersion(request.sourceVersion().trim());
         draft.setAnswerBlocksJson(write(request.answerBlocks()));
@@ -138,7 +148,7 @@ public class TeacherAiDraftService {
 
     private TeacherAiDraftResponse toResponse(TeacherAiDraft draft) {
         return new TeacherAiDraftResponse(
-                draft.getId(), draft.getTitle(), draft.getQuestId(), draft.getSourceVersion(),
+                draft.getId(), draft.getTitle(), draft.getQuestId(), draft.getCampaignId(), draft.getSourceVersion(),
                 read(draft.getAnswerBlocksJson(), BLOCKS), read(draft.getApprovedLocalesJson(), LOCALES),
                 draft.isEvaluationPassed(), read(draft.getEvaluationReasons(), REASONS), draft.getStatus(), draft.getDueAt(),
                 draft.getPublishedAssignmentId(), draft.getCreatedAt(), draft.getUpdatedAt());

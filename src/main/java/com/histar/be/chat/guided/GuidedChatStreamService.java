@@ -9,9 +9,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
 
-/** Turns a completed safe response into the stable SSE event contract. */
+/** Emits the stable SSE contract and never sends sources before the answer has been validated. */
 @Service
 public class GuidedChatStreamService {
 
@@ -24,26 +25,43 @@ public class GuidedChatStreamService {
     }
 
     public List<GuidedChatStreamEvent> events(UUID userId, GuidedChatRequest request) {
-        Instant started = Instant.now();
-        GuidedChatResponse response = guidedChatService.respond(userId, request);
         List<GuidedChatStreamEvent> events = new ArrayList<>();
+        stream(userId, request, events::add);
+        return List.copyOf(events);
+    }
+
+    public void stream(UUID userId, GuidedChatRequest request, Consumer<GuidedChatStreamEvent> sink) {
+        Instant started = Instant.now();
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("conversationId", response.conversationId());
-        meta.put("safetyBlocked", response.safetyBlocked());
-        events.add(new GuidedChatStreamEvent("meta", meta));
-        productionMetrics.recordChatFirstToken(Duration.between(started, Instant.now()));
+        meta.put("conversationId", request.conversationId());
+        meta.put("safetyBlocked", false);
+        sink.accept(new GuidedChatStreamEvent("meta", meta));
+        boolean[] streamed = {false};
+        GuidedChatDraft draft = guidedChatService.prepareStreaming(userId, request, block -> {
+            if (!streamed[0]) {
+                productionMetrics.recordChatFirstToken(Duration.between(started, Instant.now()));
+                streamed[0] = true;
+            }
+            sink.accept(new GuidedChatStreamEvent("delta", block));
+        });
+        GuidedChatResponse response = draft.response();
         List<ChatSource> sources = new ArrayList<>();
-        for (GuidedAnswerBlock block : response.answer().blocks()) {
-            events.add(new GuidedChatStreamEvent("delta", block));
+        if (!streamed[0]) for (GuidedAnswerBlock block : response.answer().blocks()) {
+            if (!streamed[0]) {
+                productionMetrics.recordChatFirstToken(Duration.between(started, Instant.now()));
+                streamed[0] = true;
+            }
+            sink.accept(new GuidedChatStreamEvent("delta", block));
             sources.addAll(block.sources());
         }
-        events.add(new GuidedChatStreamEvent("sources", List.copyOf(sources)));
-        events.add(new GuidedChatStreamEvent("suggestions", response.suggestions()));
+        sink.accept(new GuidedChatStreamEvent("sources", List.copyOf(sources)));
+        sink.accept(new GuidedChatStreamEvent("suggestions", response.suggestions()));
         Map<String, Object> completion = new LinkedHashMap<>();
+        completion.put("conversationId", response.conversationId());
         completion.put("followUpQuestion", response.answer().followUpQuestion());
         completion.put("safetyBlocked", response.safetyBlocked());
-        events.add(new GuidedChatStreamEvent("complete", completion));
+        sink.accept(new GuidedChatStreamEvent("complete", completion));
+        guidedChatService.complete(draft);
         productionMetrics.recordChatStream(true);
-        return List.copyOf(events);
     }
 }

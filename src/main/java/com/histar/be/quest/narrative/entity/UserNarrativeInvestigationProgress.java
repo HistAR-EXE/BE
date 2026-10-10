@@ -22,5 +22,9 @@ public class UserNarrativeInvestigationProgress {
     @Column(name = "user_id", nullable = false) private UUID userId;
     @Column(name = "investigation_id", nullable = false) private UUID investigationId;
     @Column(name = "state_json", nullable = false, columnDefinition = "text") private String stateJson;
+    @Column(name = "investigation_version", nullable = false) private Integer investigationVersion;
+    @Column(name = "visited_node_codes_json", nullable = false, columnDefinition = "text") private String visitedNodeCodesJson;
+    @Column(name = "evidence_codes_json", nullable = false, columnDefinition = "text") private String evidenceCodesJson;
+    @Column(name = "selected_outcome_code") private String selectedOutcomeCode;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
 }

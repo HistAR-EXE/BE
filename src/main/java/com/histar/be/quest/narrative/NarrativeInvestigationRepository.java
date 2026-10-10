@@ -6,5 +6,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NarrativeInvestigationRepository extends JpaRepository<NarrativeInvestigation, UUID> {
+    Optional<NarrativeInvestigation> findByQuestId(UUID questId);
     Optional<NarrativeInvestigation> findByQuestIdAndEnabledTrue(UUID questId);
 }

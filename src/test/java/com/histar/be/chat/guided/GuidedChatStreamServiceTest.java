@@ -2,6 +2,8 @@ package com.histar.be.chat.guided;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.observability.ProductionMetrics;
@@ -29,8 +31,9 @@ class GuidedChatStreamServiceTest {
                         "Nội dung trả lời.",
                         List.of(new ChatSource("Nguồn", "Trích", null)))),
                 "Câu hỏi tiếp theo?");
-        when(guidedChatService.respond(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new GuidedChatResponse(UUID.randomUUID(), answer, List.of("Gợi ý"), false));
+        GuidedChatResponse response = new GuidedChatResponse(UUID.randomUUID(), answer, List.of("Gợi ý"), false);
+        when(guidedChatService.prepareStreaming(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(GuidedChatDraft.blocked(response));
 
         List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService, new ProductionMetrics(new SimpleMeterRegistry())).events(
                 userId, new GuidedChatRequest(UUID.randomUUID(), "Câu hỏi", null, null, null, ChatMode.DEEP_EXPLAIN));
@@ -45,12 +48,32 @@ class GuidedChatStreamServiceTest {
         GuidedAnswer answer = new GuidedAnswer(
                 List.of(new GuidedAnswerBlock(GuidedAnswerType.INTERPRETATION, GuidedConfidence.CAUTION, "An toàn.", List.of())),
                 null);
-        when(guidedChatService.respond(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new GuidedChatResponse(null, answer, List.of(), true));
+        GuidedChatResponse response = new GuidedChatResponse(null, answer, List.of(), true);
+        when(guidedChatService.prepareStreaming(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(GuidedChatDraft.blocked(response));
 
         List<GuidedChatStreamEvent> events = new GuidedChatStreamService(guidedChatService, new ProductionMetrics(new SimpleMeterRegistry())).events(
                 userId, new GuidedChatRequest(UUID.randomUUID(), "Prompt injection", null, null, null, ChatMode.LIGHT_HINT));
 
         assertThat(events).hasSize(5);
+    }
+
+    @Test
+    void does_not_persist_a_draft_when_the_client_disconnects_before_complete() {
+        UUID userId = UUID.randomUUID();
+        GuidedAnswer answer = new GuidedAnswer(
+                List.of(new GuidedAnswerBlock(GuidedAnswerType.INTERPRETATION, GuidedConfidence.CAUTION, "Nội dung.", List.of())),
+                null);
+        when(guidedChatService.prepareStreaming(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(GuidedChatDraft.blocked(new GuidedChatResponse(null, answer, List.of(), false)));
+        java.util.concurrent.atomic.AtomicInteger events = new java.util.concurrent.atomic.AtomicInteger();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new GuidedChatStreamService(
+                        guidedChatService, new ProductionMetrics(new SimpleMeterRegistry()))
+                .stream(userId, new GuidedChatRequest(UUID.randomUUID(), "Câu hỏi", null, null, null, ChatMode.LIGHT_HINT),
+                        event -> { if (events.incrementAndGet() > 1) throw new IllegalStateException("client disconnected"); }))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(guidedChatService, never()).complete(org.mockito.ArgumentMatchers.any());
     }
 }

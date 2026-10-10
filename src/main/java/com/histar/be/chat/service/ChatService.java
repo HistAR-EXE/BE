@@ -7,6 +7,7 @@ import com.histar.be.chat.dto.ChatResponse;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -20,6 +21,11 @@ public interface ChatService {
 
     /** BE-orchestrated: context → RAG AI :8100 → persist (legacy getContext/sync unchanged). */
     ChatResponse sendOrchestrated(UUID userId, ChatMessageRequest request);
+
+    PreparedChatResponse prepareOrchestrated(UUID userId, ChatMessageRequest request);
+    PreparedChatResponse prepareOrchestratedStreaming(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher);
+
+    ChatResponse persistPrepared(UUID userId, ChatMessageRequest request, PreparedChatResponse prepared);
 
     Page<MessageResponse> getMessages(UUID userId, UUID conversationId, Pageable pageable);
 }

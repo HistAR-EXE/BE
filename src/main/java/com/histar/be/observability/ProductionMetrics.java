@@ -45,8 +45,19 @@ public class ProductionMetrics {
                 .record(duration);
     }
 
+    public void recordChatProviderLatency(Duration duration) {
+        Timer.builder("histar.chat.provider.latency")
+                .description("Time spent consuming the upstream AI provider response")
+                .register(registry)
+                .record(duration);
+    }
+
     public void recordChatStream(boolean complete) {
         counter("histar.chat.stream.total", "outcome", complete ? "complete" : "error");
+    }
+
+    public void recordChatStreamCancelled() {
+        counter("histar.chat.stream.total", "outcome", "cancelled");
     }
 
     public void recordSafetyBlocked() {

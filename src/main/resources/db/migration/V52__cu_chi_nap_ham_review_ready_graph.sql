@@ -1,0 +1,12 @@
+-- Review-ready only. A specialist must approve all four locales through the admin review API
+-- before this disabled investigation may be enabled for a pilot cohort.
+UPDATE narrative_investigations
+SET version = 2,
+    enabled = FALSE,
+    review_status = 'DRAFT',
+    approved_locales_json = '[]',
+    reviewed_by = NULL,
+    reviewed_at = NULL,
+    graph_json = '{"startNodeCode":"tour-360","sources":[{"sourceId":"rag-cu-chi-tong-quan","version":"2026-10-09","locale":"vi","citation":"Tổng quan Địa đạo Củ Chi (nguồn đã duyệt nội bộ)","path":"data/rag-approved/cu-chi-tong-quan.md"},{"sourceId":"minigame-nap-ham","version":"V43","locale":"vi","citation":"Soi nắp hầm — tư liệu tham chiếu DSVH","url":"https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490"}],"nodes":[{"code":"tour-360","type":"TOUR_360_OBSERVATION","title":"Dấu hiệu trên mặt đất","prompt":"Trong Tour 360°, hãy quan sát nắp hầm và các dấu hiệu ngụy trang. Không suy luận vượt quá những gì thấy được.","actionHref":"/tour-360","choices":[{"code":"phỏng vấn nhân vật","targetNodeCode":"ai-interview"}]},{"code":"ai-interview","type":"AI_INTERVIEW","title":"Hỏi nhân vật AI","prompt":"Hỏi về cách kiểm chứng nắp hầm; AI chỉ được dựa trên hai nguồn được liệt kê.","choices":[{"code":"đối chiếu nguồn","targetNodeCode":"source-comparison"}]},{"code":"source-comparison","type":"SOURCE_COMPARISON","title":"Đối chiếu tư liệu","prompt":"So sánh quan sát Tour 360° với tư liệu đã duyệt; đánh dấu điểm nào là quan sát và điểm nào là diễn giải.","choices":[{"code":"ghi chứng cứ","targetNodeCode":"evidence-lid"}]},{"code":"evidence-lid","type":"EVIDENCE","title":"Mảnh chứng cứ: nắp hầm","prompt":"Chỉ ghi nhận sau khi đã hoàn thành quan sát và đối chiếu nguồn.","choices":[{"code":"kết luận nhanh","targetNodeCode":"outcome-partial"},{"code":"kết luận có kiểm chứng","targetNodeCode":"outcome-verified"}]},{"code":"outcome-partial","type":"OUTCOME","title":"Kết luận thăm dò","minimumEvidence":0,"prompt":"Đây là kết luận tạm thời, chưa xác minh đầy đủ.","choices":[]},{"code":"outcome-verified","type":"OUTCOME","title":"Kết luận có kiểm chứng","minimumEvidence":1,"prompt":"Kết luận dựa trên chứng cứ đã thu thập và nguồn đã duyệt.","choices":[]}],"evidenceNodeCodes":["evidence-lid"],"outcomeNodeCodes":["outcome-partial","outcome-verified"]}',
+    updated_at = NOW()
+WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;

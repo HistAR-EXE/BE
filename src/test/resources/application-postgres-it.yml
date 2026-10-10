@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 6
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  mail:
+    host: localhost
+    port: 1025
+
+minio:
+  endpoint: http://localhost:9000
+  public-url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: timelens-media
+
+histar:
+  mail:
+    enabled: false
+  firebase:
+    enabled: false
+
+payment:
+  sepay:
+    enabled: false

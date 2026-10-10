@@ -130,6 +130,19 @@ media:
   base-url: ${MEDIA_BASE_URL:https://fe-lake-five.vercel.app}
 
 histar:
+  monitoring:
+    bearer-token: ${MONITORING_BEARER_TOKEN:}
+  rate-limit:
+    redis:
+      enabled: ${HISTAR_RATE_LIMIT_REDIS_ENABLED:false}
+    cooperative-leaderboard-per-minute: ${HISTAR_COOPERATIVE_LEADERBOARD_PER_MINUTE:60}
+  pilot:
+    chat-streaming: ${PILOT_CHAT_STREAMING:false}
+    guided-modes: ${PILOT_GUIDED_MODES:false}
+    journey-memory: ${PILOT_JOURNEY_MEMORY:false}
+    teacher-ai-drafts: ${PILOT_TEACHER_AI_DRAFTS:false}
+    narrative-investigation: ${PILOT_NARRATIVE_INVESTIGATION:false}
+    quest-campaigns: ${PILOT_QUEST_CAMPAIGNS:false}
   quests:
     expose-dev-minigame: false
   sales-inbox: ${SALES_INBOX:}
