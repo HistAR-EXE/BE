@@ -20,7 +20,15 @@ $env:DEMO_SECRET = 'dev-test-demo-secret'
 $env:MAIL_ENABLED = 'false'
 $env:HISTAR_TEST_HOOKS_ENABLED = 'true'
 $env:HISTAR_TEST_HOOKS_SECRET = 'dev-test-hook-secret'
+# The browser E2E suite exercises every Phase 2/3 capability.  These flags are
+# intentionally local-harness-only; production defaults remain false until the
+# staged release gates and content review have passed.
+$env:PILOT_CHAT_STREAMING = 'true'
+$env:PILOT_GUIDED_MODES = 'true'
+$env:PILOT_JOURNEY_MEMORY = 'true'
+$env:PILOT_TEACHER_AI_DRAFTS = 'true'
 $env:PILOT_NARRATIVE_INVESTIGATION = 'true'
+$env:PILOT_QUEST_CAMPAIGNS = 'true'
 $env:SEPAY_ENABLED = 'true'
 $env:SEPAY_BANK_CODE = 'MB'
 $env:SEPAY_ACCOUNT_NUMBER = '0000000000'
