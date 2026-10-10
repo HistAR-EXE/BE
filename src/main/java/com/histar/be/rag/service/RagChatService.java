@@ -6,10 +6,12 @@ import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.rag.config.RagProperties;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
+import com.histar.be.rag.dto.RagStreamChunk;
 import com.histar.be.rag.dto.RetrievalResult;
 import com.histar.be.rag.dto.RetrievedChunk;
 import com.histar.be.rag.entity.ChatQualityLog;
 import com.histar.be.rag.repository.ChatQualityLogRepository;
+import com.histar.be.observability.ProductionMetrics;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +51,7 @@ public class RagChatService {
     private final ChatLlmClient chatLlmClient;
     private final ChatQualityLogRepository qualityLogRepository;
     private final RagProperties ragProperties;
+    private final ProductionMetrics productionMetrics;
 
     public boolean isEnabled() {
         return ragProperties.isEnabled();
@@ -78,6 +82,7 @@ public class RagChatService {
             if (cached.isPresent()) {
                 List<ChatSource> sources = citedSources(cached.get(), chunks);
                 logQuality(request, chunks.size(), !sources.isEmpty(), startNanos);
+                productionMetrics.recordRagCitation(!sources.isEmpty());
                 return Optional.of(new RagChatAnswer(cached.get(), sources, false, true));
             }
 
@@ -86,6 +91,7 @@ public class RagChatService {
             List<ChatSource> sources = citedSources(reply, chunks);
             boolean cited = !sources.isEmpty();
             logQuality(request, chunks.size(), cited, startNanos);
+            productionMetrics.recordRagCitation(cited);
 
             if (!cited) {
                 return Optional.of(new RagChatAnswer(SOFT_REFUSE_REPLY, List.of(), true, false));
@@ -96,6 +102,61 @@ public class RagChatService {
             log.warn("RAG generation failed, falling back to legacy chat: {}", ex.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Uses the provider's SSE stream but releases text only through a valid numbered citation.
+     * Consequently an uncited/hallucinated answer never reaches the browser before soft refusal.
+     */
+    public Optional<RagChatAnswer> tryAnswerStreaming(RagChatRequest request, Consumer<RagStreamChunk> publisher) {
+        if (!ragProperties.isEnabled()) return Optional.empty();
+        RetrievalResult retrieval;
+        try {
+            retrieval = ragService.retrieve(request.question(), blankToNull(request.stationCode()), request.siteCode());
+        } catch (RuntimeException ex) {
+            return Optional.empty();
+        }
+        List<RetrievedChunk> chunks = retrieval.chunks();
+        if (chunks.isEmpty()) return Optional.empty();
+        try {
+            Optional<String> cached = semanticCache.lookup(retrieval.vectorLiteral(), blankToNull(request.stationCode()), request.personaKey());
+            if (cached.isPresent()) {
+                List<ChatSource> sources = citedSources(cached.get(), chunks);
+                if (!sources.isEmpty()) publisher.accept(new RagStreamChunk(cached.get(), sources));
+                return Optional.of(new RagChatAnswer(sources.isEmpty() ? SOFT_REFUSE_REPLY : cached.get(), sources, sources.isEmpty(), true));
+            }
+            StringBuilder raw = new StringBuilder();
+            int[] emitted = {0};
+            chatLlmClient.stream(buildPrompt(request, chunks), token -> {
+                raw.append(token);
+                int safeEnd = lastValidCitationEnd(raw, chunks.size());
+                if (safeEnd > emitted[0]) {
+                    String safe = raw.substring(emitted[0], safeEnd);
+                    publisher.accept(new RagStreamChunk(safe, citedSources(safe, chunks)));
+                    emitted[0] = safeEnd;
+                }
+            });
+            String reply = normalizeCitations(raw.toString(), chunks.size());
+            List<ChatSource> sources = citedSources(reply, chunks);
+            if (sources.isEmpty()) return Optional.of(new RagChatAnswer(SOFT_REFUSE_REPLY, List.of(), true, false));
+            String safeReply = reply.substring(0, Math.min(reply.length(), emitted[0])).trim();
+            if (safeReply.isBlank()) safeReply = reply;
+            semanticCache.store(retrieval.vectorLiteral(), blankToNull(request.stationCode()), request.personaKey(), safeReply);
+            return Optional.of(new RagChatAnswer(safeReply, sources, false, false));
+        } catch (RuntimeException ex) {
+            log.warn("RAG streaming failed: {}", ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static int lastValidCitationEnd(CharSequence text, int chunkCount) {
+        Matcher matcher = CITATION.matcher(text);
+        int end = 0;
+        while (matcher.find()) {
+            int number = Integer.parseInt(matcher.group(1));
+            if (number >= 1 && number <= chunkCount) end = matcher.end();
+        }
+        return end;
     }
 
     String buildPrompt(RagChatRequest request, List<RetrievedChunk> chunks) {

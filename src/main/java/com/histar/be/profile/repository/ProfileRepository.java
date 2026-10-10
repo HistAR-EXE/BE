@@ -6,12 +6,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
 
     Optional<Profile> findByEmail(String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Profile p WHERE p.id = :userId")
+    Optional<Profile> findByIdForUpdate(@Param("userId") UUID userId);
 
     List<Profile> findTop50ByOrderByTotalPointsDesc();
 
@@ -26,6 +32,10 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
             """)
     List<Profile> findLeaderboard(
             @Param("city") String city, org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT p FROM Profile p WHERE p.orgId = :orgId AND p.totalPoints IS NOT NULL ORDER BY p.totalPoints DESC")
+    List<Profile> findLeaderboardByOrgId(
+            @Param("orgId") UUID orgId, org.springframework.data.domain.Pageable pageable);
 
     @Query(
             """

@@ -33,6 +33,7 @@ public class SecurityConfig {
     private final TestHookSecurityFilter testHookSecurityFilter;
     private final CustomUserDetailsService userDetailsService;
     private final SecurityExceptionHandlers securityExceptionHandlers;
+    private final MonitoringBearerTokenFilter monitoringBearerTokenFilter;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -48,6 +49,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/org/*/live-board/**")
                         .authenticated()
+                        .requestMatchers("/actuator/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/events/batch", "/api/referral/*/visit")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/referral/*", "/api/referral/*/stats")
@@ -97,6 +100,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(securityExceptionHandlers))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(monitoringBearerTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(testHookSecurityFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

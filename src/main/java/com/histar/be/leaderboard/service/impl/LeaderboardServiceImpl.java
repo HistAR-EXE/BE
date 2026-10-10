@@ -40,14 +40,20 @@ public class LeaderboardServiceImpl implements LeaderboardService {
             return getGroupLeaderboard(groupId, currentUserId);
         }
         String normalizedScope = scope == null ? "all" : scope.toLowerCase();
+        if ("school".equals(normalizedScope)) {
+            return getSchoolLeaderboard(currentUserId);
+        }
         if (!normalizedScope.equals("all") && !normalizedScope.equals("city") && !normalizedScope.equals("week")) {
-            throw new BusinessRuleException("scope phải là all, city hoặc week");
+            throw new BusinessRuleException("scope phải là all, city, week hoặc school");
         }
         if (normalizedScope.equals("city") && (city == null || city.isBlank())) {
             throw new BusinessRuleException("scope=city cần tham số city");
         }
 
         boolean freeAllScopePreview = isFreeAllScopePreview(normalizedScope, currentUserId);
+        if (freeAllScopePreview) {
+            throw new BusinessRuleException("Bảng xếp hạng toàn cục yêu cầu gói Premium");
+        }
 
         String cacheKey = normalizedScope + "|" + (city == null ? "" : city);
         CachedLeaderboard cached = cache.get(cacheKey);
@@ -102,6 +108,32 @@ public class LeaderboardServiceImpl implements LeaderboardService {
         }
         return applyCurrentUserHighlight(
                 new LeaderboardResponse("group", null, entries, false), currentUserId);
+    }
+
+    private LeaderboardResponse getSchoolLeaderboard(UUID currentUserId) {
+        if (currentUserId == null) {
+            throw new BusinessRuleException("Cần đăng nhập để xem bảng xếp hạng trường");
+        }
+        UUID orgId = profileRepository.findById(currentUserId)
+                .map(Profile::getOrgId)
+                .orElse(null);
+        if (orgId == null) {
+            throw new BusinessRuleException("Tài khoản chưa thuộc trường nào");
+        }
+        List<Profile> profiles = profileRepository.findLeaderboardByOrgId(
+                orgId, PageRequest.of(0, viralProperties.getLeaderboardLimit()));
+        return applyCurrentUserHighlight(new LeaderboardResponse("school", null, toEntries(profiles), false), currentUserId);
+    }
+
+    private static List<LeaderboardEntryResponse> toEntries(List<Profile> profiles) {
+        List<LeaderboardEntryResponse> entries = new ArrayList<>();
+        int rank = 1;
+        for (Profile profile : profiles) {
+            entries.add(new LeaderboardEntryResponse(
+                    rank++, profile.getId(), profile.getDisplayName() == null ? "Explorer" : profile.getDisplayName(),
+                    profile.getAvatarUrl(), profile.getTotalPoints(), false));
+        }
+        return entries;
     }
 
     private boolean isFreeAllScopePreview(String normalizedScope, UUID currentUserId) {

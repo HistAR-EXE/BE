@@ -41,4 +41,10 @@ public class OrgAccessService {
                 .map(m -> "teacher".equalsIgnoreCase(m.getOrgRole()))
                 .orElse(false);
     }
+
+    public void requireOrgAccess(UUID userId, UUID orgId) {
+        if (!isPlatformAdmin() && !isOrgTeacher(userId, orgId)) {
+            throw new BusinessRuleException("Không có quyền truy cập organization này");
+        }
+    }
 }

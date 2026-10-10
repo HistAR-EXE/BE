@@ -20,7 +20,8 @@ public record QuestResponse(
         Integer requiredOrder,
         List<QuestStepResponse> steps,
         UUID unlockAfterQuestId,
-        String unlockDiscoveryKeys
+        String unlockDiscoveryKeys,
+        QuestRewardSummary rewardSummary
 ) {
 
     public static QuestResponse from(Quest quest) {
@@ -46,7 +47,8 @@ public record QuestResponse(
                 quest.getRequiredOrder(),
                 stepResponses,
                 quest.getUnlockAfterQuestId(),
-                quest.getUnlockDiscoveryKeys()
+                quest.getUnlockDiscoveryKeys(),
+                QuestRewardSummary.from(quest)
         );
     }
 }

@@ -18,6 +18,9 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.quest.campaign.QuestCampaign;
+import com.histar.be.quest.campaign.QuestCampaignRepository;
+import com.histar.be.quest.campaign.QuestCampaignAdminService;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.time.Instant;
@@ -40,21 +43,26 @@ public class LmsAssignmentService {
     private final OrganizationMemberRepository organizationMemberRepository;
     private final QuestRepository questRepository;
     private final UserQuestProgressRepository userQuestProgressRepository;
+    private final QuestCampaignRepository campaignRepository;
+    private final QuestCampaignAdminService campaignAdminService;
 
     @Transactional
     public AssignmentResponse createAssignment(UUID teacherId, CreateAssignmentRequest request) {
-        Profile teacher = profileRepository
-                .findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found"));
-        assertPremiumLms(teacher);
+        Profile teacher = requirePremiumTeacher(teacherId);
         Quest quest = questRepository
                 .findById(request.questId())
                 .orElseThrow(() -> new ResourceNotFoundException("Quest not found"));
+        if (request.campaignId() != null) {
+            var campaign = campaignRepository.findById(request.campaignId()).orElseThrow(() -> new ResourceNotFoundException("Quest campaign not found"));
+            if (!campaign.getQuestId().equals(request.questId())) throw new BusinessRuleException("Campaign không khả dụng cho quest này");
+            campaignAdminService.requireAvailableNow(campaign, Instant.now());
+        }
         Instant now = Instant.now();
         Assignment saved = assignmentRepository.save(Assignment.builder()
                 .orgId(teacher.getOrgId())
                 .teacherId(teacherId)
                 .questId(request.questId())
+                .campaignId(request.campaignId())
                 .title(request.title().trim())
                 .dueAt(request.dueAt())
                 .createdAt(now)
@@ -65,10 +73,7 @@ public class LmsAssignmentService {
 
     @Transactional(readOnly = true)
     public List<AssignmentResponse> listForTeacher(UUID teacherId) {
-        Profile teacher = profileRepository
-                .findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found"));
-        assertPremiumLms(teacher);
+        Profile teacher = requirePremiumTeacher(teacherId);
         return assignmentRepository.findByOrgIdOrderByCreatedAtDesc(teacher.getOrgId()).stream()
                 .map(this::toResponseWithSubmissions)
                 .toList();
@@ -147,10 +152,20 @@ public class LmsAssignmentService {
                 assignment.getId(),
                 assignment.getTitle(),
                 assignment.getQuestId(),
+                assignment.getCampaignId(),
                 questTitle,
                 assignment.getDueAt(),
                 assignment.getCreatedAt(),
                 submissions);
+    }
+
+    @Transactional(readOnly = true)
+    public Profile requirePremiumTeacher(UUID teacherId) {
+        Profile teacher = profileRepository
+                .findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found"));
+        assertPremiumLms(teacher);
+        return teacher;
     }
 
     private void assertPremiumLms(Profile teacher) {

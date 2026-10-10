@@ -11,7 +11,9 @@ import com.histar.be.discovery.repository.DiscoveryPointRepository;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.quest.entity.Quest;
+import com.histar.be.quest.entity.QuestStep;
 import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.quest.repository.QuestStepRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -29,6 +31,7 @@ public class CuChiTestFixture {
     private final LocationRepository locationRepository;
     private final DiscoveryPointRepository discoveryPointRepository;
     private final QuestRepository questRepository;
+    private final QuestStepRepository questStepRepository;
     private final BadgeRepository badgeRepository;
     private final ArtifactRepository artifactRepository;
     private final DiscoveryArtifactLinkRepository discoveryArtifactLinkRepository;
@@ -69,7 +72,23 @@ public class CuChiTestFixture {
                 .story("Secret")
                 .pointsReward(150)
                 .stepDiscoveryKeys(KEY_A + "," + KEY_B)
+                .stepsTotal(2)
                 .requiredOrder(1)
+                .build());
+
+        questStepRepository.save(QuestStep.builder()
+                .quest(quest)
+                .stepOrder(1)
+                .unlockKey(KEY_A)
+                .title("Discover Bếp Hoàng Cầm")
+                .actionType("tour")
+                .build());
+        questStepRepository.save(QuestStep.builder()
+                .quest(quest)
+                .stepOrder(2)
+                .unlockKey(KEY_B)
+                .title("Discover Phòng họp")
+                .actionType("tour")
                 .build());
 
         badgeRepository.save(Badge.builder()

@@ -3,6 +3,7 @@ package com.histar.be.analytics.service.impl;
 import com.histar.be.analytics.entity.AnalyticsEvent;
 import com.histar.be.analytics.repository.AnalyticsEventRepository;
 import com.histar.be.analytics.service.AnalyticsEventService;
+import com.histar.be.observability.ProductionMetrics;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -17,11 +18,13 @@ public class AnalyticsEventServiceImpl implements AnalyticsEventService {
     public static final String QUEST_COMPLETED = "QUEST_COMPLETED";
 
     private final AnalyticsEventRepository analyticsEventRepository;
+    private final ProductionMetrics productionMetrics;
 
     @Override
     @Transactional
     public void recordQuestStarted(UUID userId, UUID locationId, UUID questId, UUID visitSessionId) {
         save(userId, locationId, visitSessionId, QUEST_STARTED, questId.toString());
+        productionMetrics.recordQuestStarted();
     }
 
     @Override
@@ -35,6 +38,7 @@ public class AnalyticsEventServiceImpl implements AnalyticsEventService {
     public void recordQuestCompleted(
             UUID userId, UUID locationId, UUID questId, UUID visitSessionId, String metadataJson) {
         save(userId, locationId, visitSessionId, QUEST_COMPLETED, questId.toString(), metadataJson);
+        productionMetrics.recordQuestCompleted();
     }
 
     private void save(UUID userId, UUID locationId, UUID visitSessionId, String eventType, String eventKey) {

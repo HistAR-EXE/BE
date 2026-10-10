@@ -27,6 +27,7 @@ import com.histar.be.location.service.LocationService;
 import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.observability.ProductionMetrics;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,6 +69,8 @@ class ChatServiceImplTest {
     private EmailVerifiedGuard emailVerifiedGuard;
     @Mock
     private RagChatService ragChatService;
+    @Mock
+    private ProductionMetrics productionMetrics;
 
     @InjectMocks
     private ChatServiceImpl chatService;

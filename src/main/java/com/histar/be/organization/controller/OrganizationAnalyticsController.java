@@ -1,8 +1,11 @@
 package com.histar.be.organization.controller;
 
 import com.histar.be.common.response.ApiResponse;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.organization.dto.OrganizationAnalyticsResponse;
 import com.histar.be.organization.service.OrganizationAnalyticsService;
+import com.histar.be.organization.service.ClassQuestDashboardService;
+import com.histar.be.organization.dto.ClassQuestDashboardResponse;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,10 +20,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrganizationAnalyticsController {
 
     private final OrganizationAnalyticsService organizationAnalyticsService;
+    private final ClassQuestDashboardService classQuestDashboardService;
+    private final CurrentUserAccessor currentUserAccessor;
 
     @GetMapping("/{orgId}/analytics")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<OrganizationAnalyticsResponse> analytics(@PathVariable UUID orgId) {
         return ApiResponse.ok(organizationAnalyticsService.analytics(orgId));
+    }
+
+    @GetMapping("/{orgId}/campaigns/{campaignId}/class-dashboard")
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+    public ApiResponse<ClassQuestDashboardResponse> classDashboard(@PathVariable UUID orgId, @PathVariable UUID campaignId) {
+        UUID actorId = currentUserAccessor.getUserId()
+                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
+        return ApiResponse.ok(classQuestDashboardService.summary(actorId, orgId, campaignId));
     }
 }

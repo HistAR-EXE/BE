@@ -17,6 +17,8 @@ import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.service.ChatService;
+import com.histar.be.chat.service.PreparedChatResponse;
+import com.histar.be.chat.service.ChatStreamChunk;
 import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.chat.service.PersonaMapper;
 import com.histar.be.chat.service.PlayerStoryContextService;
@@ -34,6 +36,7 @@ import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.observability.ProductionMetrics;
 import java.util.Arrays;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,6 +75,7 @@ public class ChatServiceImpl implements ChatService {
     private final PlayerStoryContextService playerStoryContextService;
     private final EmailVerifiedGuard emailVerifiedGuard;
     private final RagChatService ragChatService;
+    private final ProductionMetrics productionMetrics;
 
     private void assertEmailVerified(UUID userId) {
         emailVerifiedGuard.assertEmailVerified(userId);
@@ -172,6 +177,23 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatResponse sendOrchestrated(UUID userId, ChatMessageRequest request) {
+        PreparedChatResponse prepared = prepareOrchestrated(userId, request);
+        return persistPrepared(userId, request, prepared);
+    }
+
+    @Override
+    @Transactional
+    public PreparedChatResponse prepareOrchestrated(UUID userId, ChatMessageRequest request) {
+        return prepareOrchestrated(userId, request, null);
+    }
+
+    @Override
+    @Transactional
+    public PreparedChatResponse prepareOrchestratedStreaming(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher) {
+        return prepareOrchestrated(userId, request, publisher);
+    }
+
+    private PreparedChatResponse prepareOrchestrated(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher) {
         if (userId == null) {
             throw new AuthException("Unauthorized");
         }
@@ -189,12 +211,6 @@ public class ChatServiceImpl implements ChatService {
         Conversation conversation = resolveConversation(userId, convRequest, character.getId());
         List<ChatHistoryTurn> historyTurns = loadHistoryTurns(conversation.getId());
 
-        messageRepository.save(Message.builder()
-                .conversationId(conversation.getId())
-                .role("user")
-                .content(request.message())
-                .createdAt(Instant.now())
-                .build());
         List<Map<String, String>> historyPayload = historyTurns.stream()
                 .map(turn -> Map.of("role", turn.role(), "content", turn.content()))
                 .collect(Collectors.toList());
@@ -214,14 +230,19 @@ public class ChatServiceImpl implements ChatService {
         String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
                 ? request.siteCode().trim().toLowerCase()
                 : location.getSiteCode();
-        Optional<RagChatAnswer> pgVectorAnswer = ragChatService.tryAnswer(new RagChatRequest(
+        RagChatRequest ragRequest = new RagChatRequest(
                 request.message(),
                 request.stationCode(),
                 siteCode,
                 PersonaMapper.resolvePersonaKey(character.getName()),
                 character.getPersonaPrompt(),
-                location.getName(),
-                historyTurns));
+                location.getName(), historyTurns);
+        Optional<RagChatAnswer> pgVectorAnswer = publisher == null
+                ? ragChatService.tryAnswer(ragRequest)
+                : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
+                    List<ChatSource> visible = filterSourcesForUser(userId, siteCode, chunk.sources());
+                    if (!visible.isEmpty()) publisher.accept(new ChatStreamChunk(chunk.content(), visible));
+                });
         if (pgVectorAnswer != null && pgVectorAnswer.isPresent()) {
             // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
             reply = pgVectorAnswer.get().reply();
@@ -255,7 +276,7 @@ public class ChatServiceImpl implements ChatService {
                     answerSource = "fallback";
                     responseSources = resolveSourcesList(location);
                 } catch (RuntimeException fallback) {
-                    logAnswer(answerSource, startedNanos, fallback.getClass().getSimpleName());
+                    recordChatAnswer(answerSource, startedNanos, false);
                     throw fallback;
                 }
             }
@@ -266,40 +287,48 @@ public class ChatServiceImpl implements ChatService {
             reply = reply.replaceAll("\\s*\\[\\d{1,2}]", "");
         }
 
-        messageRepository.save(Message.builder()
-                .conversationId(conversation.getId())
-                .role("assistant")
-                .content(reply)
-                .createdAt(Instant.now())
-                .build());
+        return new PreparedChatResponse(conversation.getId(), reply, visibleSources, answerSource, questHint, startedNanos);
+    }
 
-        log.info(
-                "chat orchestrated userId={} characterId={} conversationId={}",
-                userId,
-                request.characterId(),
-                conversation.getId());
-        logAnswer(answerSource, startedNanos, "");
-        if (!questHint) {
+    @Override
+    @Transactional
+    public ChatResponse persistPrepared(UUID userId, ChatMessageRequest request, PreparedChatResponse prepared) {
+        if (userId == null || prepared == null) {
+            throw new AuthException("Unauthorized");
+        }
+        Conversation conversation = conversationRepository.findById(prepared.conversationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
+        if (!conversation.getUserId().equals(userId)) {
+            throw new AuthException("Forbidden");
+        }
+        messageRepository.save(Message.builder().conversationId(conversation.getId()).role("user")
+                .content(request.message()).createdAt(Instant.now()).build());
+        messageRepository.save(Message.builder().conversationId(conversation.getId()).role("assistant")
+                .content(prepared.reply()).createdAt(Instant.now()).build());
+        log.info("chat orchestrated userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
+        recordChatAnswer(prepared.answerSource(), prepared.startedNanos(), true);
+        if (!prepared.questHint()) {
             chatRateLimiter.recordSuccess(userId);
         }
-        return new ChatResponse(reply, conversation.getId(), visibleSources);
+        return new ChatResponse(prepared.reply(), conversation.getId(), prepared.sources());
     }
 
     private static String publicAnswerSource(String cache) {
         if (cache == null || cache.isBlank()) {
-            return "fallback";
+            return "rag-ai";
         }
         return switch (cache) {
             case "curated", "faq" -> cache;
             case "semantic_cache", "semantic" -> "semantic";
-            case "llm", "gemini" -> "gemini";
-            default -> "fallback";
+            case "llm", "gemini" -> "rag-ai";
+            default -> "rag-ai";
         };
     }
 
-    private void logAnswer(String source, long startedNanos, String errorType) {
+    private void recordChatAnswer(String source, long startedNanos, boolean successful) {
         long latencyMs = (System.nanoTime() - startedNanos) / 1_000_000L;
-        log.info("answer_source={} latency_ms={} error_type={}", source, latencyMs, errorType);
+        productionMetrics.recordChat(java.time.Duration.ofMillis(latencyMs), source, successful);
+        log.info("answer_source={} latency_ms={} outcome={}", source, latencyMs, successful ? "success" : "error");
     }
 
     private List<ChatSource> filterSourcesForUser(UUID userId, String siteCode, List<ChatSource> sources) {

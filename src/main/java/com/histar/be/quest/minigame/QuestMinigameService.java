@@ -8,6 +8,7 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.discovery.service.DiscoveryService;
 import com.histar.be.profile.service.ProfilePointsService;
+import com.histar.be.observability.ProductionMetrics;
 import com.histar.be.quest.entity.QuestStep;
 import com.histar.be.quest.repository.QuestStepRepository;
 import com.histar.be.quest.service.CompletionTrigger;
@@ -34,6 +35,7 @@ public class QuestMinigameService {
     private final QuestUnlockGate questUnlockGate;
     private final ArtifactService artifactService;
     private final ObjectMapper objectMapper;
+    private final ProductionMetrics productionMetrics;
 
     @Transactional(readOnly = true)
     public MinigameViewResponse open(UUID userId, UUID gameId) {
@@ -55,6 +57,7 @@ public class QuestMinigameService {
         JsonNode config = readConfig(game);
         JsonNode level = findLevel(config.path("levels"), attempt.levelId());
         QuestMinigameGrader.Grade grade = QuestMinigameGrader.grade(game.getEngine(), config, level, attempt);
+        productionMetrics.recordMinigameAttempt(grade.passed(), !grade.resolved());
         int previous = resultRepository.findByUserIdAndGameId(userId, gameId)
                 .map(UserGameResult::getBestStars)
                 .orElse(0);

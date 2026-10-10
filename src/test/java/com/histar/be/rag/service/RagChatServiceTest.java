@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.rag.config.RagProperties;
@@ -15,9 +16,12 @@ import com.histar.be.rag.dto.RetrievalResult;
 import com.histar.be.rag.dto.RetrievedChunk;
 import com.histar.be.rag.entity.ChatQualityLog;
 import com.histar.be.rag.repository.ChatQualityLogRepository;
+import com.histar.be.observability.ProductionMetrics;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +44,9 @@ class RagChatServiceTest {
     @Mock
     private ChatQualityLogRepository qualityLogRepository;
 
+    @Mock
+    private ProductionMetrics productionMetrics;
+
     private RagProperties props;
     private RagChatService service;
 
@@ -47,7 +54,8 @@ class RagChatServiceTest {
     void setUp() {
         props = new RagProperties();
         props.setEnabled(true);
-        service = new RagChatService(ragService, semanticCache, chatLlmClient, qualityLogRepository, props);
+        service = new RagChatService(
+                ragService, semanticCache, chatLlmClient, qualityLogRepository, props, productionMetrics);
     }
 
     private static RetrievedChunk chunk(String title, String content) {
@@ -63,12 +71,12 @@ class RagChatServiceTest {
         props.setEnabled(false);
 
         assertThat(service.tryAnswer(request())).isEmpty();
-        verify(ragService, never()).retrieve(anyString(), any());
+        verify(ragService, never()).retrieve(anyString(), any(), any());
     }
 
     @Test
     void noChunks_returnsEmptyForLegacyFallback_andLogsQuality() {
-        when(ragService.retrieve(anyString(), any())).thenReturn(new RetrievalResult(List.of(), "[0]"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(List.of(), "[0]"));
 
         assertThat(service.tryAnswer(request())).isEmpty();
 
@@ -83,7 +91,7 @@ class RagChatServiceTest {
     @Test
     void citedReply_returnsOnlyCitedSources_andStoresCache() {
         List<RetrievedChunk> chunks = List.of(chunk("Nguồn A", "Nội dung A"), chunk("Nguồn B", "Nội dung B"));
-        when(ragService.retrieve(anyString(), any())).thenReturn(new RetrievalResult(chunks, "[1,2]"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(chunks, "[1,2]"));
         when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.empty());
         when(chatLlmClient.generate(anyString())).thenReturn("Bếp giảm khói [2] và kín đáo [9].");
 
@@ -104,7 +112,7 @@ class RagChatServiceTest {
     @Test
     void promptContainsNumberedSourcesAndQuestion() {
         List<RetrievedChunk> chunks = List.of(chunk("Nguồn A", "Nội dung A"), chunk("Nguồn B", "Nội dung B"));
-        when(ragService.retrieve(anyString(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
         when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.empty());
         when(chatLlmClient.generate(anyString())).thenReturn("ok [1]");
 
@@ -121,7 +129,7 @@ class RagChatServiceTest {
 
     @Test
     void uncitedReply_isSoftRefused_andNotCached() {
-        when(ragService.retrieve(anyString(), any()))
+        when(ragService.retrieve(anyString(), any(), any()))
                 .thenReturn(new RetrievalResult(List.of(chunk("Nguồn A", "Nội dung A")), "[1]"));
         when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.empty());
         when(chatLlmClient.generate(anyString())).thenReturn("Câu trả lời không có chú thích nguồn.");
@@ -141,7 +149,7 @@ class RagChatServiceTest {
     @Test
     void cacheHit_skipsLlm() {
         List<RetrievedChunk> chunks = List.of(chunk("Nguồn A", "Nội dung A"));
-        when(ragService.retrieve(anyString(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
         when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.of("Đã cache [1]"));
 
         RagChatAnswer answer = service.tryAnswer(request()).orElseThrow();
@@ -153,8 +161,30 @@ class RagChatServiceTest {
 
     @Test
     void retrievalFailure_fallsBackToLegacy() {
-        when(ragService.retrieve(anyString(), any())).thenThrow(new IllegalStateException("embedding down"));
+        when(ragService.retrieve(anyString(), any(), any())).thenThrow(new IllegalStateException("embedding down"));
 
         assertThat(service.tryAnswer(request())).isEmpty();
+    }
+
+    @Test
+    void streaming_publishes_only_text_terminated_by_a_valid_citation() {
+        List<RetrievedChunk> chunks = List.of(chunk("Nguồn A", "Nội dung A"));
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(new RetrievalResult(chunks, "[1]"));
+        when(semanticCache.lookup(any(), any(), anyString())).thenReturn(Optional.empty());
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked") Consumer<String> consumer = invocation.getArgument(1);
+            consumer.accept("Thông tin chưa có nguồn. Dữ kiện đã kiểm chứng [1] Phần không có nguồn");
+            return null;
+        }).when(chatLlmClient).stream(anyString(), any());
+        List<com.histar.be.rag.dto.RagStreamChunk> published = new ArrayList<>();
+
+        RagChatAnswer answer = service.tryAnswerStreaming(request(), published::add).orElseThrow();
+
+        assertThat(published).singleElement().satisfies(chunk -> {
+            assertThat(chunk.content()).contains("[1]");
+            assertThat(chunk.sources()).hasSize(1);
+            assertThat(chunk.content()).doesNotContain("Phần không có nguồn");
+        });
+        assertThat(answer.reply()).doesNotContain("Phần không có nguồn");
     }
 }

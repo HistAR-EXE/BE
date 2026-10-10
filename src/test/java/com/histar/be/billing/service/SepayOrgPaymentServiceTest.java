@@ -71,6 +71,8 @@ class SepayOrgPaymentServiceTest {
         UUID userId = UUID.randomUUID();
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).email("teacher@school.vn").build()));
+        when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "UNDERPAID"))
+                .thenReturn(Optional.empty());
         when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING"))
                 .thenReturn(Optional.empty());
         when(orgPaymentTransactionRepository.save(any(OrgPaymentTransaction.class)))

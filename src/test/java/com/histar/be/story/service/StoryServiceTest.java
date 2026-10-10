@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,7 +43,6 @@ class StoryServiceTest {
 
     private final UUID cuChiLocationId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-    @BeforeEach
     void stubLocation() {
         when(locationRepository.findBySiteCodeIgnoreCase("cu-chi"))
                 .thenReturn(Optional.of(Location.builder().id(cuChiLocationId).siteCode("cu-chi").build()));
@@ -86,6 +84,7 @@ class StoryServiceTest {
     @Test
     void premiumUserWithoutProgressOnlyUnlocksFirstChapter() {
         UUID userId = UUID.randomUUID();
+        stubLocation();
         when(tierAccessService.hasStoryAccess(userId, "cu-chi")).thenReturn(true);
         when(checkinRepository.findDistinctStationCodesByUserIdAndLocationId(userId, cuChiLocationId))
                 .thenReturn(List.of());
@@ -104,6 +103,7 @@ class StoryServiceTest {
     @Test
     void freeUserWithSt01CompletedUnlocksChapter2NotPremium() {
         UUID userId = UUID.randomUUID();
+        stubLocation();
         when(tierAccessService.hasStoryAccess(userId, "cu-chi")).thenReturn(false);
         when(checkinRepository.findDistinctStationCodesByUserIdAndLocationId(eq(userId), any()))
                 .thenReturn(List.of("ST01"));
@@ -115,6 +115,22 @@ class StoryServiceTest {
         assertThat(result.get(0).unlocked()).isTrue();
         assertThat(result.get(0).completed()).isTrue();
         assertThat(result.get(1).unlocked()).isTrue();
+        assertThat(result.get(2).unlocked()).isFalse();
+        assertThat(result.get(2).lockReason()).isEqualTo(StoryService.LOCK_SEQUENCE);
+    }
+
+    @Test
+    void freeUserWithPreviousChaptersCompletedSeesPremiumLock() {
+        UUID userId = UUID.randomUUID();
+        stubLocation();
+        when(tierAccessService.hasStoryAccess(userId, "cu-chi")).thenReturn(false);
+        when(checkinRepository.findDistinctStationCodesByUserIdAndLocationId(eq(userId), any()))
+                .thenReturn(List.of("ST01", "ST02"));
+        when(chapterRepository.findBySiteCodeOrderBySortOrderAscChapterNumberAsc("cu-chi"))
+                .thenReturn(sixChapters());
+
+        List<StoryChapterResponse> result = storyService.listChapters("cu-chi", userId);
+
         assertThat(result.get(2).unlocked()).isFalse();
         assertThat(result.get(2).lockReason()).isEqualTo(StoryService.LOCK_PREMIUM);
     }

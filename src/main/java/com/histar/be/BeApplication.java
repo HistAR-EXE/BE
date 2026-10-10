@@ -11,6 +11,7 @@ import com.histar.be.config.HistarMailProperties;
 import com.histar.be.config.MinioProperties;
 import com.histar.be.config.BrevoProperties;
 import com.histar.be.config.PresenceProperties;
+import com.histar.be.config.PilotFeatureProperties;
 import com.histar.be.config.ResendProperties;
 import com.histar.be.config.ViralProperties;
 import com.histar.be.config.VisitSessionProperties;
@@ -38,6 +39,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     ResendProperties.class,
     HistarFirebaseProperties.class,
     PresenceProperties.class,
+    PilotFeatureProperties.class,
     RagProperties.class
 })
 public class BeApplication {
