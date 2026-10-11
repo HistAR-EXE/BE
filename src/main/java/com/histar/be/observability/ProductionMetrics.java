@@ -4,10 +4,12 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 /** Low-cardinality business metrics consumed from the Actuator metrics endpoint. */
 @Component
+@Lazy(false)
 public class ProductionMetrics {
 
     private final MeterRegistry registry;
