@@ -5,6 +5,9 @@
   metrics_path: /actuator/prometheus
   scrape_interval: 30s
   scrape_timeout: 10s
+  authorization:
+    type: Bearer
+    credentials_file: /run/secrets/monitoring_bearer_token
   static_configs:
     - targets:
         - <staging-backend-host>

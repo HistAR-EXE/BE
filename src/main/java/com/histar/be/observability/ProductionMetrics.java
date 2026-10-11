@@ -4,15 +4,51 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /** Low-cardinality business metrics consumed from the Actuator metrics endpoint. */
 @Component
-@RequiredArgsConstructor
 public class ProductionMetrics {
 
     private final MeterRegistry registry;
+
+    public ProductionMetrics(MeterRegistry registry) {
+        this.registry = registry;
+        registerBaselineMeters();
+    }
+
+    /**
+     * Registers every dashboard series at startup. Without this, a panel or alert for a rare
+     * branch (for example voice fallback) is invisible until a user happens to trigger it.
+     * Registration does not increment a counter, so it cannot be mistaken for production traffic.
+     */
+    void registerBaselineMeters() {
+        // `recordChat` always adds these two labels. Register the baseline with
+        // the same label *keys* so Prometheus never rejects the runtime series.
+        Timer.builder("histar.chat.latency")
+                .tags("source", "unknown", "outcome", "success")
+                .register(registry);
+        Timer.builder("histar.chat.first_token.latency").register(registry);
+        Timer.builder("histar.chat.provider.latency").register(registry);
+        registerCounter("histar.chat.fallback.total");
+        registerCounter("histar.chat.safety_blocks.total");
+        registerCounter("histar.chat.memory_opt_out.total");
+        registerCounter("histar.chat.voice_fallback.total");
+        registerCounter("histar.rag.citations.total", "outcome", "cited");
+        registerCounter("histar.rag.citations.total", "outcome", "missing");
+        registerCounter("histar.chat.stream.total", "outcome", "complete");
+        registerCounter("histar.chat.stream.total", "outcome", "error");
+        registerCounter("histar.chat.stream.total", "outcome", "cancelled");
+        registerCounter("histar.chat.grounded_answers.total", "outcome", "grounded");
+        registerCounter("histar.chat.grounded_answers.total", "outcome", "ungrounded");
+        registerCounter("histar.teacher_ai_draft.evaluation.total", "outcome", "passed");
+        registerCounter("histar.teacher_ai_draft.evaluation.total", "outcome", "failed");
+        registerCounter("histar.quest.funnel.total", "event", "started");
+        registerCounter("histar.quest.funnel.total", "event", "completed");
+        registerCounter("histar.minigame.attempts.total", "outcome", "passed");
+        registerCounter("histar.minigame.attempts.total", "outcome", "failed");
+        registerCounter("histar.minigame.attempts.total", "outcome", "unresolved");
+    }
 
     public void recordChat(Duration duration, String source, boolean successful) {
         String normalizedSource = source == null || source.isBlank() ? "unknown" : source;
@@ -106,6 +142,14 @@ public class ProductionMetrics {
     }
 
     private void counter(String name, String tag, String value) {
-        Counter.builder(name).tag(tag, value).register(registry).increment();
+        registerCounter(name, tag, value).increment();
+    }
+
+    private Counter registerCounter(String name) {
+        return Counter.builder(name).register(registry);
+    }
+
+    private Counter registerCounter(String name, String tag, String value) {
+        return Counter.builder(name).tag(tag, value).register(registry);
     }
 }

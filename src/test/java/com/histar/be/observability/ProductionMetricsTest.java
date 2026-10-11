@@ -85,4 +85,22 @@ class ProductionMetricsTest {
         assertThat(registry.find("histar.chat.provider.latency").timer().count()).isEqualTo(1);
         assertThat(registry.find("histar.chat.stream.total").tag("outcome", "cancelled").counter().count()).isEqualTo(1);
     }
+
+    @Test
+    void registersAllDashboardMetricFamiliesBeforeFirstRareEvent() {
+        PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        new ProductionMetrics(registry);
+
+        String scrape = registry.scrape();
+
+        assertThat(scrape)
+                .contains("histar_chat_fallback_total")
+                .contains("histar_rag_citations_total")
+                .contains("histar_minigame_attempts_total")
+                .contains("histar_chat_provider_latency_seconds")
+                .contains("histar_chat_safety_blocks_total")
+                .contains("histar_chat_memory_opt_out_total")
+                .contains("histar_chat_voice_fallback_total")
+                .contains("histar_teacher_ai_draft_evaluation_total");
+    }
 }

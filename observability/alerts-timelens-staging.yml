@@ -8,7 +8,7 @@ groups:
         annotations:
           summary: "HistAR chat fallback rate exceeds 10%"
       - alert: HistARRagCitationRateLow
-        expr: sum(rate(histar_rag_citations_total{outcome="cited"}[15m])) / clamp_min(sum(rate(histar_rag_citations_total[15m])), 1) < 0.80
+        expr: (sum(rate(histar_rag_citations_total[15m])) > 0) and (sum(rate(histar_rag_citations_total{outcome="cited"}[15m])) / sum(rate(histar_rag_citations_total[15m])) < 0.80)
         for: 15m
         labels: { severity: warning }
         annotations:
@@ -20,7 +20,7 @@ groups:
         annotations:
           summary: "Guided chat streaming error rate exceeds 5%"
       - alert: HistARQuestAbandonmentHigh
-        expr: clamp_min(1 - (sum(increase(histar_quest_funnel_total{event="completed"}[24h])) / clamp_min(sum(increase(histar_quest_funnel_total{event="started"}[24h])), 1)), 0) > 0.55
+        expr: (sum(increase(histar_quest_funnel_total{event="started"}[24h])) > 0) and (clamp_min(1 - (sum(increase(histar_quest_funnel_total{event="completed"}[24h])) / sum(increase(histar_quest_funnel_total{event="started"}[24h]))), 0) > 0.55)
         for: 1h
         labels: { severity: warning }
         annotations:

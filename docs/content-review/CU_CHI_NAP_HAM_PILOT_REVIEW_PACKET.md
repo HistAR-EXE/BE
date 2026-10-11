@@ -29,6 +29,17 @@ Các nguồn sau đủ thẩm quyền để làm **nguồn nền**, không phả
 | Hệ thống bắt đầu hình thành trong kháng chiến chống Pháp, ban đầu có các đoạn ngắn phục vụ cất giấu tài liệu và trú ém; sau đó được gia cố, mở rộng trong kháng chiến chống Mỹ. | [Hồ sơ di tích — Cổng Di sản văn hóa](https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490) | Không tự thêm mốc, kích thước hoặc công năng không có trong source/version đã gắn với node. |
 | Khu Bến Đình có hạng mục hầm bí mật (nắp hầm) trong danh mục thành phần di tích. | [Hồ sơ di tích — Cổng Di sản văn hóa](https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490) | Chỉ mô tả quan sát/ý nghĩa lịch sử; cấm mô tả cách chế tạo, vận hành, né tránh hoặc tái tạo cạm bẫy. |
 
+### Nhật ký xác minh nguồn công khai (11-10-2026)
+
+Đợt rà soát này chỉ xác minh **nguồn nền công khai của cơ quan nhà nước**; không phải là phê duyệt nội dung pilot. Reviewer phải lưu URL, ngày truy cập và phiên bản tư liệu vào workflow trước khi ký.
+
+| ID bằng chứng | Nguồn | Có thể hỗ trợ | Không được suy ra |
+| --- | --- | --- | --- |
+| `DSVH-CUCHI-1490` | [Cổng Di sản Văn hóa: Địa đạo Củ Chi](https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490) | Lịch sử hình thành, phạm vi di tích và sự hiện diện của hầm bí mật/nắp hầm ở khu Bến Đình. | Vật liệu ngụy trang, kích thước, cơ chế hoạt động hoặc xác nhận một khung hình Tour 360° cụ thể nếu nguồn không nói rõ. |
+| `HCMC-SVHTT-2016` | [Sở Văn hóa và Thể thao TP.HCM: danh sách di tích](https://svhtt.hochiminhcity.gov.vn/web/guest/tin-chi-tiet/-/chi-tiet/danh-sach-cac-cong-trinh-%C4%91ia-%C4%91iem-%C4%91a-%C4%91uoc-quyet-%C4%91inh-xep-hang-di-tich-tren-%C4%91ia-ban-thanh-pho-ho-chi-minh-%C4%91en-ngay-20-4-2016--20935-1.html) | Trạng thái xếp hạng và Quyết định 2367/QĐ-TTg của di tích. | Chi tiết của node, ending, câu đố, reward hoặc bất kỳ hướng dẫn về cạm bẫy. |
+
+**Danh sách chặn trước duyệt:** bất kỳ copy nào khẳng định nắp hầm được che bằng lá/đất/cành, mô tả cấu tạo/cách vận hành cạm bẫy, hoặc gắn khung Tour 360° với Bến Đình mà không có asset ID và nguồn lưu trữ tương ứng phải bị đổi thành `INTERPRETATION` hoặc bị loại khỏi graph. Các bản `en`, `ko`, `zh-CN` chỉ là bản dịch sản phẩm sau khi từng locale được reviewer ký; chúng không tạo ra citation mới và không được AI tự dịch tại runtime.
+
 ### Ma trận duyệt trước pilot
 
 | Hạng mục | Bằng chứng hiện có | Việc reviewer còn phải xác nhận |

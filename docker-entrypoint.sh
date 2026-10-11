@@ -25,6 +25,14 @@ if [ -z "$DB_URL" ]; then
   exit 1
 fi
 
+# Docker Compose supplies the metrics credential as a file secret. Render and
+# other managed hosts can continue to provide MONITORING_BEARER_TOKEN directly.
+MONITORING_TOKEN_FILE="${MONITORING_BEARER_TOKEN_FILE:-/run/secrets/monitoring_bearer_token}"
+if [ -z "$MONITORING_BEARER_TOKEN" ] && [ -r "$MONITORING_TOKEN_FILE" ]; then
+  MONITORING_BEARER_TOKEN="$(tr -d '\r\n' < "$MONITORING_TOKEN_FILE")"
+  export MONITORING_BEARER_TOKEN
+fi
+
 # Internal Render (dpg-xxx-a): no SSL. External (*.postgres.render.com): sslmode=require.
 if echo "$DB_URL" | grep -qE '(^|[@/])dpg-[a-z0-9-]+([:/]|$)' \
   && ! echo "$DB_URL" | grep -q 'postgres.render.com'; then
