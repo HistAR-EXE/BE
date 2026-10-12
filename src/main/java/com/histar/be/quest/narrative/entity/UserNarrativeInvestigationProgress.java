@@ -25,6 +25,8 @@ public class UserNarrativeInvestigationProgress {
     @Column(name = "investigation_version", nullable = false) private Integer investigationVersion;
     @Column(name = "visited_node_codes_json", nullable = false, columnDefinition = "text") private String visitedNodeCodesJson;
     @Column(name = "evidence_codes_json", nullable = false, columnDefinition = "text") private String evidenceCodesJson;
+    @Column(name = "observation_codes_json", nullable = false, columnDefinition = "text") private String observationCodesJson;
+    @Column(name = "chat_node_codes_json", nullable = false, columnDefinition = "text") private String chatNodeCodesJson;
     @Column(name = "selected_outcome_code") private String selectedOutcomeCode;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
 }

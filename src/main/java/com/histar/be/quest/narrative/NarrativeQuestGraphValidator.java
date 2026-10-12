@@ -19,6 +19,12 @@ public class NarrativeQuestGraphValidator {
         List<String> errors = new ArrayList<>();
         List<NarrativeNode> nodes = graph == null || graph.nodes() == null ? List.of() : graph.nodes();
         Set<String> codes = new HashSet<>();
+        Set<String> sourceIds = new HashSet<>();
+        if (graph != null && graph.sources() != null) {
+            graph.sources().forEach(source -> {
+                if (source != null && source.sourceId() != null && !source.sourceId().isBlank()) sourceIds.add(source.sourceId());
+            });
+        }
         for (NarrativeNode node : nodes) {
             if (node.code() == null || node.code().isBlank() || !codes.add(node.code())) {
                 errors.add("Node codes must be unique and non-blank");
@@ -34,6 +40,12 @@ public class NarrativeQuestGraphValidator {
                     && (node.minimumEvidence() < 0 || node.minimumEvidence() > (graph == null || graph.evidenceNodeCodes() == null
                     ? 0 : graph.evidenceNodeCodes().size()))) {
                 errors.add("Outcome node " + node.code() + " requires more evidence than the graph provides");
+            }
+            if (node.rewardXp() != null && node.rewardXp() < 0) {
+                errors.add("Node " + node.code() + " rewardXp cannot be negative");
+            }
+            for (String sourceId : node.sourceIds() == null ? List.<String>of() : node.sourceIds()) {
+                if (!sourceIds.contains(sourceId)) errors.add("Node " + node.code() + " references missing source " + sourceId);
             }
         }
         if (graph == null || graph.startNodeCode() == null || !codes.contains(graph.startNodeCode())) {

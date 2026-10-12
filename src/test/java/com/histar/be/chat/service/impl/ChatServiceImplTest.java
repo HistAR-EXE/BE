@@ -27,6 +27,7 @@ import com.histar.be.location.service.LocationService;
 import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.quest.narrative.NarrativeInvestigationService;
 import com.histar.be.observability.ProductionMetrics;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,8 @@ class ChatServiceImplTest {
     private RagChatService ragChatService;
     @Mock
     private ProductionMetrics productionMetrics;
+    @Mock
+    private NarrativeInvestigationService narrativeInvestigationService;
 
     @InjectMocks
     private ChatServiceImpl chatService;
@@ -115,11 +118,13 @@ class ChatServiceImplTest {
                         List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"))));
         when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(false);
 
+        UUID questId = UUID.randomUUID();
         var response = chatService.sendOrchestrated(
-                userId, new ChatMessageRequest(characterId, "hello", conversationId, null, "cu-chi"));
+                userId, new ChatMessageRequest(characterId, "hello", conversationId, null, "cu-chi", questId, "ai-interview", 4));
 
         assertThat(response.sources()).isEmpty();
         verify(usageQuotaService).shouldIncludeChatSources(userId, "cu-chi");
+        verify(narrativeInvestigationService).recordChatInteraction(userId, questId, "ai-interview", 4);
     }
 
     @Test

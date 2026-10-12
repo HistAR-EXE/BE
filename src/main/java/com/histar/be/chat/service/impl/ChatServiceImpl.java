@@ -36,6 +36,7 @@ import com.histar.be.message.repository.MessageRepository;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.quest.narrative.NarrativeInvestigationService;
 import com.histar.be.observability.ProductionMetrics;
 import java.util.Arrays;
 import java.time.Instant;
@@ -76,6 +77,7 @@ public class ChatServiceImpl implements ChatService {
     private final EmailVerifiedGuard emailVerifiedGuard;
     private final RagChatService ragChatService;
     private final ProductionMetrics productionMetrics;
+    private final NarrativeInvestigationService narrativeInvestigationService;
 
     private void assertEmailVerified(UUID userId) {
         emailVerifiedGuard.assertEmailVerified(userId);
@@ -305,6 +307,10 @@ public class ChatServiceImpl implements ChatService {
                 .content(request.message()).createdAt(Instant.now()).build());
         messageRepository.save(Message.builder().conversationId(conversation.getId()).role("assistant")
                 .content(prepared.reply()).createdAt(Instant.now()).build());
+        if (request.narrativeQuestId() != null && request.narrativeNodeCode() != null && request.narrativeVersion() != null) {
+            narrativeInvestigationService.recordChatInteraction(userId, request.narrativeQuestId(),
+                    request.narrativeNodeCode(), request.narrativeVersion());
+        }
         log.info("chat orchestrated userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
         recordChatAnswer(prepared.answerSource(), prepared.startedNanos(), true);
         if (!prepared.questHint()) {

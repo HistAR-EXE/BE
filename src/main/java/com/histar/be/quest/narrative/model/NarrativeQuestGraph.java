@@ -9,4 +9,10 @@ public record NarrativeQuestGraph(
         String startNodeCode,
         List<NarrativeNode> nodes,
         List<String> evidenceNodeCodes,
-        List<String> outcomeNodeCodes) {}
+        List<String> outcomeNodeCodes,
+        List<NarrativeSource> sources) {
+    public NarrativeQuestGraph(String startNodeCode, List<NarrativeNode> nodes,
+                               List<String> evidenceNodeCodes, List<String> outcomeNodeCodes) {
+        this(startNodeCode, nodes, evidenceNodeCodes, outcomeNodeCodes, List.of());
+    }
+}

@@ -56,7 +56,10 @@ public class GuidedChatService {
                         request.message(),
                         request.conversationId(),
                         request.stationCode(),
-                        request.siteCode());
+                        request.siteCode(),
+                        request.narrativeQuestId(),
+                        request.narrativeNodeCode(),
+                        request.narrativeVersion());
         PreparedChatResponse prepared = publisher == null
                 ? chatService.prepareOrchestrated(userId, messageRequest)
                 : chatService.prepareOrchestratedStreaming(userId, messageRequest, chunk -> publisher.accept(

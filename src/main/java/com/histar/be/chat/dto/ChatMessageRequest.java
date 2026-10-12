@@ -14,13 +14,20 @@ public record ChatMessageRequest(
         @NotBlank String message,
         UUID conversationId,
         @Size(max = 32) String stationCode,
-        @Size(max = 64) String siteCode) {
+        @Size(max = 64) String siteCode,
+        UUID narrativeQuestId,
+        @Size(max = 120) String narrativeNodeCode,
+        Integer narrativeVersion) {
 
     public ChatMessageRequest(UUID characterId, String message, UUID conversationId) {
-        this(characterId, message, conversationId, null, null);
+        this(characterId, message, conversationId, null, null, null, null, null);
     }
 
     public ChatMessageRequest(UUID characterId, String message, UUID conversationId, String stationCode) {
-        this(characterId, message, conversationId, stationCode, null);
+        this(characterId, message, conversationId, stationCode, null, null, null, null);
+    }
+
+    public ChatMessageRequest(UUID characterId, String message, UUID conversationId, String stationCode, String siteCode) {
+        this(characterId, message, conversationId, stationCode, siteCode, null, null, null);
     }
 }
