@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS journey_memories (
+CREATE TABLE journey_memories (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
     location_id UUID NOT NULL,
@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS journey_memories (
     CONSTRAINT uk_journey_memories_user_location UNIQUE (user_id, location_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
+CREATE INDEX idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);

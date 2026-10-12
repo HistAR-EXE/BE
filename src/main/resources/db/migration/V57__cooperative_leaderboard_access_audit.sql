@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
+CREATE TABLE cooperative_leaderboard_access_audit (
     id UUID PRIMARY KEY,
     actor_id UUID,
     organization_id UUID NOT NULL,
@@ -8,4 +8,4 @@ CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
     detail TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
+CREATE INDEX idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);

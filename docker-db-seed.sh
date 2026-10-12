@@ -6,6 +6,10 @@ until pg_isready -h postgres -U "${PGUSER}" -d "${PGDATABASE}" >/dev/null 2>&1; 
   sleep 2
 done
 
+# The Postgres init directory is skipped when an existing named volume is
+# reused. Ensure RAG's vector type exists for both fresh and existing volumes.
+psql -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+
 run_sql() {
   file="$1"
   echo "Running ${file}..."

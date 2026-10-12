@@ -23,10 +23,10 @@ BE/docs/
 |------------|------|
 | **Docker local** | `cd BE` → `.\docs\scripts\run-all-seed.ps1` |
 | **DB trống + schema** | `.\docs\scripts\run-all-seed.ps1 -IncludeSchema` |
-| **Render / external** | `cd BE` → `.\docs\scripts\run-all-seed-render.ps1` (cần `.env.render-db`) |
+| **Render / external** | `cd BE` → `.\docs\scripts\run-all-seed-render.ps1 -ConfirmProduction` (cần `.env.render-db`; tự migrate Flyway rồi chạy seed) |
 | **Compose tự seed** | `docker compose up -d` → service `postgres-seed` đọc `seed-manifest.txt` |
 
-Flyway schema mới: `BE/src/main/resources/db/migration/` (chạy khi BE boot).
+Flyway schema mới: `BE/src/main/resources/db/migration/`. Script Render sẽ chạy các migration còn thiếu trước khi seed; không dùng bootstrap local hoặc `-Reset` cho Render.
 
 ## Bootstrap đầy đủ cho database local rỗng
 
