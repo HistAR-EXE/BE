@@ -8,4 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CharacterRepository extends JpaRepository<CharacterEntity, UUID> {
 
     List<CharacterEntity> findByLocationId(UUID locationId);
+
+    List<CharacterEntity> findByLocationIdAndChatEnabledTrueOrderByNameAsc(UUID locationId);
+
+    java.util.Optional<CharacterEntity> findByIdAndChatEnabledTrue(UUID id);
+
 }

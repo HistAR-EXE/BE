@@ -90,7 +90,7 @@ public class ChatServiceImpl implements ChatService {
         assertEmailVerified(userId);
         chatRateLimiter.checkAndIncrement(userId);
 
-        CharacterEntity character = characterService.findById(request.characterId());
+        CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
         Conversation conversation = resolveConversation(userId, request, character.getId());
 
         messageRepository.save(Message.builder()
@@ -151,7 +151,7 @@ public class ChatServiceImpl implements ChatService {
         assertEmailVerified(userId);
         chatRateLimiter.checkAndIncrement(userId);
 
-        CharacterEntity character = characterService.findById(request.characterId());
+        CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
         ChatRequest convRequest = new ChatRequest(request.characterId(), request.userMessage(), request.conversationId());
         Conversation conversation = resolveConversation(userId, convRequest, character.getId());
 
@@ -204,7 +204,7 @@ public class ChatServiceImpl implements ChatService {
         }
         long startedNanos = System.nanoTime();
 
-        CharacterEntity character = characterService.findById(request.characterId());
+        CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
         Location location = resolveLocation(character.getLocationId());
         ChatRequest convRequest =
                 new ChatRequest(request.characterId(), request.message(), request.conversationId());

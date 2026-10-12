@@ -63,7 +63,8 @@ class RagChatServiceTest {
     }
 
     private static RagChatRequest request() {
-        return new RagChatRequest("Bếp Hoàng Cầm là gì?", "ST03", "chi-nam", "Bạn là Chị Năm.", "Củ Chi", List.of());
+        return new RagChatRequest(
+                "Bếp Hoàng Cầm là gì?", "ST03", "chrono", "Bạn là Chrono, Trợ lý TimeLens.", "Củ Chi", List.of());
     }
 
     @Test
@@ -101,7 +102,7 @@ class RagChatServiceTest {
         assertThat(answer.reply()).isEqualTo("Bếp giảm khói [2] và kín đáo .");
         assertThat(answer.sources()).hasSize(1);
         assertThat(answer.sources().get(0).title()).isEqualTo("Nguồn B");
-        verify(semanticCache).store("[1,2]", "ST03", "chi-nam", answer.reply());
+        verify(semanticCache).store("[1,2]", "ST03", "chrono", answer.reply());
 
         ArgumentCaptor<ChatQualityLog> log = ArgumentCaptor.forClass(ChatQualityLog.class);
         verify(qualityLogRepository).save(log.capture());
@@ -124,7 +125,7 @@ class RagChatServiceTest {
                 .contains("[1] Nguồn A")
                 .contains("[2] Nguồn B")
                 .contains("Câu hỏi của người dùng: Bếp Hoàng Cầm là gì?")
-                .contains("Bạn là Chị Năm.");
+                .contains("Bạn là Chrono, Trợ lý TimeLens.");
     }
 
     @Test

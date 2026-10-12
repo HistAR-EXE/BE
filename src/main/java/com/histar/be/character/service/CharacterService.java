@@ -16,4 +16,9 @@ public interface CharacterService {
 
     long count();
     List<CharacterEntity> findByLocationId(UUID locationId);
+
+    List<CharacterEntity> findChatAgentsByLocationId(UUID locationId);
+
+    CharacterEntity findEnabledChatAgentById(UUID id);
+
 }

@@ -84,9 +84,10 @@ class ChatServiceImplTest {
 
         CharacterEntity character = CharacterEntity.builder()
                 .id(characterId)
-                .name("Chị Năm")
+                .name("Chrono — Trợ lý TimeLens")
                 .locationId(locationId)
                 .personaPrompt("persona")
+                .chatEnabled(true)
                 .build();
         Location location = Location.builder()
                 .id(locationId)
@@ -100,7 +101,7 @@ class ChatServiceImplTest {
                 .characterId(characterId)
                 .build();
 
-        when(characterService.findById(characterId)).thenReturn(character);
+        when(characterService.findEnabledChatAgentById(characterId)).thenReturn(character);
         when(locationService.findById(locationId)).thenReturn(location);
         when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
         when(profileRepository.findById(userId)).thenReturn(Optional.empty());
@@ -130,9 +131,10 @@ class ChatServiceImplTest {
 
         CharacterEntity character = CharacterEntity.builder()
                 .id(characterId)
-                .name("Chị Năm")
+                .name("Chrono — Trợ lý TimeLens")
                 .locationId(locationId)
                 .personaPrompt("persona")
+                .chatEnabled(true)
                 .build();
         Location location = Location.builder().id(locationId).name("Củ Chi").siteCode("cu-chi").build();
         Conversation conversation = Conversation.builder()
@@ -142,7 +144,7 @@ class ChatServiceImplTest {
                 .build();
         List<ChatSource> sources = List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"));
 
-        when(characterService.findById(characterId)).thenReturn(character);
+        when(characterService.findEnabledChatAgentById(characterId)).thenReturn(character);
         when(locationService.findById(locationId)).thenReturn(location);
         when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
         when(profileRepository.findById(userId)).thenReturn(Optional.empty());
@@ -169,9 +171,10 @@ class ChatServiceImplTest {
 
         CharacterEntity character = CharacterEntity.builder()
                 .id(characterId)
-                .name("Chị Năm")
+                .name("Chrono — Trợ lý TimeLens")
                 .locationId(locationId)
                 .personaPrompt("persona")
+                .chatEnabled(true)
                 .build();
         Location location = Location.builder().id(locationId).name("Củ Chi").siteCode("cu-chi").build();
         Conversation conversation = Conversation.builder()
@@ -181,7 +184,7 @@ class ChatServiceImplTest {
                 .build();
         List<ChatSource> sources = List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"));
 
-        when(characterService.findById(characterId)).thenReturn(character);
+        when(characterService.findEnabledChatAgentById(characterId)).thenReturn(character);
         when(locationService.findById(locationId)).thenReturn(location);
         when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
         when(profileRepository.findById(userId)).thenReturn(Optional.empty());

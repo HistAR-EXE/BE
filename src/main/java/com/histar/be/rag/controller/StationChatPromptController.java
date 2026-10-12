@@ -24,9 +24,9 @@ public class StationChatPromptController {
     public ApiResponse<List<ChatPromptResponse>> list(
             @PathVariable String siteCode,
             @PathVariable String stationCode,
-            @RequestParam(defaultValue = "chi-nam") String persona) {
+            @RequestParam(required = false) String persona) {
         return ApiResponse.ok(repository
-                .findBySiteCodeAndStationCodeAndPersonaOrderBySortOrderAsc(siteCode, stationCode, persona)
+                .findBySiteCodeAndStationCodeAndPersonaOrderBySortOrderAsc(siteCode, stationCode, "chrono")
                 .stream()
                 .map(ChatPromptResponse::from)
                 .toList());

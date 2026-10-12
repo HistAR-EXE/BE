@@ -28,6 +28,28 @@ BE/docs/
 
 Flyway schema mới: `BE/src/main/resources/db/migration/` (chạy khi BE boot).
 
+## Bootstrap đầy đủ cho database local rỗng
+
+Khi một thành viên cần **toàn bộ schema, dữ liệu seed và migration đến phiên bản hiện tại**,
+không chạy riêng `flyway:migrate` trên database rỗng. Các migration lịch sử V1–V13 giả định
+schema cũ đã tồn tại.
+
+Từ thư mục `BE`, chạy một lệnh sau với Docker Compose đang hoạt động:
+
+```powershell
+.\docs\scripts\bootstrap-local-db.ps1 -Database timelens_full -Reset
+```
+
+Lệnh này chỉ xóa database đã nêu sau khi có `-Reset`, sau đó nạp
+`docs/sql/bootstrap/TimeLens_full_bootstrap.sql`, seed data, và ghi Flyway baseline ở migration
+mới nhất. Không dùng lệnh này cho staging, Render hoặc production.
+
+Khi thêm migration/seed mới, tái tạo file bootstrap trước khi commit:
+
+```powershell
+.\docs\scripts\New-HistarFullBootstrapSql.ps1
+```
+
 ## Thêm SQL mới
 
 1. Đặt file vào `sql/seed/` (hoặc `sql/manual/` nếu không nằm pipeline).

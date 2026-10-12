@@ -20,7 +20,7 @@ public class CharacterController {
 
     @GetMapping("/by-location/{locationId}")
     public ApiResponse<List<CharacterResponse>> findByLocation(@PathVariable UUID locationId) {
-        List<CharacterResponse> data = characterService.findByLocationId(locationId).stream()
+        List<CharacterResponse> data = characterService.findChatAgentsByLocationId(locationId).stream()
                 .map(CharacterResponse::from)
                 .toList();
         return ApiResponse.ok(data);

@@ -30,6 +30,9 @@ public class CharacterEntity {
     private String name;
     private String era;
 
+    @Column(nullable = false)
+    private boolean chatEnabled;
+
     @Column(columnDefinition = "text")
     private String personaPrompt;
 

@@ -113,6 +113,7 @@ class GoldenPathSmokeTest {
                 .locationId(location.getId())
                 .name("Chi Nam")
                 .era("1968")
+                .chatEnabled(false)
                 .personaPrompt("test")
                 .portraitUrl("https://example.com/chi-nam.jpg")
                 .build());

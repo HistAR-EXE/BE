@@ -94,9 +94,10 @@ class ChatSourcesResolutionTest {
 
         CharacterEntity character = characterRepository.save(CharacterEntity.builder()
                 .locationId(location.getId())
-                .name("Test Guide")
-                .era("2026")
-                .personaPrompt("You are a guide.")
+                .name("Chrono — Trợ lý TimeLens")
+                .era("TimeLens")
+                .chatEnabled(true)
+                .personaPrompt("You are Chrono, the TimeLens assistant.")
                 .build());
         characterId = character.getId();
     }

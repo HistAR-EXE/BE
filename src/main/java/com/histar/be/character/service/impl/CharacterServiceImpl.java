@@ -46,4 +46,15 @@ public class CharacterServiceImpl implements CharacterService {
         return repository.findByLocationId(locationId);
     }
 
+    @Override
+    public List<CharacterEntity> findChatAgentsByLocationId(UUID locationId) {
+        return repository.findByLocationIdAndChatEnabledTrueOrderByNameAsc(locationId);
+    }
+
+    @Override
+    public CharacterEntity findEnabledChatAgentById(UUID id) {
+        return repository.findByIdAndChatEnabledTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enabled chat agent not found: " + id));
+    }
+
 }
