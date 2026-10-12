@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Specialist approval is explicit and append-only; it never silently enables a pilot. */
 @Service @RequiredArgsConstructor
 public class NarrativeContentReviewService {
-    private static final Set<String> REQUIRED_LOCALES = Set.of("vi", "en", "ko", "zh-CN");
+    private static final Set<String> REQUIRED_LOCALES = Set.of("vi");
     private final NarrativeInvestigationRepository investigations;
     private final NarrativeInvestigationReviewRepository reviews;
     private final ObjectMapper objectMapper;
@@ -28,7 +28,7 @@ public class NarrativeContentReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
         Set<String> locales = request.approvedLocales() == null ? Set.of() : Set.copyOf(request.approvedLocales());
         if (request.decision() == NarrativeReviewDecision.APPROVED && !locales.containsAll(REQUIRED_LOCALES)) {
-            throw new BusinessRuleException("Chỉ được duyệt khi đủ bản nội dung đã duyệt: vi, en, ko, zh-CN");
+            throw new BusinessRuleException("Chỉ được duyệt khi có bản nội dung tiếng Việt đã duyệt: vi");
         }
         if (request.decision() == NarrativeReviewDecision.APPROVED) {
             validateApprovedGraph(investigation.getGraphJson(), locales);

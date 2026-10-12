@@ -1,4 +1,4 @@
-CREATE TABLE narrative_investigations (
+CREATE TABLE IF NOT EXISTS narrative_investigations (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL UNIQUE REFERENCES quests(id),
     version INTEGER NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE narrative_investigations (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE TABLE user_narrative_investigation_progress (
+CREATE TABLE IF NOT EXISTS user_narrative_investigation_progress (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
@@ -17,7 +17,7 @@ CREATE TABLE user_narrative_investigation_progress (
     CONSTRAINT uq_narrative_progress_user_investigation UNIQUE (user_id, investigation_id)
 );
 
-CREATE TABLE quest_reward_ledger (
+CREATE TABLE IF NOT EXISTS quest_reward_ledger (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     quest_id UUID NOT NULL REFERENCES quests(id),

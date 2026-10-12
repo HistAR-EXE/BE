@@ -1,4 +1,4 @@
-CREATE TABLE teacher_ai_drafts (
+CREATE TABLE IF NOT EXISTS teacher_ai_drafts (
     id UUID PRIMARY KEY,
     org_id UUID NOT NULL,
     teacher_id UUID NOT NULL,
@@ -16,5 +16,5 @@ CREATE TABLE teacher_ai_drafts (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
-CREATE INDEX idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
+CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);

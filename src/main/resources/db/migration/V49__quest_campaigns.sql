@@ -1,4 +1,4 @@
-CREATE TABLE quest_campaigns (
+CREATE TABLE IF NOT EXISTS quest_campaigns (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL,
     campaign_type VARCHAR(24) NOT NULL,
@@ -9,4 +9,4 @@ CREATE TABLE quest_campaigns (
     CONSTRAINT fk_quest_campaigns_quest FOREIGN KEY (quest_id) REFERENCES quests(id),
     CONSTRAINT ck_quest_campaigns_window CHECK (ends_at > starts_at)
 );
-CREATE INDEX idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);

@@ -10,7 +10,7 @@
 | Citation | `sourceId`, version và locale tồn tại; khối `VERIFIED_FACT` trỏ đến source tương ứng | Chuyên gia + biên tập |
 | Wording | Không lãng mạn hoá bạo lực/cạm bẫy; không hướng dẫn tái tạo hay vận hành cơ chế nguy hiểm | Chuyên gia + safety reviewer |
 | Reward | XP/chapter/completion được mô tả rõ, không đổi reward khi retry | Product owner |
-| Locale | `vi`, `en`, `ko`, `zh-CN` do biên dịch viên hoặc reviewer đủ năng lực xác nhận, không dùng bản AI dịch để làm citation | Reviewer từng locale |
+| Locale | Pilot hiện chỉ phát hành `vi`. Bất kỳ locale mới nào phải qua một review mới; không dùng bản AI dịch làm citation. | Reviewer tiếng Việt / reviewer locale mới |
 
 ## Nguồn nền tảng đã xác minh sơ bộ
 
@@ -38,7 +38,7 @@ Các nguồn sau đủ thẩm quyền để làm **nguồn nền**, không phả
 | `DSVH-CUCHI-1490` | [Cổng Di sản Văn hóa: Địa đạo Củ Chi](https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490) | Lịch sử hình thành, phạm vi di tích và sự hiện diện của hầm bí mật/nắp hầm ở khu Bến Đình. | Vật liệu ngụy trang, kích thước, cơ chế hoạt động hoặc xác nhận một khung hình Tour 360° cụ thể nếu nguồn không nói rõ. |
 | `HCMC-SVHTT-2016` | [Sở Văn hóa và Thể thao TP.HCM: danh sách di tích](https://svhtt.hochiminhcity.gov.vn/web/guest/tin-chi-tiet/-/chi-tiet/danh-sach-cac-cong-trinh-%C4%91ia-%C4%91iem-%C4%91a-%C4%91uoc-quyet-%C4%91inh-xep-hang-di-tich-tren-%C4%91ia-ban-thanh-pho-ho-chi-minh-%C4%91en-ngay-20-4-2016--20935-1.html) | Trạng thái xếp hạng và Quyết định 2367/QĐ-TTg của di tích. | Chi tiết của node, ending, câu đố, reward hoặc bất kỳ hướng dẫn về cạm bẫy. |
 
-**Danh sách chặn trước duyệt:** bất kỳ copy nào khẳng định nắp hầm được che bằng lá/đất/cành, mô tả cấu tạo/cách vận hành cạm bẫy, hoặc gắn khung Tour 360° với Bến Đình mà không có asset ID và nguồn lưu trữ tương ứng phải bị đổi thành `INTERPRETATION` hoặc bị loại khỏi graph. Các bản `en`, `ko`, `zh-CN` chỉ là bản dịch sản phẩm sau khi từng locale được reviewer ký; chúng không tạo ra citation mới và không được AI tự dịch tại runtime.
+**Danh sách chặn trước duyệt:** bất kỳ copy nào khẳng định nắp hầm được che bằng lá/đất/cành, mô tả cấu tạo/cách vận hành cạm bẫy, hoặc gắn khung Tour 360° với Bến Đình mà không có asset ID và nguồn lưu trữ tương ứng phải bị đổi thành `INTERPRETATION` hoặc bị loại khỏi graph. Pilot này chỉ phát hành tiếng Việt; mọi locale mới đều cần review mới trước khi được phát hành.
 
 ### Ma trận duyệt trước pilot
 
@@ -48,16 +48,16 @@ Các nguồn sau đủ thẩm quyền để làm **nguồn nền**, không phả
 | `ai-interview` | Chỉ được bám vào source/version trong graph. | Prompt, câu trả lời mẫu, citation placement và boundary `VERIFIED_FACT` / `INTERPRETATION`. |
 | `source-comparison` | Có nguồn chính thống cho fact nền. | Từng mệnh đề so sánh, source ID, phiên bản và URL còn truy cập được. |
 | Evidence/outcome/reward | Không có nguồn nhà nước nào quyết định cơ chế XP. | Product owner duyệt reward, threshold, thông điệp hai ending và xác nhận retry không cấp lặp. |
-| `vi`, `en`, `ko`, `zh-CN` | Chỉ có source tiếng Việt nền. | Biên tập viên theo từng locale ký bản dịch đã duyệt; thiếu locale phải fallback `vi`, không dùng AI dịch làm citation. |
+| `vi` | Source nền tiếng Việt của cơ quan nhà nước. | Biên tập viên/reviewer tiếng Việt ký wording đã duyệt; không dùng AI dịch làm citation. |
 
 ## Checklist phát hành
 
 - [ ] Reviewer đã đối chiếu từng node `TOUR_360_OBSERVATION`, `AI_INTERVIEW`, `SOURCE_COMPARISON` và outcome với source/version.
 - [ ] Không có câu nào mô tả thao tác làm hoặc né tránh cạm bẫy; copy chỉ phục vụ quan sát và lý giải lịch sử.
-- [ ] Mọi `VERIFIED_FACT` có citation đã duyệt cùng locale; thiếu locale phải fallback `vi`, không tự dịch.
+- [ ] Mọi `VERIFIED_FACT` tiếng Việt có citation, URL và ngày truy cập đã duyệt; không tự dịch sang locale khác.
 - [ ] Ending đầy đủ bằng chứng có threshold rõ và cả hai ending đều đã duyệt copy/reward.
 - [ ] Reward ledger được kiểm thử idempotency trước khi mở pilot.
-- [ ] Reviewer ký tên, ngày duyệt, source versions và locale coverage trong workflow `/api/admin/narrative-investigations/{id}/review`.
+- [ ] Reviewer ký tên, ngày duyệt, source versions và locale coverage trong workflow `POST /api/admin/narrative-investigations/{questId}/reviews`.
 
 ## Quyết định
 

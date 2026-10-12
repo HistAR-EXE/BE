@@ -1,11 +1,11 @@
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN investigation_version INTEGER;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN visited_node_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN evidence_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN selected_outcome_code VARCHAR(120);
-ALTER TABLE narrative_investigations ADD COLUMN review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
-ALTER TABLE narrative_investigations ADD COLUMN approved_locales_json TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE narrative_investigations ADD COLUMN reviewed_by VARCHAR(160);
-ALTER TABLE narrative_investigations ADD COLUMN reviewed_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS investigation_version INTEGER;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS visited_node_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS evidence_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS selected_outcome_code VARCHAR(120);
+ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS approved_locales_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(160);
+ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
 -- The Củ Chi pilot remains disabled until specialist review supplies approved citations/translations.
 INSERT INTO narrative_investigations (id, quest_id, version, enabled, graph_json, created_at, updated_at, review_status, approved_locales_json)
 SELECT '33333333-3333-3333-3333-333333333390'::uuid, '33333333-3333-3333-3333-333333333338'::uuid, 1, false,

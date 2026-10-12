@@ -1,4 +1,4 @@
--- QuestStep entity — see docs/database/2026-07-08_quest_steps_schema.sql
+-- QuestStep entity — see docs/sql/seed/2026-07-08_quest_steps_schema.sql
 
 CREATE TABLE IF NOT EXISTS quest_steps (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -47,7 +47,7 @@ public class QuestMinigameService {
                 .orElse(null);
         JsonNode level = pickLevel(config.path("levels"), lastLevel);
         ObjectNode view = QuestMinigameGrader.publicLevel(game.getEngine(), (ObjectNode) level);
-        return new MinigameViewResponse(game.getId(), game.getEngine(), game.getTitle(), level.path("id").asText(), view);
+        return MinigameViewResponse.from(game.getId(), game.getEngine(), game.getTitle(), level.path("id").asText(), view, objectMapper);
     }
 
     @Transactional
