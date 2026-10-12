@@ -77,10 +77,13 @@ if ($bootstrapExitCode -ne 0) {
 $migrations = Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
 $lastVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
-$expectedBaseline = "${lastVersion}:BASELINE:true"
 $historySql = "SELECT version || ':' || type || ':' || success FROM flyway_schema_history ORDER BY installed_rank;"
-$history = @(& docker exec $Container psql -U $DbUser -d $Database -tAc $historySql)
-if ($LASTEXITCODE -ne 0 -or $history -notcontains $expectedBaseline) {
+$history = @(& docker exec $Container psql -U $DbUser -d $Database -tAc $historySql |
+    ForEach-Object { $_.Trim() })
+$baselineFound = $history | Where-Object {
+    $_ -match "^${lastVersion}:BASELINE:(t|true)$"
+}
+if ($LASTEXITCODE -ne 0 -or -not $baselineFound) {
     throw "Bootstrap completed SQL execution but Flyway baseline V$lastVersion was not recorded."
 }
 
