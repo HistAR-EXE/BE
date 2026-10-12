@@ -1,5 +1,5 @@
 -- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V62.
+-- Generated from schema, seed manifest, and Flyway migrations through V64.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -2894,6 +2894,27 @@ ON CONFLICT (email) DO UPDATE SET
 UPDATE profiles
 SET role = 'ADMIN'
 WHERE email IN ('admin@histar.vn', 'demo@histar.vn');
+
+-- This seed can be re-run after Flyway has added email verification columns.
+-- Use dynamic SQL so the same file also remains compatible with the pristine
+-- bootstrap schema where those columns do not exist until V9.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'profiles'
+          AND column_name = 'email_verified'
+    ) THEN
+        EXECUTE $sql$
+            UPDATE profiles
+            SET email_verified = TRUE,
+                email_verified_at = COALESCE(email_verified_at, now())
+            WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn')
+        $sql$;
+    END IF;
+END $$;
 
 -- Demo teacher account (E2E role-ui tests)
 UPDATE profiles
@@ -6313,7 +6334,72 @@ WHERE persona <> 'chrono';
 -- END migration: V62__chrono_only_chat_agents.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V62
+-- BEGIN migration: V63__verify_seed_accounts.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V63__verify_seed_accounts.sql
+-- ============================================================================
+-- Seeded platform accounts are controlled demo/test identities. They must not
+-- enter the end-user email-verification flow after a database reset or reseed.
+UPDATE profiles
+SET email_verified = TRUE,
+    email_verified_at = COALESCE(email_verified_at, now())
+WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn')
+  AND email_verified IS DISTINCT FROM TRUE;
+
+-- END migration: V63__verify_seed_accounts.sql
+
+-- ============================================================================
+-- BEGIN migration: V64__repair_admin_audit_schema.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V64__repair_admin_audit_schema.sql
+-- ============================================================================
+-- Repair databases that were baselined or bootstrapped before the complete
+-- admin audit/optimistic-lock schema from V61 was applied.
+-- Every statement is idempotent so this migration is also safe on healthy DBs.
+
+CREATE TABLE IF NOT EXISTS admin_audit_events (
+    id UUID PRIMARY KEY,
+    actor_id UUID,
+    entity_type VARCHAR(64) NOT NULL,
+    entity_id UUID NOT NULL,
+    action VARCHAR(96) NOT NULL,
+    old_row_version BIGINT,
+    new_row_version BIGINT,
+    reason TEXT,
+    idempotency_key VARCHAR(160),
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    occurred_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_events_entity_occurred
+    ON admin_audit_events(entity_type, entity_id, occurred_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_admin_audit_events_idempotency
+    ON admin_audit_events(entity_type, entity_id, action, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+
+ALTER TABLE discovery_points ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE discovery_points ADD COLUMN IF NOT EXISTS deleted_by UUID;
+ALTER TABLE discovery_points ADD COLUMN IF NOT EXISTS delete_reason TEXT;
+ALTER TABLE discovery_points ADD COLUMN IF NOT EXISTS row_version BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS deleted_by UUID;
+ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS delete_reason TEXT;
+ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS row_version BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS fact_verified BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS deleted_by UUID;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS delete_reason TEXT;
+ALTER TABLE quests ADD COLUMN IF NOT EXISTS row_version BIGINT NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_discovery_points_deleted_at ON discovery_points(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_artifacts_deleted_at ON artifacts(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_quests_deleted_at ON quests(deleted_at);
+
+-- END migration: V64__repair_admin_audit_schema.sql
+
+-- ============================================================================
+-- Flyway baseline after full bootstrap: V64
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -6340,7 +6426,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '62', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '64', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 
