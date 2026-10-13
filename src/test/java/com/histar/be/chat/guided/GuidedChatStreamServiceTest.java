@@ -22,6 +22,41 @@ class GuidedChatStreamServiceTest {
     private GuidedChatService guidedChatService;
 
     @Test
+    void persistenceFailureNeverEmitsCompleteOrRecordsStreamSuccess() {
+        var answer = new GuidedAnswer(List.of(new GuidedAnswerBlock(GuidedAnswerType.INTERPRETATION,
+                GuidedConfidence.CAUTION, "Answer", List.of())), null);
+        var draft = GuidedChatDraft.blocked(new GuidedChatResponse(UUID.randomUUID(), answer, List.of(), false));
+        when(guidedChatService.prepareStreaming(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(draft);
+        org.mockito.Mockito.doThrow(new IllegalStateException("persist failed")).when(guidedChatService).complete(draft);
+        var metrics = org.mockito.Mockito.mock(ProductionMetrics.class);
+        var events = new java.util.ArrayList<GuidedChatStreamEvent>();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new GuidedChatStreamService(guidedChatService, metrics)
+                .stream(UUID.randomUUID(), new GuidedChatRequest(UUID.randomUUID(), "question", null, null, null, null), events::add))
+                .hasMessage("persist failed");
+        assertThat(events).extracting(GuidedChatStreamEvent::name).doesNotContain("complete");
+        verify(metrics, never()).recordChatStream(true);
+    }
+
+    @Test
+    void incrementalStreamKeepsFinalSourcesFromTheSameAnswer() {
+        var source = new ChatSource("Evidence", "excerpt", "https://example.com/evidence");
+        var block = new GuidedAnswerBlock(GuidedAnswerType.VERIFIED_FACT, GuidedConfidence.VERIFIED, "Fact [1]", List.of(source));
+        var draft = GuidedChatDraft.blocked(new GuidedChatResponse(UUID.randomUUID(), new GuidedAnswer(List.of(block), null), List.of(), false));
+        when(guidedChatService.prepareStreaming(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> {
+                    java.util.function.Consumer<GuidedAnswerBlock> publisher = invocation.getArgument(2);
+                    publisher.accept(block);
+                    return draft;
+                });
+        var events = new GuidedChatStreamService(guidedChatService, new ProductionMetrics(new SimpleMeterRegistry()))
+                .events(UUID.randomUUID(), new GuidedChatRequest(UUID.randomUUID(), "question", null, null, null, null));
+        assertThat(events.stream().filter(event -> event.name().equals("sources")).findFirst().orElseThrow().data())
+                .isEqualTo(List.of(source));
+        assertThat(events.stream().filter(event -> event.name().equals("delta"))).hasSize(1);
+    }
+
+    @Test
     void emits_the_stable_sse_event_order() {
         UUID userId = UUID.randomUUID();
         GuidedAnswer answer = new GuidedAnswer(

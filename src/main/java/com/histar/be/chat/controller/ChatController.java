@@ -9,6 +9,7 @@ import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.guided.GuidedChatRequest;
 import com.histar.be.chat.guided.GuidedChatStreamService;
 import com.histar.be.chat.service.ChatService;
+import com.histar.be.chat.service.RagServiceException;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.QuotaExceededException;
 import com.histar.be.config.PilotFeatureProperties;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
+import org.slf4j.MDC;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +40,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
 public class ChatController {
+
+    public static final long SSE_TIMEOUT_MILLIS = 120_000L;
 
     private final ChatService chatService;
     private final GuidedChatStreamService guidedChatStreamService;
@@ -80,22 +84,29 @@ public class ChatController {
         if (!pilotFeatures.isChatStreaming()) {
             throw new BusinessRuleException("Chat streaming chưa được bật cho cohort này.");
         }
-        SseEmitter emitter = new SseEmitter(60_000L);
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
         AtomicBoolean completed = new AtomicBoolean(false);
+        Map<String, String> context = MDC.getCopyOfContextMap();
+        String requestId = MDC.get("requestId");
         CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
+            Map<String, String> previous = MDC.getCopyOfContextMap();
             try {
+                if (context == null) MDC.clear(); else MDC.setContextMap(context);
                 guidedChatStreamService.stream(userId, request, event -> {
+                    if (completed.get()) {
+                        throw new StreamDisconnectedException(new java.io.IOException("Stream closed"));
+                    }
                     try {
-                    emitter.send(SseEmitter.event().name(event.name()).data(event.data()));
+                        emitter.send(SseEmitter.event().name(event.name()).data(event.data()));
                     } catch (java.io.IOException ex) {
                         throw new StreamDisconnectedException(ex);
                     }
                 });
-                completed.set(true);
-                emitter.complete();
+                if (completed.compareAndSet(false, true)) emitter.complete();
             } catch (StreamDisconnectedException ex) {
-                productionMetrics.recordChatStreamCancelled();
+                if (completed.compareAndSet(false, true)) productionMetrics.recordChatStreamCancelled();
             } catch (Exception ex) {
+                if (!completed.compareAndSet(false, true)) return;
                 productionMetrics.recordChatStream(false);
                 try {
                     emitter.send(SseEmitter.event().name("error").data(streamErrorPayload(ex)));
@@ -105,24 +116,34 @@ public class ChatController {
                 // The structured SSE error is the browser contract. Completing exceptionally can
                 // terminate the HTTP response before the buffered error frame reaches fetch().
                 emitter.complete();
+            } finally {
+                if (previous == null) MDC.clear(); else MDC.setContextMap(previous);
             }
         });
         emitter.onCompletion(() -> {
-            if (!completed.get() && !task.isDone()) {
+            if (completed.compareAndSet(false, true) && !task.isDone()) {
                 task.cancel(true);
                 productionMetrics.recordChatStreamCancelled();
             }
         });
         emitter.onTimeout(() -> {
-            if (!completed.get()) {
+            if (completed.compareAndSet(false, true)) {
+                productionMetrics.recordChatStream(false);
+                // Spring marks ResponseBodyEmitter complete before invoking timeout callbacks, so
+                // this 120-second transport guard cannot legally write another SSE frame. The
+                // typed RAG_TIMEOUT is emitted by the 100-second BE deadline while the stream is
+                // still writable; this callback only cancels any straggling work and rejects late
+                // events.
                 task.cancel(true);
-                productionMetrics.recordChatStreamCancelled();
             }
         });
         return emitter;
     }
 
     private static Map<String, Object> streamErrorPayload(Exception exception) {
+        if (exception instanceof RagServiceException rag) {
+            return rag.payload();
+        }
         if (exception instanceof QuotaExceededException quota) {
             Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("message", quota.getMessage());

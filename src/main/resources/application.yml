@@ -52,7 +52,7 @@ chat:
     timeout-seconds: ${HISTORY_AI_TIMEOUT_SECONDS:120}
   rag-ai:
     base-url: ${RAG_AI_BASE_URL:http://localhost:8100}
-    timeout-seconds: ${RAG_AI_TIMEOUT_SECONDS:120}
+    timeout-seconds: ${RAG_AI_TIMEOUT_SECONDS:100}
   resilience:
     timeout: ${CHAT_AI_TIMEOUT:15s}
     max-attempts: ${CHAT_AI_MAX_ATTEMPTS:2}
@@ -207,6 +207,11 @@ sentry:
   traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.0}
 
 management:
+  # Redis is optional; keep its health probe off unless a Redis instance is
+  # intentionally provisioned (the default rate limiter is in-memory).
+  health:
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

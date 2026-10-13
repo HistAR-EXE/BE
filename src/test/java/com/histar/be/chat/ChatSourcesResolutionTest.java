@@ -129,7 +129,7 @@ class ChatSourcesResolutionTest {
     }
 
     @Test
-    void sendOrchestrated_fallsBackToLocationMetadataWhenRagEmpty() {
+    void sendOrchestrated_keepsSourcesEmptyWhenRagEmpty() {
         when(ragAiChatClient.generateWithSources(
                         anyString(),
                         anyString(),
@@ -147,8 +147,7 @@ class ChatSourcesResolutionTest {
         ChatResponse response = chatService.sendOrchestrated(
                 userId, new ChatMessageRequest(characterId, "Hello", null));
 
-        assertThat(response.sources()).isNotEmpty();
-        assertThat(response.sources().get(0).title()).contains("Fallback");
+        assertThat(response.sources()).isEmpty();
     }
 
     @TestConfiguration
