@@ -12,6 +12,8 @@ public class ErrorResponse {
     private final boolean success = false;
     private final String code;
     private final String message;
+    private final Boolean retryable;
+    private final String requestId;
     private final String upgradeUrl;
     private final String type;
     private final String upgradePackage;

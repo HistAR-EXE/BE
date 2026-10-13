@@ -19,13 +19,11 @@ import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.PreparedChatResponse;
 import com.histar.be.chat.service.ChatStreamChunk;
-import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.chat.service.PersonaMapper;
 import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.chat.service.RagAiChatClient;
 import com.histar.be.chat.service.RagChatResponse;
 import com.histar.be.common.exception.AuthException;
-import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
@@ -38,7 +36,6 @@ import com.histar.be.rag.dto.RagChatRequest;
 import com.histar.be.rag.service.RagChatService;
 import com.histar.be.quest.narrative.NarrativeInvestigationService;
 import com.histar.be.observability.ProductionMetrics;
-import java.util.Arrays;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,7 +63,6 @@ public class ChatServiceImpl implements ChatService {
     private final LocationService locationService;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
-    private final ChatLlmClient chatLlmClient;
     private final RagAiChatClient ragAiChatClient;
     private final ChatRateLimiter chatRateLimiter;
     private final UsageQuotaService usageQuotaService;
@@ -86,37 +82,8 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatResponse chat(UUID userId, ChatRequest request) {
-        if (userId == null) {
-            throw new AuthException("Unauthorized");
-        }
-        assertEmailVerified(userId);
-        chatRateLimiter.checkAndIncrement(userId);
-
-        CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
-        Conversation conversation = resolveConversation(userId, request, character.getId());
-
-        messageRepository.save(Message.builder()
-                .conversationId(conversation.getId())
-                .role("user")
-                .content(request.message())
-                .createdAt(Instant.now())
-                .build());
-
-        Location location = resolveLocation(character.getLocationId());
-        String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
-        String reply = chatLlmClient.generate(prompt);
-
-        messageRepository.save(Message.builder()
-                .conversationId(conversation.getId())
-                .role("assistant")
-                .content(reply)
-                .createdAt(Instant.now())
-                .build());
-
-        chatRateLimiter.recordSuccess(userId);
-        String siteCode = location.getSiteCode();
-        return new ChatResponse(
-                reply, conversation.getId(), filterSourcesForUser(userId, siteCode, resolveSourcesList(location)));
+        return sendOrchestrated(userId,
+                new ChatMessageRequest(request.characterId(), request.message(), request.conversationId()));
     }
 
     @Override
@@ -227,7 +194,7 @@ public class ChatServiceImpl implements ChatService {
 
         String reply;
         List<ChatSource> responseSources;
-        String answerSource = "fallback";
+        String answerSource = "rag-ai";
         boolean pgVectorRagUsed = false;
         String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
                 ? request.siteCode().trim().toLowerCase()
@@ -267,20 +234,10 @@ public class ChatServiceImpl implements ChatService {
                         playerContext);
                 reply = ragResponse.reply();
                 answerSource = publicAnswerSource(ragResponse.cache());
-                responseSources = !ragResponse.sources().isEmpty()
-                        ? ragResponse.sources()
-                        : resolveSourcesList(location);
-            } catch (BusinessRuleException ex) {
-                log.warn("RAG AI unavailable, falling back to direct LLM: {}", ex.getMessage());
-                String prompt = buildPrompt(character.getPersonaPrompt(), location, conversation.getId());
-                try {
-                    reply = chatLlmClient.generate(prompt);
-                    answerSource = "fallback";
-                    responseSources = resolveSourcesList(location);
-                } catch (RuntimeException fallback) {
-                    recordChatAnswer(answerSource, startedNanos, false);
-                    throw fallback;
-                }
+                responseSources = ragResponse.sources();
+            } catch (RuntimeException ex) {
+                recordChatAnswer(answerSource, startedNanos, false);
+                throw ex;
             }
         }
         List<ChatSource> visibleSources = filterSourcesForUser(userId, siteCode, responseSources);
@@ -324,7 +281,7 @@ public class ChatServiceImpl implements ChatService {
             return "rag-ai";
         }
         return switch (cache) {
-            case "curated", "faq" -> cache;
+            case "curated", "faq", "no_source", "guard" -> cache;
             case "semantic_cache", "semantic" -> "semantic";
             case "llm", "gemini" -> "rag-ai";
             default -> "rag-ai";
@@ -334,7 +291,8 @@ public class ChatServiceImpl implements ChatService {
     private void recordChatAnswer(String source, long startedNanos, boolean successful) {
         long latencyMs = (System.nanoTime() - startedNanos) / 1_000_000L;
         productionMetrics.recordChat(java.time.Duration.ofMillis(latencyMs), source, successful);
-        log.info("answer_source={} latency_ms={} outcome={}", source, latencyMs, successful ? "success" : "error");
+        log.info("requestId={} answer_source={} latency_ms={} outcome={}",
+                org.slf4j.MDC.get("requestId"), source, latencyMs, successful ? "success" : "error");
     }
 
     private List<ChatSource> filterSourcesForUser(UUID userId, String siteCode, List<ChatSource> sources) {
@@ -381,43 +339,6 @@ public class ChatServiceImpl implements ChatService {
                         .build()));
     }
 
-    private String buildPrompt(String personaPrompt, Location location, UUID conversationId) {
-        String locationName = location.getName() != null ? location.getName() : "di tích lịch sử";
-
-        StringBuilder prompt = new StringBuilder(personaPrompt)
-                .append("\n\n")
-                .append("Bạn là hướng dẫn viên lịch sử tại ")
-                .append(locationName)
-                .append(". Chỉ trả lời trong phạm vi lịch sử liên quan đến ")
-                .append(locationName)
-                .append(" và nhân vật bạn đang đóng.\n\n")
-                .append("QUY TẮC BẮT BUỘC:\n")
-                .append("1. Trả lời các vế có trong dữ kiện. Mỗi vế vài câu hoặc vài gạch đầu dòng. Không mở mục không được hỏi.\n")
-                .append("2. Vế không có trong dữ kiện thì nói chưa đủ tư liệu cho vế đó. Không thay cả câu trả lời bằng một câu từ chối khi câu hỏi nói về ")
-                .append(locationName)
-                .append(".\n")
-                .append("3. Xưng mình, gọi người hỏi là bạn. Không ghi dòng Nguồn.\n")
-                .append("4. Kết thúc đúng một dòng: Chrono là một AI và có thể mắc sai sót.\n")
-                .append("5. Chỉ dựa trên dữ kiện được cung cấp; không bịa số liệu, ngày tháng hay sự kiện.");
-
-        if (location.getKnowledgeContext() != null && !location.getKnowledgeContext().isBlank()) {
-            prompt.append("\n\nDỮ KIỆN ĐÃ XÁC MINH (ưu tiên, trả lời ngắn gọn):\n")
-                    .append(location.getKnowledgeContext().trim());
-        }
-
-        List<Message> history = messageRepository.findByConversationIdOrderByCreatedAt(conversationId);
-        int start = Math.max(0, history.size() - 10);
-        if (!history.isEmpty()) {
-            prompt.append("\n\nLịch sử hội thoại gần đây:\n");
-            for (int i = start; i < history.size(); i++) {
-                Message message = history.get(i);
-                String speaker = "user".equals(message.getRole()) ? "Người dùng" : "Bạn";
-                prompt.append(speaker).append(": ").append(message.getContent()).append("\n");
-            }
-        }
-        return prompt.toString();
-    }
-
     private Conversation resolveContextConversation(UUID userId, UUID characterId, UUID conversationId) {
         if (conversationId != null) {
             Conversation existing = conversationRepository
@@ -448,24 +369,9 @@ public class ChatServiceImpl implements ChatService {
         if (location.getSources() != null && !location.getSources().isBlank()) {
             return location.getSources();
         }
-        String name = location.getName() != null ? location.getName() : "di tích lịch sử";
-        return "Khu di tích lịch sử " + name;
+        // Missing metadata is not evidence. The Python RAG returns citations from the
+        // same retrieved chunks as the answer; never synthesize a location-name source.
+        return "";
     }
 
-    private List<ChatSource> resolveSourcesList(Location location) {
-        String sources = resolveCiteSources(location);
-        if (sources == null || sources.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(sources.split("[\\n,;]+"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(this::toChatSource)
-                .toList();
-    }
-
-    private ChatSource toChatSource(String title) {
-        String excerpt = title.length() > 120 ? title.substring(0, 117) + "..." : title;
-        return new ChatSource(title, excerpt, null);
-    }
 }

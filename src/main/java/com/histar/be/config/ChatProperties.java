@@ -27,7 +27,7 @@ public class ChatProperties {
 
     public static class RagAi {
         private String baseUrl = "http://localhost:8100";
-        private int timeoutSeconds = 120;
+        private int timeoutSeconds = 100;
 
         public String getBaseUrl() {
             return baseUrl;

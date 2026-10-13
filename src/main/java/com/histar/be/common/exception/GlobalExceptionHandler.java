@@ -23,6 +23,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBaseException(BaseException ex) {
         HttpStatus status = mapStatus(ex.getErrorCode());
+        if (ex instanceof com.histar.be.chat.service.RagServiceException rag) {
+            return ResponseEntity.status(status).body(ErrorResponse.builder()
+                    .code(rag.getErrorCode().getCode()).message(rag.getMessage())
+                    .retryable(rag.isRetryable()).requestId(rag.getRequestId()).timestamp(Instant.now()).build());
+        }
         if (ex instanceof QuotaExceededException quotaEx) {
             return ResponseEntity.status(status)
                     .body(ErrorResponse.ofQuota(
@@ -112,6 +117,8 @@ public class GlobalExceptionHandler {
     private HttpStatus mapStatus(ErrorCode errorCode) {
         return switch (errorCode) {
             case CONFLICT -> HttpStatus.CONFLICT;
+            case RAG_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case RAG_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;

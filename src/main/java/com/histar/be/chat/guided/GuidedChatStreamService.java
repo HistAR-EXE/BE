@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
+import org.slf4j.MDC;
 
 /** Emits the stable SSE contract and never sends sources before the answer has been validated. */
 @Service
@@ -35,6 +36,7 @@ public class GuidedChatStreamService {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("conversationId", request.conversationId());
         meta.put("safetyBlocked", false);
+        meta.put("requestId", MDC.get("requestId"));
         sink.accept(new GuidedChatStreamEvent("meta", meta));
         boolean[] streamed = {false};
         GuidedChatDraft draft = guidedChatService.prepareStreaming(userId, request, block -> {
@@ -45,14 +47,14 @@ public class GuidedChatStreamService {
             sink.accept(new GuidedChatStreamEvent("delta", block));
         });
         GuidedChatResponse response = draft.response();
-        List<ChatSource> sources = new ArrayList<>();
+        List<ChatSource> sources = response.answer().blocks().stream()
+                .flatMap(block -> block.sources().stream()).distinct().toList();
         if (!streamed[0]) for (GuidedAnswerBlock block : response.answer().blocks()) {
             if (!streamed[0]) {
                 productionMetrics.recordChatFirstToken(Duration.between(started, Instant.now()));
                 streamed[0] = true;
             }
             sink.accept(new GuidedChatStreamEvent("delta", block));
-            sources.addAll(block.sources());
         }
         sink.accept(new GuidedChatStreamEvent("sources", List.copyOf(sources)));
         sink.accept(new GuidedChatStreamEvent("suggestions", response.suggestions()));
@@ -60,8 +62,8 @@ public class GuidedChatStreamService {
         completion.put("conversationId", response.conversationId());
         completion.put("followUpQuestion", response.answer().followUpQuestion());
         completion.put("safetyBlocked", response.safetyBlocked());
-        sink.accept(new GuidedChatStreamEvent("complete", completion));
         guidedChatService.complete(draft);
+        sink.accept(new GuidedChatStreamEvent("complete", completion));
         productionMetrics.recordChatStream(true);
     }
 }

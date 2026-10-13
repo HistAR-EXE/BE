@@ -1,34 +1,44 @@
 package com.histar.be.chat.service;
 
-import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.ChatProperties;
 import com.histar.be.chat.dto.ChatSource;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.slf4j.MDC;
+import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
+@Slf4j
 public class RagAiChatClient {
 
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
-            new ParameterizedTypeReference<>() {};
-
-    private final WebClient ragAiWebClient;
-    private final int timeoutSeconds;
+    private final HttpClient httpClient;
+    private final URI chatUri;
+    private final Duration requestTimeout;
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private final AiResilienceExecutor resilience;
 
     public RagAiChatClient(ChatProperties chatProperties, AiResilienceExecutor resilience) {
-        String baseUrl = chatProperties.getRagAi().getBaseUrl();
-        this.timeoutSeconds = chatProperties.getRagAi().getTimeoutSeconds();
-        this.ragAiWebClient = WebClient.builder().baseUrl(baseUrl).build();
+        String baseUrl = chatProperties.getRagAi().getBaseUrl().replaceAll("/+$", "");
+        this.chatUri = URI.create(baseUrl + "/ai/chat");
+        this.requestTimeout = Duration.ofSeconds(chatProperties.getRagAi().getTimeoutSeconds());
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(requestTimeout)
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
         this.resilience = resilience;
     }
 
@@ -111,32 +121,102 @@ public class RagAiChatClient {
         if (playerContext != null && !playerContext.isEmpty()) {
             body.put("player_context", playerContext);
         }
+        String requestId = MDC.get("requestId");
+        if (requestId == null || requestId.isBlank()) requestId = UUID.randomUUID().toString();
+        final String correlationId = requestId;
         try {
-            Map<String, Object> response = resilience.execute("rag-ai", () -> ragAiWebClient
-                    .post()
-                    .uri("/ai/chat")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(MAP_TYPE)
-                    .block(Duration.ofSeconds(timeoutSeconds)));
+            Map<String, Object> response = resilience.execute("rag-ai", () -> executeRequest(body, correlationId));
             if (response == null) {
-                throw new BusinessRuleException("RAG AI trả về response rỗng");
+                throw new RagServiceException(false, true, correlationId);
             }
             Object reply = response.get("reply");
             if (!(reply instanceof String s) || s.isBlank()) {
-                throw new BusinessRuleException("RAG AI không trả lời được");
+                throw new RagServiceException(false, true, correlationId);
             }
             Object cache = response.get("cache");
             String cacheName = cache instanceof String value ? value : "";
             return new RagChatResponse(s.trim(), parseSources(response.get("sources")), cacheName);
-        } catch (WebClientResponseException ex) {
-            throw new BusinessRuleException("Gọi RAG AI thất bại: " + ex.getStatusCode());
-        } catch (BusinessRuleException ex) {
+        } catch (RagServiceException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new BusinessRuleException(
-                    "RAG AI không khả dụng. Chạy: cd AI && uvicorn app.main:app --port 8100");
+            RagServiceException failure = mapFailure(ex, correlationId);
+            // Never log upstream bodies, prompts, URLs, credentials or exception messages.
+            log.warn("requestId={} dependency=rag-ai code={} retryable={}",
+                    correlationId, failure.getErrorCode().getCode(), failure.isRetryable());
+            throw failure;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executeRequest(Map<String, Object> body, String requestId)
+            throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(chatUri)
+                .timeout(requestTimeout)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("X-Request-Id", requestId)
+                .POST(HttpRequest.BodyPublishers.ofString(jsonMapper.writeValueAsString(body), StandardCharsets.UTF_8))
+                .build();
+        HttpResponse<String> response = httpClient.send(
+                request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RagHttpException(response.statusCode(), response.body());
+        }
+        Object decoded = jsonMapper.readValue(response.body(), Map.class);
+        if (!(decoded instanceof Map<?, ?> map)) {
+            throw new IOException("Invalid RAG response envelope");
+        }
+        return (Map<String, Object>) map;
+    }
+
+    private static RagServiceException mapFailure(Throwable failure, String requestId) {
+        boolean timeout = false;
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.util.concurrent.TimeoutException
+                    || cause instanceof java.net.SocketTimeoutException
+                    || cause instanceof HttpTimeoutException) timeout = true;
+            if (cause instanceof RagHttpException response) {
+                boolean upstreamTimeout = response.statusCode == 504;
+                boolean retryable = true;
+                try {
+                    var detail = JsonMapper.builder().build().readTree(response.responseBody).path("detail");
+                    String code = detail.path("code").asText();
+                    if ("RAG_TIMEOUT".equals(code) || "RAG_UNAVAILABLE".equals(code)) {
+                        upstreamTimeout = "RAG_TIMEOUT".equals(code);
+                        retryable = detail.path("retryable").asBoolean(true);
+                    }
+                } catch (RuntimeException ignored) {
+                    // Non-contract gateway responses still map to a safe typed failure.
+                }
+                return new RagServiceException(upstreamTimeout, retryable, requestId);
+            }
+            if (cause instanceof WebClientResponseException response) {
+                boolean upstreamTimeout = response.getStatusCode().value() == 504;
+                boolean retryable = true;
+                try {
+                    var detail = JsonMapper.builder().build().readTree(response.getResponseBodyAsString()).path("detail");
+                    String code = detail.path("code").asText();
+                    if ("RAG_TIMEOUT".equals(code) || "RAG_UNAVAILABLE".equals(code)) {
+                        upstreamTimeout = "RAG_TIMEOUT".equals(code);
+                        retryable = detail.path("retryable").asBoolean(true);
+                    }
+                } catch (RuntimeException ignored) {
+                    // Non-contract gateway responses still map to a safe typed failure.
+                }
+                return new RagServiceException(upstreamTimeout, retryable, requestId);
+            }
+        }
+        return new RagServiceException(timeout, true, requestId);
+    }
+
+    private static final class RagHttpException extends IOException {
+        private final int statusCode;
+        private final String responseBody;
+
+        private RagHttpException(int statusCode, String responseBody) {
+            super("RAG HTTP " + statusCode);
+            this.statusCode = statusCode;
+            this.responseBody = responseBody == null ? "" : responseBody;
         }
     }
 

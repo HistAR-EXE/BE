@@ -3,6 +3,7 @@ package com.histar.be.rag.service;
 import com.histar.be.chat.dto.ChatHistoryTurn;
 import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.service.ChatLlmClient;
+import com.histar.be.chat.service.RagServiceException;
 import com.histar.be.rag.config.RagProperties;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
@@ -67,7 +68,7 @@ public class RagChatService {
         try {
             retrieval = ragService.retrieve(request.question(), stationCode, request.siteCode());
         } catch (RuntimeException ex) {
-            log.warn("RAG retrieval failed, falling back to legacy chat: {}", ex.getMessage());
+            log.warn("requestId={} semantic_retrieval_failed", org.slf4j.MDC.get("requestId"));
             return Optional.empty();
         }
         List<RetrievedChunk> chunks = retrieval.chunks();
@@ -99,7 +100,7 @@ public class RagChatService {
             semanticCache.store(retrieval.vectorLiteral(), stationCode, request.personaKey(), reply);
             return Optional.of(new RagChatAnswer(reply, sources, false, false));
         } catch (RuntimeException ex) {
-            log.warn("RAG generation failed, falling back to legacy chat: {}", ex.getMessage());
+            log.warn("requestId={} semantic_generation_failed", org.slf4j.MDC.get("requestId"));
             return Optional.empty();
         }
     }
@@ -118,11 +119,23 @@ public class RagChatService {
         }
         List<RetrievedChunk> chunks = retrieval.chunks();
         if (chunks.isEmpty()) return Optional.empty();
+        String requestId = org.slf4j.MDC.get("requestId");
+        boolean[] published = {false};
+        RuntimeException[] publicationFailure = {null};
+        Consumer<RagStreamChunk> publish = chunk -> {
+            try {
+                publisher.accept(chunk);
+                published[0] = true;
+            } catch (RuntimeException ex) {
+                publicationFailure[0] = ex;
+                throw ex;
+            }
+        };
         try {
             Optional<String> cached = semanticCache.lookup(retrieval.vectorLiteral(), blankToNull(request.stationCode()), request.personaKey());
             if (cached.isPresent()) {
                 List<ChatSource> sources = citedSources(cached.get(), chunks);
-                if (!sources.isEmpty()) publisher.accept(new RagStreamChunk(cached.get(), sources));
+                if (!sources.isEmpty()) publish.accept(new RagStreamChunk(cached.get(), sources));
                 return Optional.of(new RagChatAnswer(sources.isEmpty() ? SOFT_REFUSE_REPLY : cached.get(), sources, sources.isEmpty(), true));
             }
             StringBuilder raw = new StringBuilder();
@@ -132,7 +145,7 @@ public class RagChatService {
                 int safeEnd = lastValidCitationEnd(raw, chunks.size());
                 if (safeEnd > emitted[0]) {
                     String safe = raw.substring(emitted[0], safeEnd);
-                    publisher.accept(new RagStreamChunk(safe, citedSources(safe, chunks)));
+                    publish.accept(new RagStreamChunk(safe, citedSources(safe, chunks)));
                     emitted[0] = safeEnd;
                 }
             });
@@ -144,7 +157,9 @@ public class RagChatService {
             semanticCache.store(retrieval.vectorLiteral(), blankToNull(request.stationCode()), request.personaKey(), safeReply);
             return Optional.of(new RagChatAnswer(safeReply, sources, false, false));
         } catch (RuntimeException ex) {
-            log.warn("RAG streaming failed: {}", ex.getMessage());
+            if (publicationFailure[0] != null) throw publicationFailure[0];
+            log.warn("requestId={} semantic_stream_failed", requestId);
+            if (published[0]) throw new RagServiceException(false, true, requestId);
             return Optional.empty();
         }
     }
@@ -243,7 +258,7 @@ public class RagChatService {
                     .createdAt(Instant.now())
                     .build());
         } catch (RuntimeException ex) {
-            log.warn("chat_quality_log write failed: {}", ex.getMessage());
+            log.warn("requestId={} chat_quality_log_write_failed", org.slf4j.MDC.get("requestId"));
         }
     }
 

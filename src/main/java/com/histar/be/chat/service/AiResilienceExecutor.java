@@ -16,6 +16,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.springframework.stereotype.Component;
+import org.slf4j.MDC;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -23,12 +24,16 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 @Component
 public class AiResilienceExecutor implements AutoCloseable {
 
+    public static final int RAG_MAX_ATTEMPTS = 1;
+
     private final ChatProperties.Resilience properties;
+    private final ChatProperties.RagAi ragProperties;
     private final ExecutorService workers;
     private final Map<String, Circuit> circuits = new ConcurrentHashMap<>();
 
     public AiResilienceExecutor(ChatProperties chatProperties) {
         this.properties = chatProperties.getResilience();
+        this.ragProperties = chatProperties.getRagAi();
         ThreadFactory factory = runnable -> {
             Thread thread = new Thread(runnable, "ai-resilience");
             thread.setDaemon(true);
@@ -40,11 +45,13 @@ public class AiResilienceExecutor implements AutoCloseable {
     public <T> T execute(String dependency, Callable<T> operation) {
         Circuit circuit = circuits.computeIfAbsent(dependency, ignored -> new Circuit());
         circuit.acquire(dependency);
-        int attempts = Math.max(1, properties.getMaxAttempts());
+        int attempts = "rag-ai".equals(dependency) ? RAG_MAX_ATTEMPTS : Math.max(1, properties.getMaxAttempts());
+        Duration timeout = "rag-ai".equals(dependency)
+                ? Duration.ofSeconds(ragProperties.getTimeoutSeconds()) : properties.getTimeout();
         Throwable lastFailure = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
-                T result = callWithinTimeout(operation);
+                T result = callWithinTimeout(operation, timeout);
                 circuit.recordSuccess();
                 return result;
             } catch (Throwable failure) {
@@ -67,10 +74,19 @@ public class AiResilienceExecutor implements AutoCloseable {
         return circuit != null && circuit.isOpen();
     }
 
-    private <T> T callWithinTimeout(Callable<T> operation) throws Throwable {
-        Future<T> future = workers.submit(operation);
+    private <T> T callWithinTimeout(Callable<T> operation, Duration timeout) throws Throwable {
+        Map<String, String> context = MDC.getCopyOfContextMap();
+        Future<T> future = workers.submit(() -> {
+            Map<String, String> previous = MDC.getCopyOfContextMap();
+            try {
+                if (context == null) MDC.clear(); else MDC.setContextMap(context);
+                return operation.call();
+            } finally {
+                if (previous == null) MDC.clear(); else MDC.setContextMap(previous);
+            }
+        });
         try {
-            long timeoutMillis = Math.max(1, properties.getTimeout().toMillis());
+            long timeoutMillis = Math.max(1, timeout.toMillis());
             return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException ex) {
             future.cancel(true);
@@ -78,6 +94,7 @@ public class AiResilienceExecutor implements AutoCloseable {
         } catch (ExecutionException ex) {
             throw ex.getCause();
         } catch (InterruptedException ex) {
+            future.cancel(true);
             Thread.currentThread().interrupt();
             throw ex;
         }

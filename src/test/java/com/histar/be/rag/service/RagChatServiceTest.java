@@ -188,4 +188,34 @@ class RagChatServiceTest {
         });
         assertThat(answer.reply()).doesNotContain("Phần không có nguồn");
     }
+
+    @Test
+    void streamingFailureAfterFirstCitationMustNotFallThroughToAnotherAnswer() {
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(
+                new RetrievalResult(List.of(chunk("Evidence", "fact")), "[1]"));
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(1);
+            consumer.accept("Fact [1]");
+            throw new IllegalStateException("upstream failed");
+        }).when(chatLlmClient).stream(anyString(), any());
+        var chunks = new ArrayList<com.histar.be.rag.dto.RagStreamChunk>();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.tryAnswerStreaming(request(), chunks::add))
+                .isInstanceOf(com.histar.be.chat.service.RagServiceException.class);
+        assertThat(chunks).hasSize(1);
+        verify(semanticCache, never()).store(any(), any(), any(), any());
+    }
+
+    @Test
+    void consumerDisconnectionIsNotSwallowedBySemanticStreaming() {
+        when(ragService.retrieve(anyString(), any(), any())).thenReturn(
+                new RetrievalResult(List.of(chunk("Evidence", "fact")), "[1]"));
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(1);
+            consumer.accept("Fact [1]");
+            return null;
+        }).when(chatLlmClient).stream(anyString(), any());
+        var disconnect = new IllegalStateException("client disconnected");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.tryAnswerStreaming(request(), ignored -> { throw disconnect; }))
+                .isSameAs(disconnect);
+    }
 }
