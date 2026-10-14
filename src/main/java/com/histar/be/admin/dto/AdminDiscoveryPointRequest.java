@@ -13,4 +13,5 @@ public record AdminDiscoveryPointRequest(
         @NotBlank String unlockKey,
         Integer sortOrder,
         Double yaw,
-        Double pitch) {}
+        Double pitch,
+        Long rowVersion) {}

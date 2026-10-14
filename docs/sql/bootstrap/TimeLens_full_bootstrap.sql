@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V67.
+-- Generated from schema, seed manifest, and Flyway migrations through V68.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -3855,7 +3855,7 @@ ALTER TABLE visit_sessions
 -- BEGIN migration: V14__quest_steps.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V14__quest_steps.sql
 -- ============================================================================
--- QuestStep entity — see docs/sql/seed/2026-07-08_quest_steps_schema.sql
+-- QuestStep entity — see docs/database/2026-07-08_quest_steps_schema.sql
 
 CREATE TABLE IF NOT EXISTS quest_steps (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5826,7 +5826,7 @@ WHERE id = 'c1000001-0000-4000-8000-000000000023';
 -- BEGIN migration: V46__journey_memory.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V46__journey_memory.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS journey_memories (
+CREATE TABLE journey_memories (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
     location_id UUID NOT NULL,
@@ -5840,7 +5840,7 @@ CREATE TABLE IF NOT EXISTS journey_memories (
     CONSTRAINT uk_journey_memories_user_location UNIQUE (user_id, location_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
+CREATE INDEX idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
 
 -- END migration: V46__journey_memory.sql
 
@@ -5848,7 +5848,7 @@ CREATE INDEX IF NOT EXISTS idx_journey_memories_user_expires ON journey_memories
 -- BEGIN migration: V47__teacher_ai_drafts.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V47__teacher_ai_drafts.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS teacher_ai_drafts (
+CREATE TABLE teacher_ai_drafts (
     id UUID PRIMARY KEY,
     org_id UUID NOT NULL,
     teacher_id UUID NOT NULL,
@@ -5866,8 +5866,8 @@ CREATE TABLE IF NOT EXISTS teacher_ai_drafts (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
+CREATE INDEX idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
+CREATE INDEX idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
 
 -- END migration: V47__teacher_ai_drafts.sql
 
@@ -5875,7 +5875,7 @@ CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_org_status ON teacher_ai_drafts
 -- BEGIN migration: V48__narrative_investigation_foundation.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V48__narrative_investigation_foundation.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS narrative_investigations (
+CREATE TABLE narrative_investigations (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL UNIQUE REFERENCES quests(id),
     version INTEGER NOT NULL,
@@ -5885,7 +5885,7 @@ CREATE TABLE IF NOT EXISTS narrative_investigations (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS user_narrative_investigation_progress (
+CREATE TABLE user_narrative_investigation_progress (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
@@ -5894,7 +5894,7 @@ CREATE TABLE IF NOT EXISTS user_narrative_investigation_progress (
     CONSTRAINT uq_narrative_progress_user_investigation UNIQUE (user_id, investigation_id)
 );
 
-CREATE TABLE IF NOT EXISTS quest_reward_ledger (
+CREATE TABLE quest_reward_ledger (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     quest_id UUID NOT NULL REFERENCES quests(id),
@@ -5911,7 +5911,7 @@ CREATE TABLE IF NOT EXISTS quest_reward_ledger (
 -- BEGIN migration: V49__quest_campaigns.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V49__quest_campaigns.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS quest_campaigns (
+CREATE TABLE quest_campaigns (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL,
     campaign_type VARCHAR(24) NOT NULL,
@@ -5922,7 +5922,7 @@ CREATE TABLE IF NOT EXISTS quest_campaigns (
     CONSTRAINT fk_quest_campaigns_quest FOREIGN KEY (quest_id) REFERENCES quests(id),
     CONSTRAINT ck_quest_campaigns_window CHECK (ends_at > starts_at)
 );
-CREATE INDEX IF NOT EXISTS idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
+CREATE INDEX idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
 
 -- END migration: V49__quest_campaigns.sql
 
@@ -5930,14 +5930,14 @@ CREATE INDEX IF NOT EXISTS idx_quest_campaigns_active ON quest_campaigns (enable
 -- BEGIN migration: V50__narrative_pilot_progress_and_review.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V50__narrative_pilot_progress_and_review.sql
 -- ============================================================================
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS investigation_version INTEGER;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS visited_node_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS evidence_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS selected_outcome_code VARCHAR(120);
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS approved_locales_json TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(160);
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN investigation_version INTEGER;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN visited_node_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN evidence_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN selected_outcome_code VARCHAR(120);
+ALTER TABLE narrative_investigations ADD COLUMN review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE narrative_investigations ADD COLUMN approved_locales_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE narrative_investigations ADD COLUMN reviewed_by VARCHAR(160);
+ALTER TABLE narrative_investigations ADD COLUMN reviewed_at TIMESTAMP WITH TIME ZONE;
 -- The Củ Chi pilot remains disabled until specialist review supplies approved citations/translations.
 INSERT INTO narrative_investigations (id, quest_id, version, enabled, graph_json, created_at, updated_at, review_status, approved_locales_json)
 SELECT '33333333-3333-3333-3333-333333333390'::uuid, '33333333-3333-3333-3333-333333333338'::uuid, 1, false,
@@ -5950,7 +5950,7 @@ WHERE NOT EXISTS (SELECT 1 FROM narrative_investigations WHERE quest_id='3333333
 -- BEGIN migration: V51__narrative_specialist_review_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V51__narrative_specialist_review_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS narrative_investigation_reviews (
+CREATE TABLE narrative_investigation_reviews (
     id UUID PRIMARY KEY,
     investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
     decision VARCHAR(24) NOT NULL,
@@ -5960,7 +5960,7 @@ CREATE TABLE IF NOT EXISTS narrative_investigation_reviews (
     reviewed_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_narrative_investigation_reviews_investigation_time
+CREATE INDEX idx_narrative_investigation_reviews_investigation_time
     ON narrative_investigation_reviews (investigation_id, reviewed_at DESC);
 
 -- END migration: V51__narrative_specialist_review_audit.sql
@@ -5988,11 +5988,11 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 -- BEGIN migration: V53__quest_campaign_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V53__quest_campaign_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS quest_campaign_audit (
+CREATE TABLE quest_campaign_audit (
   id UUID PRIMARY KEY, campaign_id UUID NOT NULL REFERENCES quest_campaigns(id), action VARCHAR(32) NOT NULL,
   actor_id UUID NOT NULL, occurred_at TIMESTAMP WITH TIME ZONE NOT NULL, detail_json TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
+CREATE INDEX idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
 
 -- END migration: V53__quest_campaign_audit.sql
 
@@ -6000,8 +6000,8 @@ CREATE INDEX IF NOT EXISTS idx_quest_campaign_audit_campaign_time ON quest_campa
 -- BEGIN migration: V54__assignment_campaign_link.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V54__assignment_campaign_link.sql
 -- ============================================================================
-ALTER TABLE assignments ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES quest_campaigns(id);
-CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id);
+ALTER TABLE assignments ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
+CREATE INDEX idx_assignments_campaign ON assignments(campaign_id);
 
 -- END migration: V54__assignment_campaign_link.sql
 
@@ -6009,12 +6009,12 @@ CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id);
 -- BEGIN migration: V55__campaign_release_gate_and_rollback_reason.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V55__campaign_release_gate_and_rollback_reason.sql
 -- ============================================================================
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS pilot_status VARCHAR(24) NOT NULL DEFAULT 'PENDING';
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decision VARCHAR(24) NOT NULL DEFAULT 'PENDING';
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_note TEXT;
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decided_by UUID;
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decided_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE quest_campaign_audit ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
+ALTER TABLE quest_campaigns ADD COLUMN pilot_status VARCHAR(24) NOT NULL DEFAULT 'PENDING';
+ALTER TABLE quest_campaigns ADD COLUMN release_decision VARCHAR(24) NOT NULL DEFAULT 'PENDING';
+ALTER TABLE quest_campaigns ADD COLUMN release_note TEXT;
+ALTER TABLE quest_campaigns ADD COLUMN release_decided_by UUID;
+ALTER TABLE quest_campaigns ADD COLUMN release_decided_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE quest_campaign_audit ADD COLUMN rollback_reason TEXT;
 
 -- END migration: V55__campaign_release_gate_and_rollback_reason.sql
 
@@ -6022,8 +6022,8 @@ ALTER TABLE quest_campaign_audit ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
 -- BEGIN migration: V56__teacher_ai_draft_campaign_link.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V56__teacher_ai_draft_campaign_link.sql
 -- ============================================================================
-ALTER TABLE teacher_ai_drafts ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES quest_campaigns(id);
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
+ALTER TABLE teacher_ai_drafts ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
+CREATE INDEX idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
 
 -- END migration: V56__teacher_ai_draft_campaign_link.sql
 
@@ -6031,7 +6031,7 @@ CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(c
 -- BEGIN migration: V57__cooperative_leaderboard_access_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V57__cooperative_leaderboard_access_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
+CREATE TABLE cooperative_leaderboard_access_audit (
     id UUID PRIMARY KEY,
     actor_id UUID,
     organization_id UUID NOT NULL,
@@ -6041,7 +6041,7 @@ CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
     detail TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
+CREATE INDEX idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
 
 -- END migration: V57__cooperative_leaderboard_access_audit.sql
 
@@ -6530,7 +6530,104 @@ ALTER TABLE user_narrative_investigation_progress
 -- END migration: V67__narrative_chat_progress.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V67
+-- BEGIN migration: V68__narrative_investigation_versioning.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V68__narrative_investigation_versioning.sql
+-- ============================================================================
+CREATE TABLE narrative_investigation_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
+    version INTEGER NOT NULL,
+    graph_json TEXT NOT NULL,
+    review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT',
+    approved_locales_json TEXT NOT NULL DEFAULT '[]',
+    reviewed_by VARCHAR(160),
+    reviewed_at TIMESTAMPTZ,
+    revision BIGINT NOT NULL DEFAULT 0,
+    open_draft BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uq_narrative_version_number UNIQUE (investigation_id, version),
+    CONSTRAINT ck_narrative_version_review_status
+        CHECK (review_status IN ('DRAFT', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX uq_narrative_open_draft
+    ON narrative_investigation_versions(investigation_id)
+    WHERE open_draft;
+
+ALTER TABLE narrative_investigations
+    ADD COLUMN published_version_id UUID,
+    ADD COLUMN rollout_state VARCHAR(24) NOT NULL DEFAULT 'NOT_RELEASED',
+    ADD COLUMN row_version BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE narrative_investigations
+    ADD CONSTRAINT ck_narrative_rollout_state
+        CHECK (rollout_state IN ('NOT_RELEASED', 'ACTIVE', 'PAUSED'));
+
+INSERT INTO narrative_investigation_versions (
+    id, investigation_id, version, graph_json, review_status, approved_locales_json,
+    reviewed_by, reviewed_at, revision, open_draft, created_at, updated_at)
+SELECT gen_random_uuid(), ni.id, ni.version, ni.graph_json, ni.review_status,
+       ni.approved_locales_json, ni.reviewed_by, ni.reviewed_at, 0,
+       ni.review_status <> 'APPROVED', ni.created_at, ni.updated_at
+FROM narrative_investigations ni;
+
+UPDATE narrative_investigations ni
+SET published_version_id = niv.id,
+    rollout_state = CASE
+        WHEN ni.enabled AND ni.review_status = 'APPROVED' THEN 'ACTIVE'
+        WHEN NOT ni.enabled AND ni.review_status = 'APPROVED' THEN 'PAUSED'
+        ELSE 'NOT_RELEASED'
+    END
+FROM narrative_investigation_versions niv
+WHERE niv.investigation_id = ni.id
+  AND niv.version = ni.version
+  AND ni.review_status = 'APPROVED';
+
+ALTER TABLE narrative_investigations
+    ADD CONSTRAINT fk_narrative_published_version
+        FOREIGN KEY (published_version_id) REFERENCES narrative_investigation_versions(id);
+
+ALTER TABLE narrative_investigation_reviews
+    ADD COLUMN version_id UUID,
+    ADD COLUMN version INTEGER,
+    ADD COLUMN revision BIGINT,
+    ADD COLUMN audit_event_id UUID;
+
+UPDATE narrative_investigation_reviews nir
+SET version_id = niv.id,
+    version = niv.version,
+    revision = niv.revision
+FROM narrative_investigation_versions niv
+WHERE niv.investigation_id = nir.investigation_id;
+
+ALTER TABLE narrative_investigation_reviews
+    ADD CONSTRAINT fk_narrative_review_version
+        FOREIGN KEY (version_id) REFERENCES narrative_investigation_versions(id),
+    ADD CONSTRAINT fk_narrative_review_audit
+        FOREIGN KEY (audit_event_id) REFERENCES admin_audit_events(id),
+    ADD CONSTRAINT uq_narrative_review_audit UNIQUE (audit_event_id);
+
+CREATE TABLE narrative_rollout_idempotency (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
+    idempotency_key VARCHAR(160) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    response_json TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uq_narrative_rollout_idempotency UNIQUE (investigation_id, idempotency_key)
+);
+
+CREATE INDEX idx_narrative_versions_investigation
+    ON narrative_investigation_versions(investigation_id, version DESC);
+CREATE INDEX idx_narrative_rollout_idempotency_created
+    ON narrative_rollout_idempotency(investigation_id, created_at DESC);
+
+-- END migration: V68__narrative_investigation_versioning.sql
+
+-- ============================================================================
+-- Flyway baseline after full bootstrap: V68
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -6557,7 +6654,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '67', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '68', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

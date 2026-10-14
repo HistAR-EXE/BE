@@ -14,6 +14,8 @@ public interface UserArtifactRepository extends JpaRepository<UserArtifact, User
 
     boolean existsByUserIdAndArtifactId(UUID userId, UUID artifactId);
 
+    long countByArtifactId(UUID artifactId);
+
     @Query("""
             SELECT CASE WHEN COUNT(ua) > 0 THEN true ELSE false END
             FROM UserArtifact ua, Artifact a

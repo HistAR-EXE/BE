@@ -22,4 +22,6 @@ public interface UserDiscoveryRepository extends JpaRepository<UserDiscovery, Us
     boolean existsByUserIdAndDiscoveryKey(UUID userId, String discoveryKey);
 
     boolean existsByUserIdAndLocationIdAndDiscoveryKey(UUID userId, UUID locationId, String discoveryKey);
+
+    long countByLocationIdAndDiscoveryKey(UUID locationId, String discoveryKey);
 }

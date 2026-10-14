@@ -8,4 +8,5 @@ public record QuestFunnelItem(
         long started,
         long completed,
         double completionRatePct,
-        String completionRule) {}
+        String completionRule,
+        boolean suppressed) {}

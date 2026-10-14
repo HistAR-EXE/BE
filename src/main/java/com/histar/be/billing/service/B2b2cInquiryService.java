@@ -1,13 +1,17 @@
 package com.histar.be.billing.service;
 
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.billing.dto.B2b2cInquiryItem;
 import com.histar.be.billing.dto.B2b2cInquiryRequest;
 import com.histar.be.billing.dto.B2b2cInquiryResponse;
 import com.histar.be.billing.entity.HeritageDigitizationInquiry;
 import com.histar.be.billing.repository.HeritageDigitizationInquiryRepository;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.HistarOrgProperties;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.mail.HistarEmailService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,6 +35,8 @@ public class B2b2cInquiryService {
     private final HeritageDigitizationInquiryRepository repository;
     private final HistarEmailService histarEmailService;
     private final HistarOrgProperties histarOrgProperties;
+    private final AdminAuditService audit;
+    private final CurrentUserAccessor currentUser;
 
     private final Map<String, List<Instant>> submitAttemptsByEmail = new ConcurrentHashMap<>();
 
@@ -77,9 +83,12 @@ public class B2b2cInquiryService {
 
     @Transactional
     public B2b2cInquiryItem updateStatus(UUID id, String status, String adminNotes) {
+        UUID actorId = currentUser.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
         HeritageDigitizationInquiry inquiry = repository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Inquiry not found: " + id));
+        String oldStatus = inquiry.getStatus();
+        String oldNotes = inquiry.getAdminNotes();
         String normalized = status.trim().toUpperCase();
         Instant now = Instant.now();
         inquiry.setStatus(normalized);
@@ -90,7 +99,22 @@ public class B2b2cInquiryService {
         if ("CONTACTED".equals(normalized) && inquiry.getContactedAt() == null) {
             inquiry.setContactedAt(now);
         }
-        return toItem(repository.save(inquiry));
+        HeritageDigitizationInquiry saved = repository.save(inquiry);
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "B2B2C_INQUIRY",
+                id,
+                "STATUS_UPDATED",
+                null,
+                null,
+                null,
+                null,
+                Map.of(
+                        "oldStatus", oldStatus == null ? "" : oldStatus,
+                        "newStatus", normalized,
+                        "notesChanged", !java.util.Objects.equals(oldNotes, saved.getAdminNotes()),
+                        "notesLength", saved.getAdminNotes() == null ? 0 : saved.getAdminNotes().length())));
+        return toItem(saved);
     }
 
     private boolean isHoneypotFilled(B2b2cInquiryRequest request) {

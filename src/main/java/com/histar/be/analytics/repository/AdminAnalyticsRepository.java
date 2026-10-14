@@ -15,7 +15,7 @@ public interface AdminAnalyticsRepository extends JpaRepository<DiscoveryPoint, 
             FROM discovery_points dp
             LEFT JOIN user_discoveries ud
               ON ud.discovery_key = dp.unlock_key AND ud.location_id = dp.location_id
-            WHERE dp.location_id = :locationId
+            WHERE dp.location_id = :locationId AND dp.deleted_at IS NULL
             GROUP BY dp.unlock_key, dp.name, dp.sort_order
             ORDER BY dp.sort_order
             """,
@@ -32,7 +32,7 @@ public interface AdminAnalyticsRepository extends JpaRepository<DiscoveryPoint, 
               ON vse.visit_session_id = vs.id
               AND vse.event_type = 'discovery'
               AND vse.event_key = dp.unlock_key
-            WHERE dp.location_id = :locationId
+            WHERE dp.location_id = :locationId AND dp.deleted_at IS NULL
             GROUP BY dp.unlock_key, dp.name, dp.sort_order
             ORDER BY dp.sort_order
             """,

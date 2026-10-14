@@ -12,4 +12,6 @@ public record AdminAnalyticsOverviewResponse(
         List<PoiHeatmapItem> poiHeatmap,
         SessionQualityMetrics sessionQuality,
         long questCompletedCount,
-        String journeyNote) {}
+        String journeyNote,
+        int privacyThreshold,
+        boolean questCompletedSuppressed) {}

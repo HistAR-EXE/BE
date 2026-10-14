@@ -98,6 +98,15 @@ class AdminUserSecurityTest {
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("ADMIN"));
+
+        mockMvc.perform(get("/api/admin/audit")
+                        .param("entityType", "USER")
+                        .param("entityId", regularUserId.toString())
+                        .param("action", "ROLE_CHANGED")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalItems").value(1))
+                .andExpect(jsonPath("$.data.items[0].actorId").value(org.hamcrest.Matchers.notNullValue()));
     }
 
     @Test
@@ -107,5 +116,40 @@ class AdminUserSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanUseCanonicalAndLegacyB2b2cInquiryRoutes() throws Exception {
+        mockMvc.perform(get("/api/admin/b2b2c-inquiries")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/billing/admin/b2b2c-inquiries")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void regularUserCannotUseCanonicalB2b2cInquiryRoute() throws Exception {
+        mockMvc.perform(get("/api/admin/b2b2c-inquiries")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void sessionReplayEndpointIsNotAvailable() throws Exception {
+        mockMvc.perform(get("/api/admin/analytics/sessions/" + UUID.randomUUID() + "/replay")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminOperationalEndpointsAreProtectedAndAvailable() throws Exception {
+        for (String path : new String[] {"/api/admin/trash", "/api/admin/audit", "/api/admin/dashboard"}) {
+            mockMvc.perform(get(path).header("Authorization", "Bearer " + userToken))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(get(path).header("Authorization", "Bearer " + adminToken))
+                    .andExpect(status().isOk());
+        }
     }
 }

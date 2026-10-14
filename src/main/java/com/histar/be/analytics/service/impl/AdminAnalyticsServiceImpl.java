@@ -7,11 +7,8 @@ import com.histar.be.analytics.dto.PoiHeatmapItem;
 import com.histar.be.analytics.dto.PoiUnlockRateItem;
 import com.histar.be.analytics.dto.QuestFunnelItem;
 import com.histar.be.analytics.dto.SessionQualityMetrics;
-import com.histar.be.analytics.dto.SessionReplayResponse;
-import com.histar.be.analytics.dto.SessionReplayStep;
 import com.histar.be.analytics.repository.AdminAnalyticsRepository;
 import com.histar.be.analytics.service.AdminAnalyticsService;
-import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.gamification.QuestStatus;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
@@ -20,7 +17,6 @@ import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.entity.VisitSession;
-import com.histar.be.visit.entity.VisitSessionEvent;
 import com.histar.be.visit.repository.VisitSessionEventRepository;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import java.util.ArrayList;
@@ -35,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
+
+    private static final int PRIVACY_THRESHOLD = 10;
 
     private final AdminAnalyticsRepository adminAnalyticsRepository;
     private final QuestRepository questRepository;
@@ -52,7 +50,9 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
         List<JourneyDropOffItem> journeyDropOff = buildJourneyDropOff(locationId);
         List<PoiHeatmapItem> heatmap = buildHeatmap(locationId, poiRates);
         SessionQualityMetrics sessionQuality = buildSessionQuality(locationId);
-        long questCompletedCount = countQuestCompletedAtLocation(locationId);
+        long rawQuestCompletedCount = countQuestCompletedAtLocation(locationId);
+        boolean questCompletedSuppressed = isSuppressed(rawQuestCompletedCount);
+        long questCompletedCount = questCompletedSuppressed ? 0 : rawQuestCompletedCount;
         String journeyNote = journeyDropOff.isEmpty()
                 ? "Chưa có visit session events — bắt đầu session khi vào Explore."
                 : "Journey từ visit_sessions — POI drop-off theo session events.";
@@ -65,38 +65,9 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
                 heatmap,
                 sessionQuality,
                 questCompletedCount,
-                journeyNote);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public SessionReplayResponse sessionReplay(UUID sessionId) {
-        VisitSession session = visitSessionRepository
-                .findById(sessionId)
-                .orElseThrow(() -> new BusinessRuleException("Session không tồn tại"));
-        Map<String, String> poiNames = new HashMap<>();
-        discoveryPointRepository.findByLocationIdOrderBySortOrder(session.getLocationId()).forEach(p ->
-                poiNames.put(p.getUnlockKey(), p.getName()));
-        List<VisitSessionEvent> events =
-                visitSessionEventRepository.findByVisitSessionIdOrderByCreatedAtAsc(sessionId);
-        List<SessionReplayStep> steps = events.stream()
-                .map(e -> new SessionReplayStep(
-                        e.getPoiNameSnapshot() != null && !e.getPoiNameSnapshot().isBlank()
-                                ? e.getPoiNameSnapshot()
-                                : poiNames.getOrDefault(e.getEventKey(), e.getEventKey()),
-                        e.getEventKey(),
-                        e.getEventType(),
-                        e.getCreatedAt(),
-                        e.getSource()))
-                .toList();
-        return new SessionReplayResponse(
-                session.getId(),
-                session.getUserId(),
-                session.getLocationId(),
-                session.getMode(),
-                session.getStartedAt(),
-                session.getEndedAt(),
-                steps);
+                journeyNote,
+                PRIVACY_THRESHOLD,
+                questCompletedSuppressed);
     }
 
     private List<PoiUnlockRateItem> buildPoiUnlockRates(UUID locationId) {
@@ -110,8 +81,10 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
             String unlockKey = (String) row[0];
             String name = (String) row[1];
             long count = ((Number) row[2]).longValue();
+            boolean suppressed = isSuppressed(count);
             double rate = maxUnlock > 0 ? (count * 100.0 / maxUnlock) : 0.0;
-            items.add(new PoiUnlockRateItem(unlockKey, name, count, Math.round(rate * 10) / 10.0));
+            items.add(new PoiUnlockRateItem(
+                    unlockKey, name, suppressed ? 0 : count, suppressed ? 0 : Math.round(rate * 10) / 10.0, suppressed));
         }
         return items;
     }
@@ -128,8 +101,11 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
             String name = (String) row[1];
             long visits = ((Number) row[2]).longValue();
             if (visits == 0) continue;
+            boolean suppressed = isSuppressed(visits);
             double dropOff = maxVisits > 0 ? (100.0 - visits * 100.0 / maxVisits) : 0.0;
-            items.add(new JourneyDropOffItem(name, unlockKey, visits, Math.round(dropOff * 10) / 10.0));
+            items.add(new JourneyDropOffItem(
+                    name, unlockKey, suppressed ? 0 : visits,
+                    suppressed ? 0 : Math.round(dropOff * 10) / 10.0, suppressed));
         }
         return items;
     }
@@ -138,7 +114,10 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
         List<VisitSession> closed =
                 visitSessionRepository.findByLocationIdAndStatusAndEndedAtIsNotNull(locationId, "CLOSED");
         if (closed.isEmpty()) {
-            return new SessionQualityMetrics(0, 0);
+            return new SessionQualityMetrics(0, 0, false);
+        }
+        if (closed.size() < PRIVACY_THRESHOLD) {
+            return new SessionQualityMetrics(0, 0, true);
         }
         double totalMinutes = 0;
         double totalDiscoveries = 0;
@@ -156,7 +135,7 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
         int count = closed.size();
         double avgDuration = Math.round((totalMinutes / count) * 10) / 10.0;
         double avgDiscoveries = Math.round((totalDiscoveries / count) * 10) / 10.0;
-        return new SessionQualityMetrics(avgDuration, avgDiscoveries);
+        return new SessionQualityMetrics(avgDuration, avgDiscoveries, false);
     }
 
     private List<PoiHeatmapItem> buildHeatmap(UUID locationId, List<PoiUnlockRateItem> poiRates) {
@@ -168,14 +147,16 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
         List<PoiHeatmapItem> items = new ArrayList<>();
         for (PoiUnlockRateItem poi : poiRates) {
             long visitCount = visits.getOrDefault(poi.unlockKey(), 0L);
+            boolean suppressed = isSuppressed(visitCount) || poi.suppressed();
             boolean dropOff = maxVisit > 0 && visitCount > 0 && visitCount < maxVisit * 0.35;
             items.add(new PoiHeatmapItem(
                     poi.unlockKey(),
                     poi.name(),
-                    visitCount,
+                    suppressed ? 0 : visitCount,
                     poi.unlockCount(),
                     null,
-                    dropOff));
+                    suppressed ? false : dropOff,
+                    suppressed));
         }
         items.sort((a, b) -> Long.compare(b.visitCount(), a.visitCount()));
         return items;
@@ -195,14 +176,16 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
             long completed = progresses.stream()
                     .filter(p -> QuestStatus.COMPLETED.equals(p.getStatus()))
                     .count();
+            boolean suppressed = isSuppressed(started) || isSuppressed(completed);
             double rate = started > 0 ? (completed * 100.0 / started) : 0.0;
             items.add(new QuestFunnelItem(
                     quest.getId(),
                     quest.getTitle(),
-                    started,
-                    completed,
-                    Math.round(rate * 10) / 10.0,
-                    "checkin_with_discovery_steps"));
+                    suppressed ? 0 : started,
+                    suppressed ? 0 : completed,
+                    suppressed ? 0 : Math.round(rate * 10) / 10.0,
+                    "checkin_with_discovery_steps",
+                    suppressed));
         }
         return items;
     }
@@ -211,9 +194,14 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
         long withDiscovery = adminAnalyticsRepository.countUsersWithDiscovery(locationId);
         long withCheckin = adminAnalyticsRepository.countUsersWithCheckin(locationId);
         long both = adminAnalyticsRepository.countUsersDiscoveryThenCheckin(locationId);
+        boolean suppressed = isSuppressed(withDiscovery) || isSuppressed(withCheckin) || isSuppressed(both);
         double rate = withDiscovery > 0 ? (both * 100.0 / withDiscovery) : 0.0;
         return new OnlineOfflineConversion(
-                withDiscovery, withCheckin, both, Math.round(rate * 10) / 10.0);
+                suppressed ? 0 : withDiscovery,
+                suppressed ? 0 : withCheckin,
+                suppressed ? 0 : both,
+                suppressed ? 0 : Math.round(rate * 10) / 10.0,
+                suppressed);
     }
 
     private long countQuestCompletedAtLocation(UUID locationId) {
@@ -227,5 +215,9 @@ public class AdminAnalyticsServiceImpl implements AdminAnalyticsService {
                 .filter(p -> QuestStatus.COMPLETED.equals(p.getStatus()))
                 .filter(p -> questIds.contains(p.getQuestId()))
                 .count();
+    }
+
+    private boolean isSuppressed(long count) {
+        return count > 0 && count < PRIVACY_THRESHOLD;
     }
 }

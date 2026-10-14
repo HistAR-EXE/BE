@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ArtifactUnlockRequirementRepository extends JpaRepository<ArtifactUnlockRequirement, UUID> {
 
     List<ArtifactUnlockRequirement> findByArtifactUnlockKey(String artifactUnlockKey);
+
+    long countByLocationIdAndRequiredDiscoveryKey(UUID locationId, String requiredDiscoveryKey);
+
+    long countByLocationIdAndArtifactUnlockKey(UUID locationId, String artifactUnlockKey);
 }

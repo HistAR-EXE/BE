@@ -1,7 +1,6 @@
 package com.histar.be.analytics.controller;
 
 import com.histar.be.analytics.dto.AdminAnalyticsOverviewResponse;
-import com.histar.be.analytics.dto.SessionReplayResponse;
 import com.histar.be.analytics.service.AdminAnalyticsService;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.events.dto.PilotKpiResponse;
@@ -10,7 +9,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,9 +33,4 @@ public class AdminAnalyticsController {
         return ApiResponse.ok(adminAnalyticsService.overview(locationId));
     }
 
-    @GetMapping("/sessions/{sessionId}/replay")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<SessionReplayResponse> sessionReplay(@PathVariable UUID sessionId) {
-        return ApiResponse.ok(adminAnalyticsService.sessionReplay(sessionId));
-    }
 }

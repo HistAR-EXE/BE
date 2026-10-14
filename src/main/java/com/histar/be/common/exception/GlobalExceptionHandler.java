@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -96,6 +97,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.UNAUTHORIZED, "Email hoặc mật khẩu không đúng"));
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(ErrorCode.NOT_FOUND, "Not found"));
+    }
+
     @ExceptionHandler(CcuLimitException.class)
     public ResponseEntity<ErrorResponse> handleCcuLimit(CcuLimitException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -116,7 +123,8 @@ public class GlobalExceptionHandler {
 
     private HttpStatus mapStatus(ErrorCode errorCode) {
         return switch (errorCode) {
-            case CONFLICT -> HttpStatus.CONFLICT;
+            case CONFLICT, VERSION_CONFLICT, DRAFT_ALREADY_EXISTS, IDEMPOTENCY_CONFLICT,
+                    NARRATIVE_CANNOT_CONTINUE -> HttpStatus.CONFLICT;
             case RAG_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case RAG_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;

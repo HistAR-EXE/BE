@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -29,4 +31,8 @@ public class NarrativeInvestigation {
     @Column(name = "approved_locales_json", nullable = false, columnDefinition = "text") private String approvedLocalesJson;
     @Column(name = "reviewed_by") private String reviewedBy;
     @Column(name = "reviewed_at") private Instant reviewedAt;
+    @Column(name = "published_version_id") private UUID publishedVersionId;
+    @Enumerated(EnumType.STRING) @Column(name = "rollout_state", nullable = false)
+    @Builder.Default private NarrativeRolloutState rolloutState = NarrativeRolloutState.NOT_RELEASED;
+    @Column(name = "row_version", nullable = false) private long rowVersion;
 }

@@ -3,8 +3,12 @@ package com.histar.be.quest.narrative;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.ErrorCode;
+import com.histar.be.common.exception.NarrativeConflictException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.quest.narrative.entity.NarrativeInvestigation;
+import com.histar.be.quest.narrative.entity.NarrativeInvestigationVersion;
+import com.histar.be.quest.narrative.entity.NarrativeRolloutState;
 import com.histar.be.quest.narrative.model.NarrativeQuestGraph;
 import java.util.UUID;
 import java.util.*;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class NarrativeInvestigationService {
     private final NarrativeInvestigationRepository repository;
+    private final NarrativeInvestigationVersionRepository versionRepository;
     private final ObjectMapper objectMapper;
     private final UserNarrativeInvestigationProgressRepository progressRepository;
     private final NarrativeRewardService rewardService;
@@ -26,12 +31,14 @@ public class NarrativeInvestigationService {
 
     @Autowired
     public NarrativeInvestigationService(NarrativeInvestigationRepository repository,
+                                         NarrativeInvestigationVersionRepository versionRepository,
                                          ObjectMapper objectMapper,
                                          UserNarrativeInvestigationProgressRepository progressRepository,
                                          NarrativeRewardService rewardService,
                                          ProfileRepository profileRepository,
                                          UserGameResultRepository minigameResults) {
         this.repository = repository;
+        this.versionRepository = versionRepository;
         this.objectMapper = objectMapper;
         this.progressRepository = progressRepository;
         this.rewardService = rewardService;
@@ -45,14 +52,33 @@ public class NarrativeInvestigationService {
                                          UserNarrativeInvestigationProgressRepository progressRepository,
                                          NarrativeRewardService rewardService,
                                          ProfileRepository profileRepository) {
-        this(repository, objectMapper, progressRepository, rewardService, profileRepository, null);
+        this(repository, null, objectMapper, progressRepository, rewardService, profileRepository, null);
+    }
+
+    /** Compatibility constructor for tests that exercise minigame behavior without version storage. */
+    public NarrativeInvestigationService(NarrativeInvestigationRepository repository,
+                                         ObjectMapper objectMapper,
+                                         UserNarrativeInvestigationProgressRepository progressRepository,
+                                         NarrativeRewardService rewardService,
+                                         ProfileRepository profileRepository,
+                                         UserGameResultRepository minigameResults) {
+        this(repository, null, objectMapper, progressRepository, rewardService, profileRepository, minigameResults);
     }
 
     @Transactional(readOnly = true)
     public NarrativeInvestigationResponse forQuest(UUID questId) {
-        NarrativeInvestigation investigation = repository.findByQuestIdAndEnabledTrue(questId)
+        if (versionRepository == null) {
+            NarrativeInvestigation investigation = repository.findByQuestIdAndEnabledTrue(questId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
+            return parse(investigation);
+        }
+        NarrativeInvestigation investigation = repository.findByQuestId(questId)
                 .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
-        return parse(investigation);
+        if (investigation.getRolloutState() == NarrativeRolloutState.NOT_RELEASED
+                || investigation.getPublishedVersionId() == null) {
+            throw new ResourceNotFoundException("Narrative investigation is not released");
+        }
+        return parse(investigation, publishedVersion(investigation));
     }
 
     private NarrativeInvestigationResponse parse(NarrativeInvestigation investigation) {
@@ -70,12 +96,42 @@ public class NarrativeInvestigationService {
         }
     }
 
+    private NarrativeInvestigationResponse parse(
+            NarrativeInvestigation investigation, NarrativeInvestigationVersion version) {
+        if (!"APPROVED".equals(version.getReviewStatus()) || version.getReviewedAt() == null
+                || version.getApprovedLocalesJson() == null
+                || !readLocales(version.getApprovedLocalesJson()).contains("vi")) {
+            throw new ResourceNotFoundException("Narrative investigation version is not approved for pilot");
+        }
+        try {
+            return new NarrativeInvestigationResponse(investigation.getQuestId(), version.getVersion(),
+                    objectMapper.readValue(version.getGraphJson(), NarrativeQuestGraph.class));
+        } catch (JsonProcessingException exception) {
+            throw new BusinessRuleException("Narrative investigation graph không đọc được");
+        }
+    }
+
     @Transactional
     public NarrativeProgressResponse progress(UUID userId, UUID questId) {
-        NarrativeInvestigationResponse investigation = forQuest(questId);
-        NarrativeInvestigation entity = repository.findByQuestIdAndEnabledTrue(questId).orElseThrow();
-        NarrativeProgressState state = progressRepository.findByUserIdAndInvestigationId(userId, entity.getId())
-                .map(this::read).filter(p -> p.version() == investigation.version())
+        if (versionRepository == null) {
+            NarrativeInvestigationResponse investigation = forQuest(questId);
+            NarrativeInvestigation entity = repository.findByQuestIdAndEnabledTrue(questId).orElseThrow();
+            NarrativeProgressState state = progressRepository.findByUserIdAndInvestigationId(userId, entity.getId())
+                    .map(this::read).filter(p -> p.version() == investigation.version())
+                    .orElseGet(() -> NarrativeProgressState.start(investigation.version(), investigation.graph().startNodeCode()));
+            return new NarrativeProgressResponse(investigation, state);
+        }
+        NarrativeInvestigation entity = repository.findByQuestId(questId)
+                .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
+        if (entity.getPublishedVersionId() == null) {
+            throw new ResourceNotFoundException("Narrative investigation is not released");
+        }
+        Optional<UserNarrativeInvestigationProgress> stored =
+                progressRepository.findByUserIdAndInvestigationId(userId, entity.getId());
+        NarrativeInvestigationVersion bound = stored.isPresent() && stored.get().getInvestigationVersion() != null
+                ? historicalVersion(entity, stored.get().getInvestigationVersion()) : publishedVersion(entity);
+        NarrativeInvestigationResponse investigation = parse(entity, bound);
+        NarrativeProgressState state = stored.map(this::read)
                 .orElseGet(() -> NarrativeProgressState.start(investigation.version(), investigation.graph().startNodeCode()));
         return new NarrativeProgressResponse(investigation, state);
     }
@@ -85,16 +141,29 @@ public class NarrativeInvestigationService {
         // Lock a parent row that always exists. Locking only progress leaves a first-action
         // race when no progress row has been created yet.
         profileRepository.findByIdForUpdate(userId).orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
-        NarrativeInvestigation entity = repository.findByQuestIdAndEnabledTrue(questId)
-                .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
-        NarrativeInvestigationResponse investigation = parse(entity);
+        NarrativeInvestigation entity;
+        if (versionRepository == null) {
+            entity = repository.findByQuestIdAndEnabledTrue(questId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found"));
+        } else {
+            entity = repository.findForUpdateByQuestId(questId)
+                    .orElseGet(() -> repository.findByQuestId(questId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Narrative investigation not found")));
+            if (entity.getRolloutState() == NarrativeRolloutState.PAUSED) {
+                throw new BusinessRuleException("Narrative investigation is paused");
+            }
+            if (entity.getRolloutState() != NarrativeRolloutState.ACTIVE || entity.getPublishedVersionId() == null) {
+                throw new ResourceNotFoundException("Narrative investigation is not active");
+            }
+        }
         UserNarrativeInvestigationProgress row = progressRepository.findWithLockByUserIdAndInvestigationId(userId, entity.getId())
                 .orElseGet(() -> UserNarrativeInvestigationProgress.builder().userId(userId).investigationId(entity.getId()).build());
+        NarrativeInvestigationResponse investigation = versionRepository == null
+                ? parse(entity)
+                : parse(entity, row.getId() != null && row.getInvestigationVersion() != null
+                        ? historicalVersion(entity, row.getInvestigationVersion()) : publishedVersion(entity));
         NarrativeProgressState prior = row.getId() == null || row.getInvestigationVersion() == null
                 ? NarrativeProgressState.start(investigation.version(), investigation.graph().startNodeCode()) : read(row);
-        if (prior.version() != investigation.version()) {
-            prior = NarrativeProgressState.start(investigation.version(), investigation.graph().startNodeCode());
-        }
         NarrativeProgressResponse current = new NarrativeProgressResponse(investigation, prior); NarrativeQuestGraph graph = current.investigation().graph();
         if (request.investigationVersion() != current.investigation().version()) throw new BusinessRuleException("Phiên bản hồ sơ đã thay đổi; hãy tải lại nhiệm vụ.");
         Map<String, com.histar.be.quest.narrative.model.NarrativeNode> nodes = new HashMap<>(); for (var n: graph.nodes()) nodes.put(n.code(), n);
@@ -165,5 +234,28 @@ public class NarrativeInvestigationService {
             row.setEvidenceCodesJson(objectMapper.writeValueAsString(state.evidenceCodes()));
             row.setSelectedOutcomeCode(state.selectedOutcome());
         } catch (JsonProcessingException e) { throw new BusinessRuleException("Không thể lưu tiến độ"); }
+    }
+
+    private NarrativeInvestigationVersion publishedVersion(NarrativeInvestigation investigation) {
+        return versionRepository.findById(investigation.getPublishedVersionId())
+                .filter(version -> version.getInvestigationId().equals(investigation.getId()))
+                .orElseThrow(() -> cannotContinue("Published narrative version is missing"));
+    }
+
+    private NarrativeInvestigationVersion historicalVersion(NarrativeInvestigation investigation, int version) {
+        return versionRepository.findByInvestigationIdAndVersion(investigation.getId(), version)
+                .orElseThrow(() -> cannotContinue("Historical narrative version " + version + " is missing; progress cannot continue"));
+    }
+
+    private NarrativeConflictException cannotContinue(String message) {
+        return new NarrativeConflictException(ErrorCode.NARRATIVE_CANNOT_CONTINUE, message);
+    }
+
+    private Set<String> readLocales(String json) {
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Set<String>>() {});
+        } catch (JsonProcessingException exception) {
+            return Set.of();
+        }
     }
 }

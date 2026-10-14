@@ -11,7 +11,8 @@ public record AdminArtifactResponse(
         String description,
         String unlockKey,
         String reliability,
-        Integer sortOrder) {
+        Integer sortOrder,
+        Long rowVersion) {
 
     public static AdminArtifactResponse from(Artifact artifact) {
         return new AdminArtifactResponse(
@@ -22,6 +23,7 @@ public record AdminArtifactResponse(
                 artifact.getDescription(),
                 artifact.getUnlockKey(),
                 artifact.getReliability(),
-                artifact.getSortOrder());
+                artifact.getSortOrder(),
+                artifact.getRowVersion());
     }
 }

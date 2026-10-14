@@ -2,6 +2,8 @@ package com.histar.be.admin.service;
 
 import com.histar.be.admin.dto.AdminUserSummaryResponse;
 import com.histar.be.admin.dto.UpdateUserRoleRequest;
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.common.response.PageResponse;
@@ -10,6 +12,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.util.UUID;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +26,7 @@ public class AdminUserService {
 
     private final ProfileRepository profileRepository;
     private final CurrentUserAccessor currentUserAccessor;
+    private final AdminAuditService audit;
 
     public PageResponse<AdminUserSummaryResponse> listUsers(int page, int size) {
         int safePage = Math.max(page, 0);
@@ -52,7 +56,19 @@ public class AdminUserService {
                 && nextRole == UserRole.USER) {
             throw new BusinessRuleException("Không thể tự hạ quyền ADMIN của chính mình");
         }
+        String previousRole = profile.getRole();
         profile.setRole(nextRole.name());
-        return AdminUserSummaryResponse.from(profileRepository.save(profile));
+        Profile saved = profileRepository.save(profile);
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "USER",
+                userId,
+                "ROLE_CHANGED",
+                null,
+                null,
+                null,
+                null,
+                Map.of("oldRole", previousRole == null ? "" : previousRole, "newRole", nextRole.name())));
+        return AdminUserSummaryResponse.from(saved);
     }
 }

@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.histar.be.billing.dto.UpdateBillingSettingsRequest;
+import com.histar.be.admin.audit.AdminAuditService;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.billing.entity.BillingSetting;
 import com.histar.be.billing.repository.BillingSettingRepository;
 import com.histar.be.config.SepayProperties;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
 class BillingSettingsServiceTest {
@@ -24,6 +27,12 @@ class BillingSettingsServiceTest {
 
     @Mock
     private SepayProperties sepayProperties;
+
+    @Mock
+    private AdminAuditService audit;
+
+    @Mock
+    private CurrentUserAccessor currentUser;
 
     @InjectMocks
     private BillingSettingsService billingSettingsService;
@@ -39,6 +48,7 @@ class BillingSettingsServiceTest {
 
     @Test
     void updateSettings_persistsNewPrice() {
+        when(currentUser.getUserId()).thenReturn(Optional.of(UUID.randomUUID()));
         when(billingSettingRepository.findById(BillingSettingsService.B2C_PREMIUM_PRICE_KEY))
                 .thenReturn(Optional.of(BillingSetting.builder()
                         .settingKey(BillingSettingsService.B2C_PREMIUM_PRICE_KEY)
@@ -65,10 +75,14 @@ class BillingSettingsServiceTest {
         assertThat(response.chatFreeDailyLimit()).isEqualTo(10);
         verify(billingSettingRepository).save(org.mockito.ArgumentMatchers.argThat(
                 setting -> BillingSettingsService.B2C_PREMIUM_PRICE_KEY.equals(setting.getSettingKey())));
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat(command ->
+                "BILLING_SETTINGS".equals(command.entityType())
+                        && "SETTINGS_UPDATED".equals(command.action())));
     }
 
     @Test
     void updateSettings_persistsChatFreeDailyLimit() {
+        when(currentUser.getUserId()).thenReturn(Optional.of(UUID.randomUUID()));
         when(billingSettingRepository.findById(BillingSettingsService.B2C_PREMIUM_PRICE_KEY))
                 .thenReturn(Optional.of(BillingSetting.builder()
                         .settingKey(BillingSettingsService.B2C_PREMIUM_PRICE_KEY)

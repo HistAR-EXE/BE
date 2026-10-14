@@ -178,6 +178,6 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     @Override
     @Transactional(readOnly = true)
     public long countPoints() {
-        return discoveryPointRepository.count();
+        return discoveryPointRepository.countByDeletedAtIsNull();
     }
 }

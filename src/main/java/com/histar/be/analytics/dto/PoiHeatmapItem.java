@@ -6,4 +6,5 @@ public record PoiHeatmapItem(
         long visitCount,
         long unlockCount,
         Double avgDwellMs,
-        boolean dropOffHotspot) {}
+        boolean dropOffHotspot,
+        boolean suppressed) {}

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/billing/admin/b2b2c-inquiries")
+@RequestMapping({"/api/admin/b2b2c-inquiries", "/api/billing/admin/b2b2c-inquiries"})
 @RequiredArgsConstructor
 public class AdminB2b2cInquiryController {
 

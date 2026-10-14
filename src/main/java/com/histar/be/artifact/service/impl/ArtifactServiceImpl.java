@@ -126,7 +126,7 @@ public class ArtifactServiceImpl implements ArtifactService {
     @Override
     @Transactional(readOnly = true)
     public long count() {
-        return artifactRepository.count();
+        return artifactRepository.countByDeletedAtIsNull();
     }
 
     private boolean isUnlocked(Artifact artifact, Set<UUID> unlockedIds, Set<String> keys, boolean premium) {

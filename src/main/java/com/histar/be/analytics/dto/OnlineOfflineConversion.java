@@ -4,4 +4,5 @@ public record OnlineOfflineConversion(
         long usersWithDiscovery,
         long usersWithCheckin,
         long usersDiscoveryThenCheckin,
-        double conversionRatePct) {}
+        double conversionRatePct,
+        boolean suppressed) {}

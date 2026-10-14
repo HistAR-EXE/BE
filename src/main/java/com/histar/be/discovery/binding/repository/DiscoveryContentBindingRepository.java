@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DiscoveryContentBindingRepository extends JpaRepository<DiscoveryContentBinding, UUID> {
 
     List<DiscoveryContentBinding> findByLocationIdOrderBySortOrder(UUID locationId);
+
+    long countByLocationIdAndUnlockKey(UUID locationId, String unlockKey);
+
+    long countByArtifactId(UUID artifactId);
 }
