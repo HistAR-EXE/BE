@@ -124,7 +124,7 @@ public class GlobalExceptionHandler {
     private HttpStatus mapStatus(ErrorCode errorCode) {
         return switch (errorCode) {
             case CONFLICT, VERSION_CONFLICT, DRAFT_ALREADY_EXISTS, IDEMPOTENCY_CONFLICT,
-                    NARRATIVE_CANNOT_CONTINUE -> HttpStatus.CONFLICT;
+                    RESTORE_CONFLICT, PARENT_DELETED, NARRATIVE_CANNOT_CONTINUE -> HttpStatus.CONFLICT;
             case RAG_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case RAG_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;

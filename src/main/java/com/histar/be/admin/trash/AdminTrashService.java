@@ -8,6 +8,8 @@ import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.artifact.repository.UserArtifactRepository;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ConflictException;
+import com.histar.be.common.exception.ErrorCode;
+import com.histar.be.common.exception.NarrativeConflictException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.common.response.PageResponse;
 import com.histar.be.discovery.binding.repository.DiscoveryContentBindingRepository;
@@ -21,6 +23,8 @@ import com.histar.be.lms.repository.AssignmentRepository;
 import com.histar.be.quest.campaign.QuestCampaignRepository;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.narrative.NarrativeInvestigationRepository;
+import com.histar.be.profile.entity.Profile;
+import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.quest.repository.QuestRepository;
 import java.time.Instant;
@@ -31,8 +35,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -52,6 +59,7 @@ public class AdminTrashService {
     private final UserDiscoveryRepository userDiscoveries;
     private final UserArtifactRepository userArtifacts;
     private final AdminAuditService audit;
+    private final ProfileRepository profiles;
 
     @Transactional(readOnly = true)
     public PageResponse<AdminTrashItem> list(
@@ -78,8 +86,21 @@ public class AdminTrashService {
         int from = Math.min(safePage * safeSize, filtered.size());
         int to = Math.min(from + safeSize, filtered.size());
         int totalPages = filtered.isEmpty() ? 0 : (filtered.size() + safeSize - 1) / safeSize;
+        List<AdminTrashItem> pageItems = filtered.subList(from, to);
+        List<UUID> deleterIds = pageItems.stream()
+                .map(AdminTrashItem::deletedBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<UUID, Profile> deletersById = deleterIds.isEmpty()
+                ? Map.of()
+                : profiles.findAllById(deleterIds).stream()
+                        .collect(Collectors.toMap(Profile::getId, Function.identity()));
+        List<AdminTrashItem> resolved = pageItems.stream()
+                .map(item -> withDeletedByName(item, deletersById))
+                .toList();
         return PageResponse.<AdminTrashItem>builder()
-                .items(filtered.subList(from, to))
+                .items(resolved)
                 .page(safePage)
                 .size(safeSize)
                 .totalItems(filtered.size())
@@ -159,12 +180,12 @@ public class AdminTrashService {
     @Transactional
     public void softDeleteQuest(UUID questId, UUID actorId, AdminDeleteRequest request) {
         String reason = normalizeReason(request);
-        var quest = quests.findIncludingDeletedById(questId)
-                .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + questId));
+        var quest = lockQuestWithParent(questId, false);
         if (quest.getDeletedAt() != null) {
             return;
         }
         requireVersion(quest.getRowVersion(), request.rowVersion());
+        quests.findActiveChildrenForUpdate(questId);
         ensureDeletable(questImpact(questId));
         Long oldVersion = quest.getRowVersion();
         quest.setDeletedAt(Instant.now());
@@ -178,8 +199,7 @@ public class AdminTrashService {
 
     @Transactional
     public void restoreQuest(UUID questId, UUID actorId, AdminRestoreRequest request) {
-        var quest = quests.findIncludingDeletedById(questId)
-                .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + questId));
+        var quest = lockQuestWithParent(questId, true);
         if (quest.getDeletedAt() == null) {
             return;
         }
@@ -188,7 +208,11 @@ public class AdminTrashService {
         quest.setDeletedAt(null);
         quest.setDeletedBy(null);
         quest.setDeleteReason(null);
-        quests.saveAndFlush(quest);
+        try {
+            quests.saveAndFlush(quest);
+        } catch (DataIntegrityViolationException exception) {
+            throw restoreConflict();
+        }
         audit.append(new AdminAuditCommand(actorId, "QUEST", questId, "RESTORED", oldVersion,
                 quest.getRowVersion(), null, request.idempotencyKey(),
                 Map.of("title", quest.getTitle() == null ? "" : quest.getTitle())));
@@ -221,7 +245,11 @@ public class AdminTrashService {
         point.setDeletedAt(null);
         point.setDeletedBy(null);
         point.setDeleteReason(null);
-        discoveryPoints.saveAndFlush(point);
+        try {
+            discoveryPoints.saveAndFlush(point);
+        } catch (DataIntegrityViolationException exception) {
+            throw restoreConflict();
+        }
         audit.append(new AdminAuditCommand(actorId, "DISCOVERY_POINT", id, "RESTORED", oldVersion,
                 point.getRowVersion(), null, request.idempotencyKey(), Map.of("name", safe(point.getName()))));
     }
@@ -253,7 +281,11 @@ public class AdminTrashService {
         artifact.setDeletedAt(null);
         artifact.setDeletedBy(null);
         artifact.setDeleteReason(null);
-        artifacts.saveAndFlush(artifact);
+        try {
+            artifacts.saveAndFlush(artifact);
+        } catch (DataIntegrityViolationException exception) {
+            throw restoreConflict();
+        }
         audit.append(new AdminAuditCommand(actorId, "ARTIFACT", id, "RESTORED", oldVersion,
                 artifact.getRowVersion(), null, request.idempotencyKey(), Map.of("name", safe(artifact.getName()))));
     }
@@ -268,6 +300,22 @@ public class AdminTrashService {
             throw new BusinessRuleException("Lý do khác cần ít nhất 10 ký tự");
         }
         return "Khác".equals(preset) ? detail : preset;
+    }
+
+    private Quest lockQuestWithParent(UUID questId, boolean requireActiveParent) {
+        Quest snapshot = quests.findIncludingDeletedById(questId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + questId));
+        if (snapshot.getUnlockAfterQuestId() != null) {
+            Quest parent = quests.findIncludingDeletedByIdForUpdate(snapshot.getUnlockAfterQuestId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Parent quest not found: " + snapshot.getUnlockAfterQuestId()));
+            if (requireActiveParent && parent.getDeletedAt() != null) {
+                throw new NarrativeConflictException(
+                        ErrorCode.PARENT_DELETED, "Quest cha đã bị xóa; hãy khôi phục quest cha trước");
+            }
+        }
+        return quests.findIncludingDeletedByIdForUpdate(questId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + questId));
     }
 
     private void requireVersion(Long current, Long requested) {
@@ -317,20 +365,41 @@ public class AdminTrashService {
 
     private AdminTrashItem toTrashItem(DiscoveryPoint point) {
         return new AdminTrashItem("DISCOVERY_POINT", point.getId(), point.getLocationId(), point.getName(),
-                point.getDeletedAt(), point.getDeletedBy(), point.getDeleteReason(), point.getRowVersion());
+                point.getDeletedAt(), point.getDeletedBy(), point.getDeleteReason(), point.getRowVersion(), null);
     }
 
     private AdminTrashItem toTrashItem(Artifact artifact) {
         return new AdminTrashItem("ARTIFACT", artifact.getId(), artifact.getLocationId(), artifact.getName(),
-                artifact.getDeletedAt(), artifact.getDeletedBy(), artifact.getDeleteReason(), artifact.getRowVersion());
+                artifact.getDeletedAt(), artifact.getDeletedBy(), artifact.getDeleteReason(), artifact.getRowVersion(),
+                null);
     }
 
     private AdminTrashItem toTrashItem(Quest quest) {
         return new AdminTrashItem("QUEST", quest.getId(), quest.getLocationId(), quest.getTitle(),
-                quest.getDeletedAt(), quest.getDeletedBy(), quest.getDeleteReason(), quest.getRowVersion());
+                quest.getDeletedAt(), quest.getDeletedBy(), quest.getDeleteReason(), quest.getRowVersion(), null);
+    }
+
+    private AdminTrashItem withDeletedByName(AdminTrashItem item, Map<UUID, Profile> deletersById) {
+        Profile deleter = item.deletedBy() == null ? null : deletersById.get(item.deletedBy());
+        String name = deleter == null ? null : deleter.getDisplayName();
+        return new AdminTrashItem(
+                item.resourceType(),
+                item.id(),
+                item.locationId(),
+                item.name(),
+                item.deletedAt(),
+                item.deletedBy(),
+                item.deleteReason(),
+                item.rowVersion(),
+                name);
     }
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private NarrativeConflictException restoreConflict() {
+        return new NarrativeConflictException(
+                ErrorCode.RESTORE_CONFLICT, "Không thể khôi phục vì giá trị duy nhất đã được sử dụng");
     }
 }

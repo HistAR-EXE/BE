@@ -95,7 +95,7 @@ class AdminUserSecurityTest {
         mockMvc.perform(patch("/api/admin/users/" + regularUserId + "/role")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"ADMIN\"}"))
+                        .content("{\"role\":\"ADMIN\",\"reason\":\"Promote for console operations\",\"expectedRole\":\"USER\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("ADMIN"));
 
@@ -114,7 +114,7 @@ class AdminUserSecurityTest {
         mockMvc.perform(patch("/api/admin/users/" + regularUserId + "/role")
                         .header("Authorization", "Bearer " + userToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"ADMIN\"}"))
+                        .content("{\"role\":\"ADMIN\",\"reason\":\"Promote for console operations\",\"expectedRole\":\"USER\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -145,7 +145,9 @@ class AdminUserSecurityTest {
 
     @Test
     void adminOperationalEndpointsAreProtectedAndAvailable() throws Exception {
-        for (String path : new String[] {"/api/admin/trash", "/api/admin/audit", "/api/admin/dashboard"}) {
+        for (String path : new String[] {
+            "/api/admin/trash", "/api/admin/audit", "/api/admin/dashboard", "/api/admin/content-reports"
+        }) {
             mockMvc.perform(get(path).header("Authorization", "Bearer " + userToken))
                     .andExpect(status().isForbidden());
             mockMvc.perform(get(path).header("Authorization", "Bearer " + adminToken))

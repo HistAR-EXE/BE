@@ -11,4 +11,5 @@ public record AdminTrashItem(
         Instant deletedAt,
         UUID deletedBy,
         String deleteReason,
-        Long rowVersion) {}
+        Long rowVersion,
+        String deletedByName) {}

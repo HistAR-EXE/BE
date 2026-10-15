@@ -42,3 +42,4 @@
 2026-07-09_shedlock.sql
 2026-07-10_visit_sessions_ai_fields.sql
 2026-07-10_demo_billing_accounts.sql
+# Admin dashboard revenue demo needs Flyway payment tables — see seed-manifest-post-flyway.txt

@@ -7,6 +7,7 @@ $beRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $docsRoot = Join-Path $beRoot 'docs'
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
 $manifestPath = Join-Path $docsRoot 'seed-manifest.txt'
+$postFlywayManifestPath = Join-Path $docsRoot 'seed-manifest-post-flyway.txt'
 
 function Get-Utf8Sql([string]$Path) {
     if (-not (Test-Path $Path)) {
@@ -57,6 +58,15 @@ Get-Content $manifestPath | ForEach-Object {
 
 foreach ($migration in $migrations) {
     Add-SqlSection $builder "migration: $($migration.Name)" $migration.FullName
+}
+
+if (Test-Path $postFlywayManifestPath) {
+    Get-Content $postFlywayManifestPath | ForEach-Object {
+        $seed = $_.Trim()
+        if ($seed -and -not $seed.StartsWith('#')) {
+            Add-SqlSection $builder "seed: $seed" (Join-Path $docsRoot "sql\seed\$seed")
+        }
+    }
 }
 
 [void]$builder.AppendLine()

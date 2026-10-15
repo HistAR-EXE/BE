@@ -28,11 +28,13 @@ public class AdminAuditController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) String action,
+            @RequestParam(required = false) String actor,
             @RequestParam(required = false) UUID actorId,
             @RequestParam(required = false) UUID entityId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "desc") String sort) {
-        return ApiResponse.ok(auditService.list(page, size, entityType, action, actorId, entityId, from, to, sort));
+        return ApiResponse.ok(auditService.list(
+                page, size, entityType, action, actor, actorId, entityId, from, to, sort));
     }
 }

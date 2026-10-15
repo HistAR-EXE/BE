@@ -1,8 +1,8 @@
 package com.histar.be.analytics.dto;
 
 public record OnlineOfflineConversion(
-        long usersWithDiscovery,
-        long usersWithCheckin,
-        long usersDiscoveryThenCheckin,
-        double conversionRatePct,
+        Long usersWithDiscovery,
+        Long usersWithCheckin,
+        Long usersDiscoveryThenCheckin,
+        Double conversionRatePct,
         boolean suppressed) {}

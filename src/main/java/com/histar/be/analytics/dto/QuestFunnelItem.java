@@ -5,8 +5,8 @@ import java.util.UUID;
 public record QuestFunnelItem(
         UUID questId,
         String title,
-        long started,
-        long completed,
-        double completionRatePct,
+        Long started,
+        Long completed,
+        Double completionRatePct,
         String completionRule,
         boolean suppressed) {}

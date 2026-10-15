@@ -6,6 +6,10 @@ import com.histar.be.common.response.ApiResponse;
 import com.histar.be.events.dto.PilotKpiResponse;
 import com.histar.be.events.service.EventsService;
 import java.util.UUID;
+import com.histar.be.analytics.AnalyticsBucket;
+import com.histar.be.analytics.AnalyticsRange;
+import com.histar.be.analytics.dto.ActivityHeatmapResponse;
+import com.histar.be.analytics.dto.ActivitySeriesResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,8 +33,26 @@ public class AdminAnalyticsController {
 
     @GetMapping("/overview")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<AdminAnalyticsOverviewResponse> overview(@RequestParam UUID locationId) {
-        return ApiResponse.ok(adminAnalyticsService.overview(locationId));
+    public ApiResponse<AdminAnalyticsOverviewResponse> overview(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(defaultValue = "30D") String range) {
+        return ApiResponse.ok(adminAnalyticsService.overview(locationId, AnalyticsRange.parse(range)));
     }
 
+    @GetMapping("/activity-series")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ActivitySeriesResponse> activitySeries(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(defaultValue = "30D") String range,
+            @RequestParam(defaultValue = "DAY") AnalyticsBucket bucket) {
+        return ApiResponse.ok(adminAnalyticsService.activitySeries(locationId, AnalyticsRange.parse(range), bucket));
+    }
+
+    @GetMapping("/activity-heatmap")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ActivityHeatmapResponse> activityHeatmap(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(defaultValue = "30D") String range) {
+        return ApiResponse.ok(adminAnalyticsService.activityHeatmap(locationId, AnalyticsRange.parse(range)));
+    }
 }

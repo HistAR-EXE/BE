@@ -40,6 +40,16 @@ public class OrgInviteService {
     @Transactional
     public OrgInviteCodeResponse generateInviteCode(UUID orgId) {
         orgAccessService.requireOrgAccess(orgId);
+        return generateInviteCodeInternal(orgId);
+    }
+
+    /** Admin console: generate invite without requiring org membership. */
+    @Transactional
+    public OrgInviteCodeResponse generateInviteCodeAsAdmin(UUID orgId) {
+        return generateInviteCodeInternal(orgId);
+    }
+
+    private OrgInviteCodeResponse generateInviteCodeInternal(UUID orgId) {
         Organization org = organizationRepository
                 .findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));

@@ -11,7 +11,12 @@ public record AdminAnalyticsOverviewResponse(
         List<JourneyDropOffItem> journeyDropOff,
         List<PoiHeatmapItem> poiHeatmap,
         SessionQualityMetrics sessionQuality,
-        long questCompletedCount,
+        Long questCompletedCount,
         String journeyNote,
         int privacyThreshold,
-        boolean questCompletedSuppressed) {}
+        boolean questCompletedSuppressed,
+        Long activeUsers,
+        Long eventCount,
+        boolean activitySuppressed,
+        Long referralUsers,
+        boolean referralSuppressed) {}

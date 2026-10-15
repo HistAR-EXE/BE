@@ -2,6 +2,8 @@ package com.histar.be.analytics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import com.histar.be.analytics.repository.AdminAnalyticsRepository;
 import com.histar.be.analytics.service.impl.AdminAnalyticsServiceImpl;
@@ -32,32 +34,30 @@ class AdminAnalyticsPrivacyTest {
     @Test
     void overviewSuppressesAggregateCellsBelowTen() {
         UUID locationId = UUID.randomUUID();
-        when(analytics.poiUnlockCounts(locationId)).thenReturn(List.<Object[]>of(new Object[] {"poi:one", "One", 9L}));
-        when(analytics.poiVisitCounts(locationId)).thenReturn(List.<Object[]>of(new Object[] {"poi:one", "One", 9L}));
-        when(analytics.countUsersWithDiscovery(locationId)).thenReturn(9L);
-        when(analytics.countUsersWithCheckin(locationId)).thenReturn(9L);
-        when(analytics.countUsersDiscoveryThenCheckin(locationId)).thenReturn(9L);
-        when(quests.findByLocationId(locationId)).thenReturn(List.of());
-        when(sessions.findByLocationIdAndStatusAndEndedAtIsNotNull(locationId, "CLOSED"))
-                .thenReturn(List.of());
+        when(analytics.poiUnlockCounts(eq(locationId), any(), any())).thenReturn(List.<Object[]>of(new Object[] {"poi:one", "One", 9L}));
+        when(analytics.poiVisitCounts(eq(locationId), any(), any())).thenReturn(List.<Object[]>of(new Object[] {"poi:one", "One", 9L}));
+        when(analytics.questFunnel(eq(locationId), any(), any())).thenReturn(List.of());
+        when(analytics.conversionCounts(eq(locationId), any(), any())).thenReturn(new Object[] {9L, 9L, 9L});
+        when(analytics.sessionQuality(eq(locationId), any(), any())).thenReturn(new Object[] {0L, null, null});
+        when(analytics.overviewCounts(eq(locationId), any(), any())).thenReturn(new Object[] {9L, 9L, 9L, 9L});
 
         var result = service.overview(locationId);
 
         assertThat(result.poiUnlockRates()).singleElement().satisfies(item -> {
-            assertThat(item.unlockCount()).isZero();
-            assertThat(item.unlockRatePct()).isZero();
+            assertThat(item.unlockCount()).isNull();
+            assertThat(item.unlockRatePct()).isNull();
         });
         assertThat(result.journeyDropOff()).singleElement().satisfies(item -> {
-            assertThat(item.sessionCount()).isZero();
-            assertThat(item.dropOffPct()).isZero();
+            assertThat(item.sessionCount()).isNull();
+            assertThat(item.dropOffPct()).isNull();
         });
         assertThat(result.poiHeatmap()).singleElement().satisfies(item -> {
-            assertThat(item.visitCount()).isZero();
-            assertThat(item.unlockCount()).isZero();
+            assertThat(item.visitCount()).isNull();
+            assertThat(item.unlockCount()).isNull();
         });
-        assertThat(result.onlineToOnsite().usersWithDiscovery()).isZero();
-        assertThat(result.onlineToOnsite().usersWithCheckin()).isZero();
-        assertThat(result.onlineToOnsite().usersDiscoveryThenCheckin()).isZero();
-        assertThat(result.onlineToOnsite().conversionRatePct()).isZero();
+        assertThat(result.onlineToOnsite().usersWithDiscovery()).isNull();
+        assertThat(result.onlineToOnsite().usersWithCheckin()).isNull();
+        assertThat(result.onlineToOnsite().usersDiscoveryThenCheckin()).isNull();
+        assertThat(result.onlineToOnsite().conversionRatePct()).isNull();
     }
 }

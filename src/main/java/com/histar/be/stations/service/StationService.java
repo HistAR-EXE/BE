@@ -1,7 +1,11 @@
 package com.histar.be.stations.service;
 
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.stations.dto.StationBlockRequest;
 import com.histar.be.stations.dto.StationBlockResponse;
 import com.histar.be.stations.dto.StationImportItem;
@@ -27,6 +31,8 @@ public class StationService {
 
     private final StationRepository stationRepository;
     private final StationContentBlockRepository blockRepository;
+    private final CurrentUserAccessor currentUserAccessor;
+    private final AdminAuditService audit;
 
     @Transactional(readOnly = true)
     public List<StationResponse> listActive(String siteCode) {
@@ -71,6 +77,8 @@ public class StationService {
             }
         }
 
+        UUID actorId = currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
+
         List<StationResponse> result = new ArrayList<>();
         int index = 0;
         for (StationImportItem item : items) {
@@ -109,6 +117,11 @@ public class StationService {
                     .toList();
             result.add(toResponse(station, blockResponses));
         }
+        List<UUID> stationIds = result.stream().map(StationResponse::id).toList();
+        audit.append(new AdminAuditCommand(
+                actorId, "STATION_IMPORT", stationIds.get(0), "STATIONS_IMPORTED",
+                null, null, null, null,
+                Map.of("siteCode", siteCode, "count", stationIds.size(), "stationIds", stationIds)));
         return result;
     }
 

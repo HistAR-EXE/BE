@@ -7,6 +7,8 @@ import java.util.UUID;
 public record AdminAuditEventResponse(
         UUID id,
         UUID actorId,
+        String actorDisplayName,
+        String actorEmail,
         String entityType,
         UUID entityId,
         String action,

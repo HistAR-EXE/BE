@@ -137,8 +137,8 @@ class GoldenPathIntegrationTest {
         var overview = adminAnalyticsService.overview(locationId);
         assertThat(overview.privacyThreshold()).isEqualTo(10);
         assertThat(overview.sessionQuality().suppressed()).isTrue();
-        assertThat(overview.sessionQuality().avgDurationMinutes()).isZero();
+        assertThat(overview.sessionQuality().avgDurationMinutes()).isNull();
         assertThat(overview.questCompletedSuppressed()).isTrue();
-        assertThat(overview.questCompletedCount()).isZero();
+        assertThat(overview.questCompletedCount()).isNull();
     }
 }

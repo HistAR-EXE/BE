@@ -32,8 +32,9 @@ public class BillingSettingsService {
     private static final int DEFAULT_CHAT_FREE_DAILY_LIMIT = 10;
     private static final int DEFAULT_VOLUME_DISCOUNT_PERCENT = 35;
     private static final int DEFAULT_VOLUME_DISCOUNT_MIN_LICENSES = 3;
-    private static final int MIN_CHAT_FREE_DAILY_LIMIT = 5;
-    private static final int MAX_CHAT_FREE_DAILY_LIMIT = 10;
+    /** Align with Admin Billing Stitch slider (3 thắt chặt → 50 rộng rãi). */
+    private static final int MIN_CHAT_FREE_DAILY_LIMIT = 3;
+    private static final int MAX_CHAT_FREE_DAILY_LIMIT = 50;
 
     private final BillingSettingRepository billingSettingRepository;
     private final SepayProperties sepayProperties;
@@ -173,7 +174,8 @@ public class BillingSettingsService {
 
     private int parseChatFreeDailyLimit(String raw) {
         try {
-            return validateChatFreeDailyLimit(Integer.parseInt(raw.trim()));
+            int value = Integer.parseInt(raw.trim());
+            return Math.min(MAX_CHAT_FREE_DAILY_LIMIT, Math.max(MIN_CHAT_FREE_DAILY_LIMIT, value));
         } catch (NumberFormatException ex) {
             return DEFAULT_CHAT_FREE_DAILY_LIMIT;
         }
@@ -182,7 +184,11 @@ public class BillingSettingsService {
     private int validateChatFreeDailyLimit(int limit) {
         if (limit < MIN_CHAT_FREE_DAILY_LIMIT || limit > MAX_CHAT_FREE_DAILY_LIMIT) {
             throw new BusinessRuleException(
-                    "Giới hạn chat FREE phải từ " + MIN_CHAT_FREE_DAILY_LIMIT + " đến " + MAX_CHAT_FREE_DAILY_LIMIT + ".");
+                    "Giới hạn thuyết minh AI Free phải từ "
+                            + MIN_CHAT_FREE_DAILY_LIMIT
+                            + " đến "
+                            + MAX_CHAT_FREE_DAILY_LIMIT
+                            + " câu/ngày.");
         }
         return limit;
     }

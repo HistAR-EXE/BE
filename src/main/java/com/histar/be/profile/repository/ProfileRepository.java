@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import jakarta.persistence.LockModeType;
@@ -13,11 +15,39 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
 
+    @Query(
+            """
+            SELECT p FROM Profile p
+            WHERE (:q = '' OR LOWER(p.email) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(COALESCE(p.displayName, '')) LIKE LOWER(CONCAT('%', :q, '%')))
+              AND (:role = '' OR UPPER(p.role) = :role)
+              AND (:tier = '' OR UPPER(COALESCE(p.tier, '')) = :tier)
+              AND (:verified IS NULL OR p.emailVerified = :verified)
+            """)
+    Page<Profile> findAdminUsers(
+            @Param("q") String q,
+            @Param("role") String role,
+            @Param("tier") String tier,
+            @Param("verified") Boolean verified,
+            Pageable pageable);
+
+    @Query(
+            """
+            SELECT p.id FROM Profile p
+            WHERE LOWER(COALESCE(p.displayName, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(p.email, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+            """)
+    List<UUID> findIdsMatchingAdminSearch(@Param("q") String q);
+
     Optional<Profile> findByEmail(String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Profile p WHERE p.id = :userId")
     Optional<Profile> findByIdForUpdate(@Param("userId") UUID userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Profile p WHERE UPPER(p.role) = 'ADMIN' ORDER BY p.id")
+    List<Profile> findAllAdminsForUpdate();
 
     List<Profile> findTop50ByOrderByTotalPointsDesc();
 

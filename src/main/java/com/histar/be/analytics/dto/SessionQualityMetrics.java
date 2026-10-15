@@ -1,4 +1,4 @@
 package com.histar.be.analytics.dto;
 
 public record SessionQualityMetrics(
-        double avgDurationMinutes, double avgDiscoveriesPerSession, boolean suppressed) {}
+        Double avgDurationMinutes, Double avgDiscoveriesPerSession, boolean suppressed) {}

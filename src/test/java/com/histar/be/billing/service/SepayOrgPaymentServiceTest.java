@@ -1,6 +1,7 @@
 package com.histar.be.billing.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,8 @@ import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.billing.dto.OrgBillingStatus;
 import com.histar.be.billing.dto.OrgCreatePaymentRequest;
 import com.histar.be.billing.entity.OrgPaymentTransaction;
+import com.histar.be.billing.entity.OrgBillingSubscription;
+import com.histar.be.billing.repository.OrgBillingSubscriptionRepository;
 import com.histar.be.billing.repository.OrgPaymentTransactionRepository;
 import com.histar.be.config.SepayProperties;
 import com.histar.be.organization.repository.OrganizationRepository;
@@ -44,6 +47,9 @@ class SepayOrgPaymentServiceTest {
 
     @Mock
     private BillingSettingsService billingSettingsService;
+
+    @Mock
+    private OrgBillingSubscriptionRepository orgBillingSubscriptionRepository;
 
     @Mock
     private EmailVerifiedGuard emailVerifiedGuard;
@@ -111,9 +117,11 @@ class SepayOrgPaymentServiceTest {
         when(orgPaymentTransactionRepository.findByOrderCode("ORGABC123")).thenReturn(Optional.of(tx));
         when(orgPaymentTransactionRepository.save(any(OrgPaymentTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        UUID orgId = UUID.randomUUID();
+        UUID subscriptionId = UUID.randomUUID();
         when(billingService.subscribeOrg(any(), any(), any()))
                 .thenReturn(new OrgBillingStatus(
-                        UUID.randomUUID(),
+                        orgId,
                         "THPT Test",
                         "STANDARD",
                         LocalDate.now().plusYears(1),
@@ -128,9 +136,17 @@ class SepayOrgPaymentServiceTest {
                         40,
                         false,
                         365));
+        OrgBillingSubscription subscription = OrgBillingSubscription.builder()
+                .id(subscriptionId).organizationId(orgId).isActive(true).build();
+        when(orgBillingSubscriptionRepository.findAllByOrganizationIdOrderByCreatedAtDesc(orgId))
+                .thenReturn(java.util.List.of(subscription));
+        tx.setLicenseCount(25);
+        tx.setGrossAmountVnd(375_000_000L);
+        tx.setDiscountAmountVnd(37_500_000L);
+        tx.setAmountVnd(337_500_000L);
 
         String rawBody = """
-                {"id":223344,"gateway":"MBBank","transactionDate":"2026-07-07 16:00:00","accountNumber":"0815330544","subAccount":"","code":"ORGABC123","content":"ORGABC123 thanh toan","transferType":"in","description":"Thanh toan","transferAmount":15000000,"accumulated":100000,"referenceCode":"FT2402"}
+                {"id":223344,"gateway":"MBBank","transactionDate":"2026-07-07 16:00:00","accountNumber":"0815330544","subAccount":"","code":"ORGABC123","content":"ORGABC123 thanh toan","transferType":"in","description":"Thanh toan","transferAmount":337500000,"accumulated":100000,"referenceCode":"FT2402"}
                 """.trim();
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
         String signature = "sha256=" + SepayB2cPaymentService.hmacSha256Hex("whsec-test-secret", timestamp + "." + rawBody);
@@ -139,7 +155,36 @@ class SepayOrgPaymentServiceTest {
 
         assertThat(tx.getStatus()).isEqualTo("PAID");
         assertThat(tx.getProviderTransactionId()).isEqualTo(223344L);
+        assertThat(tx.getSubscriptionId()).isEqualTo(subscriptionId);
+        assertThat(subscription.getSourcePaymentTransactionId()).isEqualTo(tx.getId());
+        assertThat(subscription.getBillingCadence()).isEqualTo("ANNUAL");
+        assertThat(subscription.getContractValueVnd()).isEqualTo(337_500_000L);
+        assertThat(subscription.getCurrency()).isEqualTo("VND");
+        assertThat(subscription.getQuantity()).isEqualTo(25);
         verify(orgPaymentTransactionRepository, atLeastOnce()).save(tx);
         verify(billingService).subscribeOrg(any(), any(), any());
+    }
+
+    @Test
+    void createPaymentRejectsReusingIntentWhenRequestedPricingDiffersFromSnapshot() {
+        UUID userId = UUID.randomUUID();
+        when(profileRepository.findById(userId))
+                .thenReturn(Optional.of(Profile.builder().id(userId).email("teacher@school.vn").build()));
+        OrgPaymentTransaction pending = OrgPaymentTransaction.builder()
+                .requesterUserId(userId).orgName("THPT Test").contactEmail("teacher@school.vn")
+                .planType("STANDARD").provider("SEPAY").orderCode("OLD").transferContent("OLD")
+                .amountVnd(15_000_000L).licenseCount(1).grossAmountVnd(15_000_000L).discountAmountVnd(0L)
+                .status("PENDING").expiresAt(Instant.now().plusSeconds(600)).build();
+        when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "UNDERPAID"))
+                .thenReturn(Optional.empty());
+        when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING"))
+                .thenReturn(Optional.of(pending));
+        when(billingSettingsService.calculateOrgVolumePricing(15_000_000L, 2))
+                .thenReturn(new BillingSettingsService.OrgVolumePricing(15_000_000L, 0, 0L, 30_000_000L, 2));
+
+        assertThatThrownBy(() -> sepayOrgPaymentService.createPayment(userId,
+                new OrgCreatePaymentRequest("THPT Test", "STANDARD", "teacher@school.vn", null, "/teacher", 2)))
+                .isInstanceOf(com.histar.be.common.exception.BusinessRuleException.class)
+                .hasMessageContaining("không khớp");
     }
 }

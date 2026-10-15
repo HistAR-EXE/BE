@@ -60,5 +60,9 @@ public class Organization {
     @Column(name = "invite_code_expires_at")
     private Instant inviteCodeExpiresAt;
 
+    /** Admin operational note shown on org detail (not analytics debug text). */
+    @Column(name = "ops_note", columnDefinition = "TEXT")
+    private String opsNote;
+
     private Instant createdAt;
 }
