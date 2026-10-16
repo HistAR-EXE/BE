@@ -37,6 +37,21 @@ public class OrgBillingSubscription {
     @Column(name = "price_vnd", nullable = false)
     private Long priceVnd;
 
+    @Column(name = "source_payment_transaction_id")
+    private UUID sourcePaymentTransactionId;
+
+    @Column(name = "billing_cadence")
+    private String billingCadence;
+
+    @Column(name = "contract_value_vnd")
+    private Long contractValueVnd;
+
+    @Column(name = "currency", length = 3)
+    private String currency;
+
+    @Column(name = "quantity")
+    private Integer quantity;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 

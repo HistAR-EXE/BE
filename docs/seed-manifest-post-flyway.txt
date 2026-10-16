@@ -1,0 +1,5 @@
+# Seeds that require Flyway migration tables (payment, etc.).
+# Applied AFTER schema + seed-manifest + migrations in TimeLens_full_bootstrap.sql
+# and again (idempotent) by bootstrap-local-db.ps1 / seed-admin-dashboard-revenue.ps1.
+#
+2026-10-15_admin_dashboard_revenue_demo.sql

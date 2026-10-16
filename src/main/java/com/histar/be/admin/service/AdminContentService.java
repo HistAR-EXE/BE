@@ -6,9 +6,14 @@ import com.histar.be.admin.dto.AdminDiscoveryPointRequest;
 import com.histar.be.admin.dto.AdminDiscoveryPointResponse;
 import com.histar.be.admin.dto.AdminQuestRequest;
 import com.histar.be.admin.dto.AdminQuestResponse;
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.artifact.entity.Artifact;
 import com.histar.be.artifact.repository.ArtifactRepository;
+import com.histar.be.common.exception.AuthException;
+import com.histar.be.common.exception.ConflictException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.discovery.entity.DiscoveryPoint;
 import com.histar.be.discovery.repository.DiscoveryPointRepository;
 import com.histar.be.hotspot.entity.Hotspot;
@@ -17,6 +22,8 @@ import com.histar.be.location.service.LocationEraValidationService;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.repository.QuestRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,17 +40,19 @@ public class AdminContentService {
     private final QuestRepository questRepository;
     private final LocationEraValidationService locationEraValidationService;
     private final HotspotRepository hotspotRepository;
+    private final AdminAuditService audit;
+    private final CurrentUserAccessor currentUser;
 
     public List<AdminDiscoveryPointResponse> listDiscoveryPoints(UUID locationId) {
         List<DiscoveryPoint> points = locationId != null
                 ? discoveryPointRepository.findByLocationIdOrderBySortOrder(locationId)
-                : discoveryPointRepository.findAll();
+                : discoveryPointRepository.findByDeletedAtIsNull();
         return points.stream().map(this::toDiscoveryResponse).toList();
     }
 
     @Transactional
     public AdminDiscoveryPointResponse createDiscoveryPoint(AdminDiscoveryPointRequest request) {
-        DiscoveryPoint saved = discoveryPointRepository.save(DiscoveryPoint.builder()
+        DiscoveryPoint saved = discoveryPointRepository.saveAndFlush(DiscoveryPoint.builder()
                 .locationId(request.locationId())
                 .name(request.name())
                 .mapXPct(request.mapXPct())
@@ -52,6 +61,8 @@ public class AdminContentService {
                 .sortOrder(request.sortOrder() != null ? request.sortOrder() : 0)
                 .build());
         syncSceneHotspotAngles(request.unlockKey(), request.yaw(), request.pitch());
+        audit.append(new AdminAuditCommand(actorId(), "DISCOVERY_POINT", saved.getId(), "CREATED", null,
+                saved.getRowVersion(), null, null, Map.of("name", saved.getName())));
         log.info("admin create discovery-point id={} locationId={}", saved.getId(), saved.getLocationId());
         return toDiscoveryResponse(saved);
     }
@@ -61,6 +72,8 @@ public class AdminContentService {
         DiscoveryPoint point = discoveryPointRepository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Discovery point not found: " + id));
+        requireVersion(point.getRowVersion(), request.rowVersion());
+        Long oldVersion = point.getRowVersion();
         point.setLocationId(request.locationId());
         point.setName(request.name());
         point.setMapXPct(request.mapXPct());
@@ -69,8 +82,10 @@ public class AdminContentService {
         if (request.sortOrder() != null) {
             point.setSortOrder(request.sortOrder());
         }
-        DiscoveryPoint saved = discoveryPointRepository.save(point);
+        DiscoveryPoint saved = discoveryPointRepository.saveAndFlush(point);
         syncSceneHotspotAngles(request.unlockKey(), request.yaw(), request.pitch());
+        audit.append(new AdminAuditCommand(actorId(), "DISCOVERY_POINT", id, "UPDATED", oldVersion,
+                saved.getRowVersion(), null, null, Map.of("name", saved.getName())));
         return toDiscoveryResponse(saved);
     }
 
@@ -130,13 +145,13 @@ public class AdminContentService {
     public List<AdminArtifactResponse> listArtifacts(UUID locationId) {
         List<Artifact> items = locationId != null
                 ? artifactRepository.findByLocationIdOrderBySortOrder(locationId)
-                : artifactRepository.findAll();
+                : artifactRepository.findByDeletedAtIsNull();
         return items.stream().map(AdminArtifactResponse::from).toList();
     }
 
     @Transactional
     public AdminArtifactResponse createArtifact(AdminArtifactRequest request) {
-        Artifact saved = artifactRepository.save(Artifact.builder()
+        Artifact saved = artifactRepository.saveAndFlush(Artifact.builder()
                 .locationId(request.locationId())
                 .name(request.name())
                 .imageUrl(request.imageUrl())
@@ -145,6 +160,8 @@ public class AdminContentService {
                 .reliability(request.reliability())
                 .sortOrder(request.sortOrder() != null ? request.sortOrder() : 0)
                 .build());
+        audit.append(new AdminAuditCommand(actorId(), "ARTIFACT", saved.getId(), "CREATED", null,
+                saved.getRowVersion(), null, null, Map.of("name", saved.getName())));
         log.info("admin create artifact id={} locationId={}", saved.getId(), saved.getLocationId());
         return AdminArtifactResponse.from(saved);
     }
@@ -154,6 +171,8 @@ public class AdminContentService {
         Artifact artifact = artifactRepository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artifact not found: " + id));
+        requireVersion(artifact.getRowVersion(), request.rowVersion());
+        Long oldVersion = artifact.getRowVersion();
         artifact.setLocationId(request.locationId());
         artifact.setName(request.name());
         artifact.setImageUrl(request.imageUrl());
@@ -163,12 +182,15 @@ public class AdminContentService {
         if (request.sortOrder() != null) {
             artifact.setSortOrder(request.sortOrder());
         }
-        return AdminArtifactResponse.from(artifactRepository.save(artifact));
+        Artifact saved = artifactRepository.saveAndFlush(artifact);
+        audit.append(new AdminAuditCommand(actorId(), "ARTIFACT", id, "UPDATED", oldVersion,
+                saved.getRowVersion(), null, null, Map.of("name", saved.getName())));
+        return AdminArtifactResponse.from(saved);
     }
 
     public List<AdminQuestResponse> listQuests(UUID locationId) {
         List<Quest> quests =
-                locationId != null ? questRepository.findByLocationId(locationId) : questRepository.findAll();
+                locationId != null ? questRepository.findByLocationId(locationId) : questRepository.findByDeletedAtIsNull();
         return quests.stream().map(AdminQuestResponse::from).toList();
     }
 
@@ -177,7 +199,7 @@ public class AdminContentService {
         if (request.locationId() != null) {
             locationEraValidationService.ensureMinimumThreeEras(request.locationId());
         }
-        Quest saved = questRepository.save(Quest.builder()
+        Quest saved = questRepository.saveAndFlush(Quest.builder()
                 .locationId(request.locationId())
                 .title(request.title())
                 .description(request.description())
@@ -190,6 +212,8 @@ public class AdminContentService {
                 .coverImage(request.coverImage())
                 .stepDiscoveryKeys(request.stepDiscoveryKeys())
                 .build());
+        audit.append(new AdminAuditCommand(actorId(), "QUEST", saved.getId(), "CREATED", null,
+                saved.getRowVersion(), null, null, Map.of("title", saved.getTitle())));
         log.info("admin create quest id={} locationId={}", saved.getId(), saved.getLocationId());
         return AdminQuestResponse.from(saved);
     }
@@ -199,6 +223,8 @@ public class AdminContentService {
         Quest quest = questRepository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + id));
+        requireVersion(quest.getRowVersion(), request.rowVersion());
+        Long oldVersion = quest.getRowVersion();
         quest.setLocationId(request.locationId());
         quest.setTitle(request.title());
         quest.setDescription(request.description());
@@ -224,6 +250,19 @@ public class AdminContentService {
         if (request.stepDiscoveryKeys() != null) {
             quest.setStepDiscoveryKeys(request.stepDiscoveryKeys());
         }
-        return AdminQuestResponse.from(questRepository.save(quest));
+        Quest saved = questRepository.saveAndFlush(quest);
+        audit.append(new AdminAuditCommand(actorId(), "QUEST", id, "UPDATED", oldVersion,
+                saved.getRowVersion(), null, null, Map.of("title", saved.getTitle())));
+        return AdminQuestResponse.from(saved);
+    }
+
+    private UUID actorId() {
+        return currentUser.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
+    }
+
+    private void requireVersion(Long currentVersion, Long requestedVersion) {
+        if (requestedVersion == null || !Objects.equals(currentVersion, requestedVersion)) {
+            throw new ConflictException("Nội dung đã bị thay đổi; hãy tải lại trước khi lưu");
+        }
     }
 }

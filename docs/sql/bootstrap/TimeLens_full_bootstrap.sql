@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V67.
+-- Generated from schema, seed manifest, and Flyway migrations through V71.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -3855,7 +3855,7 @@ ALTER TABLE visit_sessions
 -- BEGIN migration: V14__quest_steps.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V14__quest_steps.sql
 -- ============================================================================
--- QuestStep entity — see docs/sql/seed/2026-07-08_quest_steps_schema.sql
+-- QuestStep entity — see docs/database/2026-07-08_quest_steps_schema.sql
 
 CREATE TABLE IF NOT EXISTS quest_steps (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5826,7 +5826,7 @@ WHERE id = 'c1000001-0000-4000-8000-000000000023';
 -- BEGIN migration: V46__journey_memory.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V46__journey_memory.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS journey_memories (
+CREATE TABLE journey_memories (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
     location_id UUID NOT NULL,
@@ -5840,7 +5840,7 @@ CREATE TABLE IF NOT EXISTS journey_memories (
     CONSTRAINT uk_journey_memories_user_location UNIQUE (user_id, location_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
+CREATE INDEX idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
 
 -- END migration: V46__journey_memory.sql
 
@@ -5848,7 +5848,7 @@ CREATE INDEX IF NOT EXISTS idx_journey_memories_user_expires ON journey_memories
 -- BEGIN migration: V47__teacher_ai_drafts.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V47__teacher_ai_drafts.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS teacher_ai_drafts (
+CREATE TABLE teacher_ai_drafts (
     id UUID PRIMARY KEY,
     org_id UUID NOT NULL,
     teacher_id UUID NOT NULL,
@@ -5866,8 +5866,8 @@ CREATE TABLE IF NOT EXISTS teacher_ai_drafts (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
+CREATE INDEX idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher_id, created_at DESC);
+CREATE INDEX idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
 
 -- END migration: V47__teacher_ai_drafts.sql
 
@@ -5875,7 +5875,7 @@ CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_org_status ON teacher_ai_drafts
 -- BEGIN migration: V48__narrative_investigation_foundation.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V48__narrative_investigation_foundation.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS narrative_investigations (
+CREATE TABLE narrative_investigations (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL UNIQUE REFERENCES quests(id),
     version INTEGER NOT NULL,
@@ -5885,7 +5885,7 @@ CREATE TABLE IF NOT EXISTS narrative_investigations (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS user_narrative_investigation_progress (
+CREATE TABLE user_narrative_investigation_progress (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
@@ -5894,7 +5894,7 @@ CREATE TABLE IF NOT EXISTS user_narrative_investigation_progress (
     CONSTRAINT uq_narrative_progress_user_investigation UNIQUE (user_id, investigation_id)
 );
 
-CREATE TABLE IF NOT EXISTS quest_reward_ledger (
+CREATE TABLE quest_reward_ledger (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id),
     quest_id UUID NOT NULL REFERENCES quests(id),
@@ -5911,7 +5911,7 @@ CREATE TABLE IF NOT EXISTS quest_reward_ledger (
 -- BEGIN migration: V49__quest_campaigns.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V49__quest_campaigns.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS quest_campaigns (
+CREATE TABLE quest_campaigns (
     id UUID PRIMARY KEY,
     quest_id UUID NOT NULL,
     campaign_type VARCHAR(24) NOT NULL,
@@ -5922,7 +5922,7 @@ CREATE TABLE IF NOT EXISTS quest_campaigns (
     CONSTRAINT fk_quest_campaigns_quest FOREIGN KEY (quest_id) REFERENCES quests(id),
     CONSTRAINT ck_quest_campaigns_window CHECK (ends_at > starts_at)
 );
-CREATE INDEX IF NOT EXISTS idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
+CREATE INDEX idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
 
 -- END migration: V49__quest_campaigns.sql
 
@@ -5930,14 +5930,14 @@ CREATE INDEX IF NOT EXISTS idx_quest_campaigns_active ON quest_campaigns (enable
 -- BEGIN migration: V50__narrative_pilot_progress_and_review.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V50__narrative_pilot_progress_and_review.sql
 -- ============================================================================
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS investigation_version INTEGER;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS visited_node_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS evidence_codes_json TEXT;
-ALTER TABLE user_narrative_investigation_progress ADD COLUMN IF NOT EXISTS selected_outcome_code VARCHAR(120);
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS approved_locales_json TEXT NOT NULL DEFAULT '[]';
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(160);
-ALTER TABLE narrative_investigations ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN investigation_version INTEGER;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN visited_node_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN evidence_codes_json TEXT;
+ALTER TABLE user_narrative_investigation_progress ADD COLUMN selected_outcome_code VARCHAR(120);
+ALTER TABLE narrative_investigations ADD COLUMN review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE narrative_investigations ADD COLUMN approved_locales_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE narrative_investigations ADD COLUMN reviewed_by VARCHAR(160);
+ALTER TABLE narrative_investigations ADD COLUMN reviewed_at TIMESTAMP WITH TIME ZONE;
 -- The Củ Chi pilot remains disabled until specialist review supplies approved citations/translations.
 INSERT INTO narrative_investigations (id, quest_id, version, enabled, graph_json, created_at, updated_at, review_status, approved_locales_json)
 SELECT '33333333-3333-3333-3333-333333333390'::uuid, '33333333-3333-3333-3333-333333333338'::uuid, 1, false,
@@ -5950,7 +5950,7 @@ WHERE NOT EXISTS (SELECT 1 FROM narrative_investigations WHERE quest_id='3333333
 -- BEGIN migration: V51__narrative_specialist_review_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V51__narrative_specialist_review_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS narrative_investigation_reviews (
+CREATE TABLE narrative_investigation_reviews (
     id UUID PRIMARY KEY,
     investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
     decision VARCHAR(24) NOT NULL,
@@ -5960,7 +5960,7 @@ CREATE TABLE IF NOT EXISTS narrative_investigation_reviews (
     reviewed_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_narrative_investigation_reviews_investigation_time
+CREATE INDEX idx_narrative_investigation_reviews_investigation_time
     ON narrative_investigation_reviews (investigation_id, reviewed_at DESC);
 
 -- END migration: V51__narrative_specialist_review_audit.sql
@@ -5988,11 +5988,11 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 -- BEGIN migration: V53__quest_campaign_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V53__quest_campaign_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS quest_campaign_audit (
+CREATE TABLE quest_campaign_audit (
   id UUID PRIMARY KEY, campaign_id UUID NOT NULL REFERENCES quest_campaigns(id), action VARCHAR(32) NOT NULL,
   actor_id UUID NOT NULL, occurred_at TIMESTAMP WITH TIME ZONE NOT NULL, detail_json TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
+CREATE INDEX idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
 
 -- END migration: V53__quest_campaign_audit.sql
 
@@ -6000,8 +6000,8 @@ CREATE INDEX IF NOT EXISTS idx_quest_campaign_audit_campaign_time ON quest_campa
 -- BEGIN migration: V54__assignment_campaign_link.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V54__assignment_campaign_link.sql
 -- ============================================================================
-ALTER TABLE assignments ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES quest_campaigns(id);
-CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id);
+ALTER TABLE assignments ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
+CREATE INDEX idx_assignments_campaign ON assignments(campaign_id);
 
 -- END migration: V54__assignment_campaign_link.sql
 
@@ -6009,12 +6009,12 @@ CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id);
 -- BEGIN migration: V55__campaign_release_gate_and_rollback_reason.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V55__campaign_release_gate_and_rollback_reason.sql
 -- ============================================================================
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS pilot_status VARCHAR(24) NOT NULL DEFAULT 'PENDING';
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decision VARCHAR(24) NOT NULL DEFAULT 'PENDING';
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_note TEXT;
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decided_by UUID;
-ALTER TABLE quest_campaigns ADD COLUMN IF NOT EXISTS release_decided_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE quest_campaign_audit ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
+ALTER TABLE quest_campaigns ADD COLUMN pilot_status VARCHAR(24) NOT NULL DEFAULT 'PENDING';
+ALTER TABLE quest_campaigns ADD COLUMN release_decision VARCHAR(24) NOT NULL DEFAULT 'PENDING';
+ALTER TABLE quest_campaigns ADD COLUMN release_note TEXT;
+ALTER TABLE quest_campaigns ADD COLUMN release_decided_by UUID;
+ALTER TABLE quest_campaigns ADD COLUMN release_decided_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE quest_campaign_audit ADD COLUMN rollback_reason TEXT;
 
 -- END migration: V55__campaign_release_gate_and_rollback_reason.sql
 
@@ -6022,8 +6022,8 @@ ALTER TABLE quest_campaign_audit ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
 -- BEGIN migration: V56__teacher_ai_draft_campaign_link.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V56__teacher_ai_draft_campaign_link.sql
 -- ============================================================================
-ALTER TABLE teacher_ai_drafts ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES quest_campaigns(id);
-CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
+ALTER TABLE teacher_ai_drafts ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
+CREATE INDEX idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
 
 -- END migration: V56__teacher_ai_draft_campaign_link.sql
 
@@ -6031,7 +6031,7 @@ CREATE INDEX IF NOT EXISTS idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(c
 -- BEGIN migration: V57__cooperative_leaderboard_access_audit.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V57__cooperative_leaderboard_access_audit.sql
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
+CREATE TABLE cooperative_leaderboard_access_audit (
     id UUID PRIMARY KEY,
     actor_id UUID,
     organization_id UUID NOT NULL,
@@ -6041,7 +6041,7 @@ CREATE TABLE IF NOT EXISTS cooperative_leaderboard_access_audit (
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
     detail TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
+CREATE INDEX idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
 
 -- END migration: V57__cooperative_leaderboard_access_audit.sql
 
@@ -6530,7 +6530,509 @@ ALTER TABLE user_narrative_investigation_progress
 -- END migration: V67__narrative_chat_progress.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V67
+-- BEGIN migration: V68__narrative_investigation_versioning.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V68__narrative_investigation_versioning.sql
+-- ============================================================================
+CREATE TABLE narrative_investigation_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
+    version INTEGER NOT NULL,
+    graph_json TEXT NOT NULL,
+    review_status VARCHAR(24) NOT NULL DEFAULT 'DRAFT',
+    approved_locales_json TEXT NOT NULL DEFAULT '[]',
+    reviewed_by VARCHAR(160),
+    reviewed_at TIMESTAMPTZ,
+    revision BIGINT NOT NULL DEFAULT 0,
+    open_draft BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uq_narrative_version_number UNIQUE (investigation_id, version),
+    CONSTRAINT ck_narrative_version_review_status
+        CHECK (review_status IN ('DRAFT', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX uq_narrative_open_draft
+    ON narrative_investigation_versions(investigation_id)
+    WHERE open_draft;
+
+ALTER TABLE narrative_investigations
+    ADD COLUMN published_version_id UUID,
+    ADD COLUMN rollout_state VARCHAR(24) NOT NULL DEFAULT 'NOT_RELEASED',
+    ADD COLUMN row_version BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE narrative_investigations
+    ADD CONSTRAINT ck_narrative_rollout_state
+        CHECK (rollout_state IN ('NOT_RELEASED', 'ACTIVE', 'PAUSED'));
+
+INSERT INTO narrative_investigation_versions (
+    id, investigation_id, version, graph_json, review_status, approved_locales_json,
+    reviewed_by, reviewed_at, revision, open_draft, created_at, updated_at)
+SELECT gen_random_uuid(), ni.id, ni.version, ni.graph_json, ni.review_status,
+       ni.approved_locales_json, ni.reviewed_by, ni.reviewed_at, 0,
+       ni.review_status <> 'APPROVED', ni.created_at, ni.updated_at
+FROM narrative_investigations ni;
+
+UPDATE narrative_investigations ni
+SET published_version_id = niv.id,
+    rollout_state = CASE
+        WHEN ni.enabled AND ni.review_status = 'APPROVED' THEN 'ACTIVE'
+        WHEN NOT ni.enabled AND ni.review_status = 'APPROVED' THEN 'PAUSED'
+        ELSE 'NOT_RELEASED'
+    END
+FROM narrative_investigation_versions niv
+WHERE niv.investigation_id = ni.id
+  AND niv.version = ni.version
+  AND ni.review_status = 'APPROVED';
+
+ALTER TABLE narrative_investigations
+    ADD CONSTRAINT fk_narrative_published_version
+        FOREIGN KEY (published_version_id) REFERENCES narrative_investigation_versions(id);
+
+ALTER TABLE narrative_investigation_reviews
+    ADD COLUMN version_id UUID,
+    ADD COLUMN version INTEGER,
+    ADD COLUMN revision BIGINT,
+    ADD COLUMN audit_event_id UUID;
+
+UPDATE narrative_investigation_reviews nir
+SET version_id = niv.id,
+    version = niv.version,
+    revision = niv.revision
+FROM narrative_investigation_versions niv
+WHERE niv.investigation_id = nir.investigation_id;
+
+ALTER TABLE narrative_investigation_reviews
+    ADD CONSTRAINT fk_narrative_review_version
+        FOREIGN KEY (version_id) REFERENCES narrative_investigation_versions(id),
+    ADD CONSTRAINT fk_narrative_review_audit
+        FOREIGN KEY (audit_event_id) REFERENCES admin_audit_events(id),
+    ADD CONSTRAINT uq_narrative_review_audit UNIQUE (audit_event_id);
+
+CREATE TABLE narrative_rollout_idempotency (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    investigation_id UUID NOT NULL REFERENCES narrative_investigations(id),
+    idempotency_key VARCHAR(160) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    response_json TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uq_narrative_rollout_idempotency UNIQUE (investigation_id, idempotency_key)
+);
+
+CREATE INDEX idx_narrative_versions_investigation
+    ON narrative_investigation_versions(investigation_id, version DESC);
+CREATE INDEX idx_narrative_rollout_idempotency_created
+    ON narrative_rollout_idempotency(investigation_id, created_at DESC);
+
+-- END migration: V68__narrative_investigation_versioning.sql
+
+-- ============================================================================
+-- BEGIN migration: V69__admin_console_phase_1_2.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V69__admin_console_phase_1_2.sql
+-- ============================================================================
+CREATE TABLE content_report_cases (
+    event_id UUID PRIMARY KEY REFERENCES pilot_events(id) ON DELETE CASCADE,
+    status VARCHAR(24) NOT NULL DEFAULT 'NEW',
+    admin_note TEXT,
+    reviewed_by UUID REFERENCES profiles(id),
+    reviewed_at TIMESTAMPTZ,
+    row_version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_content_report_case_status
+        CHECK (status IN ('NEW', 'IN_REVIEW', 'RESOLVED', 'REJECTED'))
+);
+
+INSERT INTO content_report_cases (event_id, status, created_at, updated_at)
+SELECT id, 'NEW', COALESCE(created_at, NOW()), COALESCE(created_at, NOW())
+FROM pilot_events
+WHERE event_type = 'content_report'
+ON CONFLICT (event_id) DO NOTHING;
+
+CREATE INDEX idx_content_report_cases_status_updated
+    ON content_report_cases (status, updated_at DESC);
+
+ALTER TABLE org_payment_transactions
+    ADD COLUMN license_count INTEGER,
+    ADD COLUMN gross_amount_vnd BIGINT,
+    ADD COLUMN discount_amount_vnd BIGINT,
+    ADD COLUMN subscription_id UUID;
+
+ALTER TABLE org_payment_transactions
+    ADD CONSTRAINT ck_org_payment_license_count CHECK (license_count IS NULL OR license_count > 0),
+    ADD CONSTRAINT ck_org_payment_gross_amount CHECK (gross_amount_vnd IS NULL OR gross_amount_vnd >= 0),
+    ADD CONSTRAINT ck_org_payment_discount_amount CHECK (discount_amount_vnd IS NULL OR discount_amount_vnd >= 0),
+    ADD CONSTRAINT fk_org_payment_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id);
+
+CREATE INDEX idx_org_payment_transactions_subscription
+    ON org_payment_transactions (subscription_id) WHERE subscription_id IS NOT NULL;
+
+ALTER TABLE subscriptions
+    ADD COLUMN source_payment_transaction_id UUID,
+    ADD COLUMN billing_cadence VARCHAR(24),
+    ADD COLUMN contract_value_vnd BIGINT,
+    ADD COLUMN currency VARCHAR(3),
+    ADD COLUMN quantity INTEGER;
+
+ALTER TABLE subscriptions
+    ADD CONSTRAINT fk_subscription_source_payment
+        FOREIGN KEY (source_payment_transaction_id) REFERENCES org_payment_transactions(id),
+    ADD CONSTRAINT ck_subscription_billing_cadence
+        CHECK (billing_cadence IS NULL OR billing_cadence IN ('MONTHLY', 'QUARTERLY', 'ANNUAL', 'ONE_TIME')),
+    ADD CONSTRAINT ck_subscription_contract_value
+        CHECK (contract_value_vnd IS NULL OR contract_value_vnd >= 0),
+    ADD CONSTRAINT ck_subscription_currency
+        CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$'),
+    ADD CONSTRAINT ck_subscription_quantity CHECK (quantity IS NULL OR quantity > 0);
+
+CREATE UNIQUE INDEX uq_subscriptions_source_payment
+    ON subscriptions (source_payment_transaction_id)
+    WHERE source_payment_transaction_id IS NOT NULL;
+
+-- END migration: V69__admin_console_phase_1_2.sql
+
+-- ============================================================================
+-- BEGIN migration: V70__organization_ops_note.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V70__organization_ops_note.sql
+-- ============================================================================
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS ops_note TEXT;
+
+UPDATE organizations
+SET ops_note = 'Đối tác chiến lược: gói ưu tiên bổ sung tài khoản hướng dẫn viên khảo sát đợt tiếp theo.'
+WHERE slug = 'cu-chi-demo'
+  AND (ops_note IS NULL OR BTRIM(ops_note) = '');
+
+UPDATE organizations
+SET ops_note = 'Tổ chức demo STANDARD — dùng cho kiểm thử roster và analytics admin.'
+WHERE slug = 'demo-standard-org'
+  AND (ops_note IS NULL OR BTRIM(ops_note) = '');
+
+-- END migration: V70__organization_ops_note.sql
+
+-- ============================================================================
+-- BEGIN migration: V71__admin_billing_crm_pipeline_seed.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V71__admin_billing_crm_pipeline_seed.sql
+-- ============================================================================
+-- Seed B2B commercial inquiries for Admin Billing & CRM Kanban (idempotent).
+-- Statuses map to Stitch pipeline: NEW → CONTACTED → QUALIFIED → WON.
+
+DELETE FROM heritage_digitization_inquiries
+WHERE contact_email LIKE 'seed-crm-%@histar.vn';
+
+INSERT INTO heritage_digitization_inquiries (
+    id, site_name, contact_name, contact_email, contact_phone, package_type, message,
+    status, admin_notes, contacted_at, interest_site_code, created_at, updated_at
+) VALUES
+(
+    gen_random_uuid(),
+    'Trường THCS Chu Văn An',
+    'Thầy Nguyễn Văn Tùng',
+    'seed-crm-lead-cva@histar.vn',
+    '0912839001',
+    'EDU_K12',
+    'Đăng ký tư vấn gói trải nghiệm di sản cho học sinh khối 8-9 (~800 users).',
+    'NEW',
+    'Lead vào từ form B2B2C — ưu tiên gọi trong 48h.',
+    NULL,
+    'cu-chi',
+    NOW() - INTERVAL '2 hours',
+    NOW() - INTERVAL '2 hours'
+),
+(
+    gen_random_uuid(),
+    'Vietravel Chi nhánh Ba Đình',
+    'Bà Trần Bích Hạnh',
+    'seed-crm-lead-vietravel@histar.vn',
+    '0904123456',
+    'TRAVEL',
+    'Cần tích hợp app AR định vị cho đoàn inbound châu Á (~1.500 users).',
+    'NEW',
+    'Lead vào từ hội thảo du lịch di sản.',
+    NULL,
+    'hoa-lo',
+    NOW() - INTERVAL '5 hours',
+    NOW() - INTERVAL '5 hours'
+),
+(
+    gen_random_uuid(),
+    'Bảo tàng Mỹ thuật Việt Nam',
+    'Lê Hoàng Nam',
+    'seed-crm-lead-finearts@histar.vn',
+    '0988111222',
+    'MUSEUM',
+    'Quan tâm gói số hóa thuyết minh AR cho triển lãm tạm thời.',
+    'NEW',
+    NULL,
+    NULL,
+    'fine-arts',
+    NOW() - INTERVAL '1 day',
+    NOW() - INTERVAL '1 day'
+),
+(
+    gen_random_uuid(),
+    'Trường THPT Chuyên Hà Nội - Amsterdam',
+    'Cô Phạm Thu Hà',
+    'seed-crm-lead-amsterdam@histar.vn',
+    '0919000111',
+    'EDU_K12',
+    'Pilot ngoại khóa lịch sử cho khối 10 (~600 users).',
+    'NEW',
+    'Đã gửi brochure PDF.',
+    NULL,
+    'thang-long',
+    NOW() - INTERVAL '30 hours',
+    NOW() - INTERVAL '30 hours'
+),
+(
+    gen_random_uuid(),
+    'Khu Di tích Nhà tù Hỏa Lò',
+    'Nguyễn Quốc Huy',
+    'seed-crm-pilot-hoalo@histar.vn',
+    '0988123456',
+    'MUSEUM',
+    'Đang cấp tài khoản thử nghiệm 50 beacon Bluetooth tại phòng giam số 4.',
+    'CONTACTED',
+    'Đã test 3/7 ngày — theo dõi retention học sinh tham quan.',
+    NOW() - INTERVAL '3 days',
+    'hoa-lo',
+    NOW() - INTERVAL '10 days',
+    NOW() - INTERVAL '1 day'
+),
+(
+    gen_random_uuid(),
+    'Trường Đại học Sư phạm Hà Nội',
+    'TS. Hoàng Minh Châu',
+    'seed-crm-pilot-hnue@histar.vn',
+    '0243754700',
+    'EDU_UNI',
+    'Pilot lớp phương pháp giảng dạy lịch sử với AR quest (~400 users).',
+    'CONTACTED',
+    'Đã bàn giao 20 tài khoản teacher demo.',
+    NOW() - INTERVAL '5 days',
+    'cu-chi',
+    NOW() - INTERVAL '14 days',
+    NOW() - INTERVAL '2 days'
+),
+(
+    gen_random_uuid(),
+    'Đại học Khoa học Xã hội & Nhân văn',
+    'PGS.TS Lê Đức Toàn',
+    'seed-crm-negotiate-ussh@histar.vn',
+    '02438580000',
+    'EDU_UNI',
+    'Đã gửi báo giá 1.200 vé AR quest Hoàng thành. Chờ phòng Kế hoạch duyệt.',
+    'QUALIFIED',
+    'Giá trị dự kiến: 144.000.000 ₫ — chờ chốt deal.',
+    NOW() - INTERVAL '12 days',
+    'thang-long',
+    NOW() - INTERVAL '28 days',
+    NOW() - INTERVAL '6 hours'
+),
+(
+    gen_random_uuid(),
+    'Trung tâm Bảo tồn Di sản Thăng Long',
+    'Giám đốc Ban Quản lý',
+    'seed-crm-won-thanglong@histar.vn',
+    '02437450815',
+    'HERITAGE',
+    'Hợp đồng HĐ-2024-B09 — đã thu cọc 50%, bàn giao 50 trạm AR.',
+    'WON',
+    'Triển khai: Active. Tài khoản admin trường đã cấp phát.',
+    NOW() - INTERVAL '40 days',
+    'thang-long',
+    NOW() - INTERVAL '90 days',
+    NOW() - INTERVAL '7 days'
+),
+(
+    gen_random_uuid(),
+    'Bảo tàng Lịch sử Quốc gia',
+    'Trần Thị Lan',
+    'seed-crm-won-history@histar.vn',
+    '02438253841',
+    'MUSEUM',
+    'Gói thuyết minh đa ngôn ngữ cho khách quốc tế.',
+    'WON',
+    'Đã ký kết Q3/2026 — đang vận hành ổn định.',
+    NOW() - INTERVAL '60 days',
+    'history-museum',
+    NOW() - INTERVAL '120 days',
+    NOW() - INTERVAL '20 days'
+);
+
+-- END migration: V71__admin_billing_crm_pipeline_seed.sql
+
+-- ============================================================================
+-- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-10-15_admin_dashboard_revenue_demo.sql
+-- ============================================================================
+-- Demo revenue for Admin dashboard chart (Stitch-like 6-month B2C/B2B).
+-- Idempotent: keyed by order_code / transfer_content prefix SEED-DASH-*.
+-- Depends on: 2026-07-10_demo_billing_accounts.sql (premium@histar.vn, demo-standard-org).
+-- Amounts approximate Stitch wireframe (T5–T10) so the dashboard bar chart is visually readable.
+
+BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Ensure payer profiles/org exist (no-op if already seeded).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE email = 'premium@histar.vn') THEN
+    RAISE EXCEPTION 'Missing premium@histar.vn — run 2026-07-10_demo_billing_accounts.sql first';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM organizations WHERE slug = 'demo-standard-org') THEN
+    RAISE EXCEPTION 'Missing demo-standard-org — run 2026-07-10_demo_billing_accounts.sql first';
+  END IF;
+END $$;
+
+-- Paid B2C subscription so MRR/ARR cards are non-zero (DEMO method is excluded from MRR).
+UPDATE b2c_subscriptions
+SET payment_method = 'SEPAY',
+    price_vnd = 79000,
+    is_active = TRUE,
+    end_date = DATE '2099-12-31'
+WHERE user_id = (SELECT id FROM profiles WHERE email = 'premium@histar.vn')
+  AND is_active = TRUE;
+
+-- Extra paid B2C subs for MRR demo volume (synthetic users optional — skip if not present).
+-- Keep focused on payment transactions for the chart.
+
+DELETE FROM b2c_payment_transactions WHERE order_code LIKE 'SEED-DASH-B2C-%';
+DELETE FROM org_payment_transactions WHERE order_code LIKE 'SEED-DASH-B2B-%';
+
+-- Month offsets relative to Asia/Ho_Chi_Minh "now": 5..0 months ago.
+-- Targets (VND): B2C [520M, 610M, 780M, 690M, 890M, 1025M], B2B [350M, 430M, 560M, 650M, 760M, 820200000]
+WITH months AS (
+  SELECT * FROM (VALUES
+    (5, 520000000, 350000000),
+    (4, 610000000, 430000000),
+    (3, 780000000, 560000000),
+    (2, 690000000, 650000000),
+    (1, 890000000, 760000000),
+    (0, 1025000000, 820200000)
+  ) AS t(offset_months, b2c_vnd, b2b_vnd)
+),
+payer AS (
+  SELECT id AS user_id FROM profiles WHERE email = 'premium@histar.vn' LIMIT 1
+),
+org AS (
+  SELECT o.id AS organization_id, p.id AS requester_user_id
+  FROM organizations o
+  JOIN profiles p ON p.email = 'org-standard@histar.vn'
+  WHERE o.slug = 'demo-standard-org'
+  LIMIT 1
+)
+INSERT INTO b2c_payment_transactions (
+  id, user_id, provider, order_code, transfer_content, amount_vnd, status,
+  return_to_path, expires_at, paid_at, created_at, updated_at, provider_gateway
+)
+SELECT
+  gen_random_uuid(),
+  payer.user_id,
+  'SEPAY',
+  'SEED-DASH-B2C-' || to_char((date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval), 'YYYY-MM'),
+  'SEEDDASHB2C' || to_char((date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval), 'YYYYMM'),
+  m.b2c_vnd,
+  'PAID',
+  '/billing',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '3 days',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '2 days' + interval '10 hours',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '1 day',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '2 days' + interval '10 hours',
+  'SEED'
+FROM months m
+CROSS JOIN payer;
+
+WITH months AS (
+  SELECT * FROM (VALUES
+    (5, 520000000, 350000000),
+    (4, 610000000, 430000000),
+    (3, 780000000, 560000000),
+    (2, 690000000, 650000000),
+    (1, 890000000, 760000000),
+    (0, 1025000000, 820200000)
+  ) AS t(offset_months, b2c_vnd, b2b_vnd)
+),
+org_edu AS (
+  SELECT o.id AS organization_id, p.id AS requester_user_id, o.name AS org_name
+  FROM organizations o
+  JOIN profiles p ON p.email = 'org-standard@histar.vn'
+  WHERE o.slug = 'demo-standard-org'
+  LIMIT 1
+),
+org_museum AS (
+  SELECT o.id AS organization_id,
+         COALESCE(
+           (SELECT id FROM profiles WHERE email = 'org-basic@histar.vn' LIMIT 1),
+           (SELECT id FROM profiles WHERE email = 'org-standard@histar.vn' LIMIT 1)
+         ) AS requester_user_id,
+         o.name AS org_name
+  FROM organizations o
+  WHERE o.slug = 'cu-chi-demo'
+  LIMIT 1
+)
+-- ~55% B2B as Edu (STANDARD), ~45% as Museum/Org (ORG_BASIC) for planRevenue donut.
+INSERT INTO org_payment_transactions (
+  id, requester_user_id, organization_id, org_name, contact_email, plan_type, provider,
+  order_code, transfer_content, amount_vnd, status, return_to_path, expires_at, paid_at,
+  created_at, updated_at, provider_gateway
+)
+SELECT
+  gen_random_uuid(),
+  CASE WHEN m.offset_months % 2 = 0 THEN edu.requester_user_id ELSE museum.requester_user_id END,
+  CASE WHEN m.offset_months % 2 = 0 THEN edu.organization_id ELSE museum.organization_id END,
+  CASE WHEN m.offset_months % 2 = 0 THEN edu.org_name ELSE museum.org_name END,
+  CASE WHEN m.offset_months % 2 = 0 THEN 'org-standard@histar.vn' ELSE 'org-basic@histar.vn' END,
+  CASE WHEN m.offset_months % 2 = 0 THEN 'STANDARD' ELSE 'ORG_BASIC' END,
+  'SEPAY',
+  'SEED-DASH-B2B-' || to_char((date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval), 'YYYY-MM'),
+  'SEEDDASHB2B' || to_char((date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval), 'YYYYMM'),
+  m.b2b_vnd,
+  'PAID',
+  '/billing',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '4 days',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '3 days' + interval '14 hours',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '2 days',
+  (date_trunc('month', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') - (m.offset_months || ' months')::interval) + interval '3 days' + interval '14 hours',
+  'SEED'
+FROM months m
+CROSS JOIN org_edu edu
+CROSS JOIN org_museum museum;
+
+-- Sample audit events for dashboard ops log (optional visual).
+DELETE FROM admin_audit_events WHERE idempotency_key LIKE 'seed-dash-ops-%';
+
+INSERT INTO admin_audit_events (
+  id, actor_id, entity_type, entity_id, action, reason, metadata_json, occurred_at, idempotency_key
+)
+SELECT
+  gen_random_uuid(),
+  COALESCE(
+    (SELECT id FROM profiles WHERE email IN ('admin@histar.vn', 'demo-admin@histar.vn') ORDER BY email LIMIT 1),
+    (SELECT id FROM profiles WHERE email = 'premium@histar.vn' LIMIT 1)
+  ),
+  v.entity_type,
+  v.entity_id::uuid,
+  v.action,
+  v.reason,
+  v.metadata,
+  now() - v.ago,
+  v.idem
+FROM (VALUES
+  ('QUEST', 'a1111111-1111-4111-8111-111111111111', 'CREATED', 'Đơn hàng quest demo seed', '{"channel":"VietQR","amountVnd":380000}', interval '5 minutes', 'seed-dash-ops-1'),
+  ('ORGANIZATION', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'UPDATED', 'Nạp credit đối tác B2B demo', '{"amountVnd":25000000}', interval '12 minutes', 'seed-dash-ops-2'),
+  ('NARRATIVE_INVESTIGATION', 'c1111111-2222-4333-8444-555555555555', 'REVIEWED', 'Phê duyệt Pilot mới (seed)', '{"by":"admin"}', interval '45 minutes', 'seed-dash-ops-3'),
+  ('DISCOVERY_POINT', 'd1111111-2222-4333-8444-666666666666', 'UPDATED', 'Khiếu nại sử liệu trạm #04', '{"status":"OPEN"}', interval '1 hour', 'seed-dash-ops-4'),
+  ('ORGANIZATION', 'e1111111-2222-4333-8444-777777777777', 'CREATED', 'Tổ chức đăng ký mới (seed)', '{"name":"Bảo tàng Điêu khắc Chăm"}', interval '2 hours', 'seed-dash-ops-5')
+) AS v(entity_type, entity_id, action, reason, metadata, ago, idem);
+
+COMMIT;
+
+-- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
+
+-- ============================================================================
+-- Flyway baseline after full bootstrap: V71
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -6557,7 +7059,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '67', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '71', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

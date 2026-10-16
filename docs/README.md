@@ -6,6 +6,7 @@ Cấu trúc gom theo vai trò (một manifest thống nhất thứ tự chạy).
 BE/docs/
 ├── README.md                 ← bạn đang đọc
 ├── seed-manifest.txt         ← thứ tự seed (single source of truth)
+├── seed-manifest-post-flyway.txt ← seed sau Flyway (payment tables, …)
 ├── sql/
 │   ├── schema/               ← Postgres init (Docker volume mới)
 │   ├── seed/                 ← migration + data idempotent

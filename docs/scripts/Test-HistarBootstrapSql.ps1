@@ -41,6 +41,24 @@ foreach ($migration in $migrations) {
     Assert-Contains $bootstrap "BEGIN migration: $($migration.Name)"
 }
 
+$lastMigrationMarker = "BEGIN migration: $($migrations[-1].Name)"
+$lastMigrationIndex = $bootstrap.IndexOf($lastMigrationMarker)
+
+$postFlywayManifest = Join-Path $beRoot 'docs\seed-manifest-post-flyway.txt'
+if (Test-Path $postFlywayManifest) {
+    Get-Content $postFlywayManifest | ForEach-Object {
+        $seed = $_.Trim()
+        if ($seed -and -not $seed.StartsWith('#')) {
+            $seedMarker = "BEGIN seed: $seed"
+            Assert-Contains $bootstrap $seedMarker
+            $seedIndex = $bootstrap.IndexOf($seedMarker)
+            if ($lastMigrationIndex -lt 0 -or $seedIndex -le $lastMigrationIndex) {
+                throw "Post-Flyway seed must appear after migrations: $seed"
+            }
+        }
+    }
+}
+
 $v3 = $bootstrap.IndexOf('BEGIN migration: V3__add_billing_settings.sql')
 $v16 = $bootstrap.IndexOf('BEGIN migration: V16__b2c_premium_price_79000.sql')
 if ($v3 -lt 0 -or $v16 -lt 0 -or $v3 -ge $v16) {

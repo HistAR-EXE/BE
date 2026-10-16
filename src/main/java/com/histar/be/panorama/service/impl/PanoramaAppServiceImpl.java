@@ -1,6 +1,10 @@
 package com.histar.be.panorama.service.impl;
 
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.location.service.LocationService;
 import com.histar.be.media.service.MediaStorageService;
 import com.histar.be.panorama.dto.PanoramaResponse;
@@ -9,10 +13,13 @@ import com.histar.be.panorama.service.PanoramaAppService;
 import com.histar.be.panorama.service.PanoramaService;
 import java.io.IOException;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -25,32 +32,59 @@ public class PanoramaAppServiceImpl implements PanoramaAppService {
     private final PanoramaService panoramaService;
     private final LocationService locationService;
     private final MediaStorageService mediaStorageService;
+    private final CurrentUserAccessor currentUserAccessor;
+    private final AdminAuditService audit;
 
     @Override
     @Transactional
     public PanoramaResponse upload(UUID locationId, String title, MultipartFile file) {
         locationService.findById(locationId);
         byte[] bytes = readImage(file);
+        UUID actorId = actorId();
         String contentType = file.getContentType();
         String imageUrl = storePanorama(locationId, bytes, contentType, file.getOriginalFilename());
-
-        Panorama saved = panoramaService.save(Panorama.builder()
-                .locationId(locationId)
-                .title(title != null && !title.isBlank() ? title.trim() : "Panorama 360°")
-                .imageUrl(imageUrl)
-                .build());
-        return PanoramaResponse.from(saved);
+        boolean rollbackCleanupRegistered = registerRollbackCleanup(imageUrl);
+        try {
+            Panorama saved = panoramaService.save(Panorama.builder()
+                    .locationId(locationId)
+                    .title(title != null && !title.isBlank() ? title.trim() : "Panorama 360°")
+                    .imageUrl(imageUrl)
+                    .build());
+            audit.append(new AdminAuditCommand(actorId, "PANORAMA", saved.getId(), "PANORAMA_UPLOADED",
+                    null, null, null, null, Map.of("locationId", locationId, "imageUrl", imageUrl)));
+            return PanoramaResponse.from(saved);
+        } catch (RuntimeException ex) {
+            if (!rollbackCleanupRegistered) safelyDelete(imageUrl);
+            throw ex;
+        }
     }
 
     @Override
     @Transactional
     public PanoramaResponse replaceImage(UUID panoramaId, MultipartFile file) {
         Panorama panorama = panoramaService.findById(panoramaId);
+        String previousImageUrl = panorama.getImageUrl();
         byte[] bytes = readImage(file);
+        UUID actorId = actorId();
         String contentType = file.getContentType();
         String imageUrl = storePanorama(panorama.getLocationId(), bytes, contentType, file.getOriginalFilename());
-        panorama.setImageUrl(imageUrl);
-        return PanoramaResponse.from(panoramaService.save(panorama));
+        boolean rollbackCleanupRegistered = registerRollbackCleanup(imageUrl);
+        try {
+            panorama.setImageUrl(imageUrl);
+            Panorama saved = panoramaService.save(panorama);
+            audit.append(new AdminAuditCommand(actorId, "PANORAMA", panoramaId, "PANORAMA_IMAGE_REPLACED",
+                    null, null, null, null,
+                    Map.of("oldImageUrl", previousImageUrl == null ? "" : previousImageUrl, "newImageUrl", imageUrl)));
+            return PanoramaResponse.from(saved);
+        } catch (RuntimeException ex) {
+            panorama.setImageUrl(previousImageUrl);
+            if (!rollbackCleanupRegistered) safelyDelete(imageUrl);
+            throw ex;
+        }
+    }
+
+    private UUID actorId() {
+        return currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
     }
 
     private byte[] readImage(MultipartFile file) {
@@ -79,6 +113,27 @@ public class PanoramaAppServiceImpl implements PanoramaAppService {
             objectKey = objectKey + "." + extension;
         }
         return mediaStorageService.uploadImage(bytes, contentType, objectKey);
+    }
+
+    private boolean registerRollbackCleanup(String imageUrl) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return false;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) safelyDelete(imageUrl);
+            }
+        });
+        return true;
+    }
+
+    private void safelyDelete(String imageUrl) {
+        try {
+            mediaStorageService.deleteObject(imageUrl);
+        } catch (RuntimeException ignored) {
+            // Preserve the original database/audit failure; cleanup can be retried operationally.
+        }
     }
 
     private static String extensionFor(String contentType) {

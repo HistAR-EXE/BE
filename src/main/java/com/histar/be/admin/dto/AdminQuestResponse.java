@@ -16,7 +16,8 @@ public record AdminQuestResponse(
         Boolean requireOnsiteCheckin,
         Integer stepsTotal,
         String coverImage,
-        String stepDiscoveryKeys) {
+        String stepDiscoveryKeys,
+        Long rowVersion) {
 
     public static AdminQuestResponse from(Quest quest) {
         return new AdminQuestResponse(
@@ -32,6 +33,7 @@ public record AdminQuestResponse(
                         || QuestDiscoveryProgress.requiresCheckinStep(quest),
                 quest.getStepsTotal(),
                 quest.getCoverImage(),
-                quest.getStepDiscoveryKeys());
+                quest.getStepDiscoveryKeys(),
+                quest.getRowVersion());
     }
 }

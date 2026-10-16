@@ -5,6 +5,7 @@ import com.histar.be.config.MinioProperties;
 import com.histar.be.media.service.MediaStorageService;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,24 @@ public class MinioMediaStorageService implements MediaStorageService {
             return base + "/" + minioProperties.getBucket() + "/" + objectKey;
         } catch (Exception ex) {
             throw new BusinessRuleException("Upload ảnh thất bại: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteObject(String objectUrl) {
+        if (objectUrl == null || objectUrl.isBlank()) {
+            return;
+        }
+        String marker = "/" + minioProperties.getBucket() + "/";
+        int markerIndex = objectUrl.indexOf(marker);
+        String objectKey = markerIndex >= 0 ? objectUrl.substring(markerIndex + marker.length()) : objectUrl;
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(minioProperties.getBucket())
+                    .object(objectKey)
+                    .build());
+        } catch (Exception ex) {
+            throw new BusinessRuleException("Xóa ảnh thất bại: " + ex.getMessage());
         }
     }
 }

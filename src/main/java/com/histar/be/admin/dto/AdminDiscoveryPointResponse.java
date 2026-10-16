@@ -13,7 +13,8 @@ public record AdminDiscoveryPointResponse(
         String unlockKey,
         Integer sortOrder,
         Double yaw,
-        Double pitch) {
+        Double pitch,
+        Long rowVersion) {
 
     public static AdminDiscoveryPointResponse from(DiscoveryPoint point) {
         return from(point, null, null);
@@ -29,6 +30,7 @@ public record AdminDiscoveryPointResponse(
                 point.getUnlockKey(),
                 point.getSortOrder(),
                 yaw,
-                pitch);
+                pitch,
+                point.getRowVersion());
     }
 }

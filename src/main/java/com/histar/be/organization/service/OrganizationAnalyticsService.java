@@ -40,6 +40,8 @@ public class OrganizationAnalyticsService {
         List<UUID> memberIds = members.stream().map(OrganizationMember::getUserId).toList();
         long memberCount = memberIds.size();
 
+        String opsNote = org.getOpsNote() == null ? "" : org.getOpsNote().trim();
+
         if (memberCount == 0) {
             return new OrganizationAnalyticsResponse(
                     org.getId(),
@@ -48,7 +50,7 @@ public class OrganizationAnalyticsService {
                     0L,
                     0.0,
                     0.0,
-                    "Chưa có thành viên — seed organization_members để xem cohort.");
+                    opsNote);
         }
 
         long withAnyCompleted = memberIds.stream()
@@ -71,7 +73,7 @@ public class OrganizationAnalyticsService {
                 memberCount,
                 completionRatePct,
                 fullTourRatePct,
-                "Cohort thật từ organization_members + user_quest_progress.");
+                opsNote);
     }
 
     public List<OrgRosterMemberResponse> roster(UUID orgId) {

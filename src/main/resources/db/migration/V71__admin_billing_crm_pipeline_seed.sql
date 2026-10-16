@@ -1,0 +1,145 @@
+-- Seed B2B commercial inquiries for Admin Billing & CRM Kanban (idempotent).
+-- Statuses map to Stitch pipeline: NEW → CONTACTED → QUALIFIED → WON.
+
+DELETE FROM heritage_digitization_inquiries
+WHERE contact_email LIKE 'seed-crm-%@histar.vn';
+
+INSERT INTO heritage_digitization_inquiries (
+    id, site_name, contact_name, contact_email, contact_phone, package_type, message,
+    status, admin_notes, contacted_at, interest_site_code, created_at, updated_at
+) VALUES
+(
+    gen_random_uuid(),
+    'Trường THCS Chu Văn An',
+    'Thầy Nguyễn Văn Tùng',
+    'seed-crm-lead-cva@histar.vn',
+    '0912839001',
+    'EDU_K12',
+    'Đăng ký tư vấn gói trải nghiệm di sản cho học sinh khối 8-9 (~800 users).',
+    'NEW',
+    'Lead vào từ form B2B2C — ưu tiên gọi trong 48h.',
+    NULL,
+    'cu-chi',
+    NOW() - INTERVAL '2 hours',
+    NOW() - INTERVAL '2 hours'
+),
+(
+    gen_random_uuid(),
+    'Vietravel Chi nhánh Ba Đình',
+    'Bà Trần Bích Hạnh',
+    'seed-crm-lead-vietravel@histar.vn',
+    '0904123456',
+    'TRAVEL',
+    'Cần tích hợp app AR định vị cho đoàn inbound châu Á (~1.500 users).',
+    'NEW',
+    'Lead vào từ hội thảo du lịch di sản.',
+    NULL,
+    'hoa-lo',
+    NOW() - INTERVAL '5 hours',
+    NOW() - INTERVAL '5 hours'
+),
+(
+    gen_random_uuid(),
+    'Bảo tàng Mỹ thuật Việt Nam',
+    'Lê Hoàng Nam',
+    'seed-crm-lead-finearts@histar.vn',
+    '0988111222',
+    'MUSEUM',
+    'Quan tâm gói số hóa thuyết minh AR cho triển lãm tạm thời.',
+    'NEW',
+    NULL,
+    NULL,
+    'fine-arts',
+    NOW() - INTERVAL '1 day',
+    NOW() - INTERVAL '1 day'
+),
+(
+    gen_random_uuid(),
+    'Trường THPT Chuyên Hà Nội - Amsterdam',
+    'Cô Phạm Thu Hà',
+    'seed-crm-lead-amsterdam@histar.vn',
+    '0919000111',
+    'EDU_K12',
+    'Pilot ngoại khóa lịch sử cho khối 10 (~600 users).',
+    'NEW',
+    'Đã gửi brochure PDF.',
+    NULL,
+    'thang-long',
+    NOW() - INTERVAL '30 hours',
+    NOW() - INTERVAL '30 hours'
+),
+(
+    gen_random_uuid(),
+    'Khu Di tích Nhà tù Hỏa Lò',
+    'Nguyễn Quốc Huy',
+    'seed-crm-pilot-hoalo@histar.vn',
+    '0988123456',
+    'MUSEUM',
+    'Đang cấp tài khoản thử nghiệm 50 beacon Bluetooth tại phòng giam số 4.',
+    'CONTACTED',
+    'Đã test 3/7 ngày — theo dõi retention học sinh tham quan.',
+    NOW() - INTERVAL '3 days',
+    'hoa-lo',
+    NOW() - INTERVAL '10 days',
+    NOW() - INTERVAL '1 day'
+),
+(
+    gen_random_uuid(),
+    'Trường Đại học Sư phạm Hà Nội',
+    'TS. Hoàng Minh Châu',
+    'seed-crm-pilot-hnue@histar.vn',
+    '0243754700',
+    'EDU_UNI',
+    'Pilot lớp phương pháp giảng dạy lịch sử với AR quest (~400 users).',
+    'CONTACTED',
+    'Đã bàn giao 20 tài khoản teacher demo.',
+    NOW() - INTERVAL '5 days',
+    'cu-chi',
+    NOW() - INTERVAL '14 days',
+    NOW() - INTERVAL '2 days'
+),
+(
+    gen_random_uuid(),
+    'Đại học Khoa học Xã hội & Nhân văn',
+    'PGS.TS Lê Đức Toàn',
+    'seed-crm-negotiate-ussh@histar.vn',
+    '02438580000',
+    'EDU_UNI',
+    'Đã gửi báo giá 1.200 vé AR quest Hoàng thành. Chờ phòng Kế hoạch duyệt.',
+    'QUALIFIED',
+    'Giá trị dự kiến: 144.000.000 ₫ — chờ chốt deal.',
+    NOW() - INTERVAL '12 days',
+    'thang-long',
+    NOW() - INTERVAL '28 days',
+    NOW() - INTERVAL '6 hours'
+),
+(
+    gen_random_uuid(),
+    'Trung tâm Bảo tồn Di sản Thăng Long',
+    'Giám đốc Ban Quản lý',
+    'seed-crm-won-thanglong@histar.vn',
+    '02437450815',
+    'HERITAGE',
+    'Hợp đồng HĐ-2024-B09 — đã thu cọc 50%, bàn giao 50 trạm AR.',
+    'WON',
+    'Triển khai: Active. Tài khoản admin trường đã cấp phát.',
+    NOW() - INTERVAL '40 days',
+    'thang-long',
+    NOW() - INTERVAL '90 days',
+    NOW() - INTERVAL '7 days'
+),
+(
+    gen_random_uuid(),
+    'Bảo tàng Lịch sử Quốc gia',
+    'Trần Thị Lan',
+    'seed-crm-won-history@histar.vn',
+    '02438253841',
+    'MUSEUM',
+    'Gói thuyết minh đa ngôn ngữ cho khách quốc tế.',
+    'WON',
+    'Đã ký kết Q3/2026 — đang vận hành ổn định.',
+    NOW() - INTERVAL '60 days',
+    'history-museum',
+    NOW() - INTERVAL '120 days',
+    NOW() - INTERVAL '20 days'
+);

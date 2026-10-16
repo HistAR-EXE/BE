@@ -13,4 +13,6 @@ public interface B2cSubscriptionRepository extends JpaRepository<B2cSubscription
     List<B2cSubscription> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 
     List<B2cSubscription> findAllByIsActiveTrueAndEndDateBefore(java.time.LocalDate date);
+
+    List<B2cSubscription> findAllByIsActiveTrueAndEndDateGreaterThanEqual(java.time.LocalDate date);
 }

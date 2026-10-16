@@ -3,7 +3,8 @@ package com.histar.be.analytics.dto;
 public record PoiHeatmapItem(
         String unlockKey,
         String name,
-        long visitCount,
-        long unlockCount,
+        Long visitCount,
+        Long unlockCount,
         Double avgDwellMs,
-        boolean dropOffHotspot) {}
+        Boolean dropOffHotspot,
+        boolean suppressed) {}

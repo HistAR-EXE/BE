@@ -18,7 +18,7 @@ public class QuestServiceImpl implements QuestService {
 
     @Override
     public List<Quest> findAll() {
-        return repository.findAll();
+        return repository.findByDeletedAtIsNull();
     }
 
     @Override
@@ -39,7 +39,7 @@ public class QuestServiceImpl implements QuestService {
 
     @Override
     public long count() {
-        return repository.count();
+        return repository.countByDeletedAtIsNull();
     }
     @Override
     public List<Quest> findByLocationId(UUID locationId) {

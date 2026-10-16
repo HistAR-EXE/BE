@@ -22,13 +22,13 @@ Thay các trang quản trị rời rạc bằng một Admin Console độc lập
 /admin/trash
 ```
 
-`/admin` hiển thị sáu KPI: pilot đang active, pilot fail readiness, narrative chờ review, content report quá SLA, campaign chờ release decision và bản ghi bị xóa trong bảy ngày gần nhất. Queue hành động gồm content reports chưa xử lý, pilot chờ review, campaign cần quyết định và dữ liệu bị xóa mềm gần đây. “Campaign cần quyết định” là campaign đã đạt `pilot_status=PASSED`, chưa có `release_decision=APPROVED`/`ROLLED_BACK`, và có `start_at` trong vòng bảy ngày; ưu tiên cao nếu thời điểm bắt đầu trong 24 giờ. Mỗi queue item có số lượng, tuổi lâu nhất, mức ưu tiên và deep-link mang sẵn filter. Các route cũ được redirect sang Console để bookmark vẫn hoạt động.
+`/admin` hiển thị đúng bốn KPI lấy từ dữ liệu thật: pilot đang `ACTIVE`, draft narrative chờ review, tổng bản ghi trong Thùng rác và báo sai sử liệu được nhận trong 30 ngày. Mỗi ô deep-link tới danh sách với filter tương ứng. Không có KPI/queue “Campaign cần quyết định” hoặc “Quá SLA” trong release này; Console không mở rộng thêm workflow chỉ để phục vụ dashboard. API lỗi phải hiển thị trạng thái lỗi và nút thử lại, không thay bằng số `0`. Các route quản trị cũ được redirect sang Console để bookmark vẫn hoạt động.
 
 Sidebar nhóm mục để tránh chín mục phẳng: **Vận hành** (Nội dung, Narrative pilots, Thùng rác), **Quản lý** (Người dùng, Tổ chức, Billing) và **Giám sát** (Analytics, Audit). Thùng rác có badge tổng bản ghi. Trên mobile, sidebar trở thành drawer đóng sau khi điều hướng.
 
 Header hiển thị role, environment read-only (`DEV`/`STAGING`/`PROD`) và cảnh báo hết hạn phiên. Khi nhận `401` trong lúc nhập form, UI giữ nguyên dữ liệu đã điền và hướng người dùng đăng nhập lại. Khi nhận `403`, UI giữ form và báo rõ tài khoản không đủ quyền; đăng nhập lại không phải là cách xử lý `403`.
 
-Trong release này, các trang **Người dùng**, **Tổ chức**, **Billing** và **Analytics** hiện có chỉ được chuyển vào Console shell và chuẩn hóa điều hướng/guard/trạng thái lỗi; không redesign lại nghiệp vụ hay thay đổi data contract của chúng. Analytics chỉ hiển thị số liệu aggregate; mọi breakdown có mẫu số nhỏ hơn 10 bị ẩn và API trả `suppressed=true` thay cho count/rate.
+Trong release này, các trang **Người dùng**, **Tổ chức**, **Billing** và **Analytics** hiện có chỉ được chuyển vào Console shell và chuẩn hóa điều hướng/guard/trạng thái lỗi; không redesign lại nghiệp vụ hay thay đổi data contract của chúng. Analytics chỉ hiển thị số liệu aggregate; session replay bị loại khỏi Console và endpoint replay cũ không còn trả dữ liệu. Mọi breakdown có mẫu số người dùng phân biệt nhỏ hơn 10 bị ẩn, API trả `suppressed=true` và giá trị nhạy cảm là `null`.
 
 ### Nội dung và xóa mềm
 
@@ -92,7 +92,7 @@ Narrative list accepts `reviewStatus`, `rolloutState`, `q`, `sort`, `page` và `
 
 ### UI
 
-Console is a dark operational workspace visually consistent with HistAR, but distinct from learner pages: compact data density, clear semantic colors (green active, amber review/draft/paused, red rejected), responsive tables/cards, search/filter toolbars and explicit empty/loading/error states. Badges always include icon plus text rather than color alone. Tables define default columns/sort and sticky headers; all toolbars support loading/error/empty states. Destructive actions use red confirmation dialogs and require a reason. Focus is visible, dialogs trap focus, toast messages use `aria-live`, and semantic colors must meet contrast requirements on the dark theme.
+Console là workspace vận hành **nền sáng hoàn toàn**, tách biệt với giao diện người học: mật độ dữ liệu gọn, card/table responsive, toolbar search/filter và bốn trạng thái loading/data/empty/error rõ ràng. Màu ngữ nghĩa gồm xanh cho active, amber cho review/draft/paused và đỏ cho rejected/destructive; badge luôn có icon và chữ, không truyền đạt trạng thái chỉ bằng màu. Bảng có cột/sort mặc định và sticky header khi cần. Thao tác phá hủy dùng dialog xác nhận và bắt buộc lý do. Focus phải nhìn rõ, dialog/drawer trap focus và hỗ trợ Escape, trả focus về nút mở, toast dùng `aria-live`, hỗ trợ bàn phím và mọi màu phải đạt tương phản cơ bản trên nền sáng. Không thêm UI library hoặc hệ design token mới.
 
 ## Dữ liệu
 

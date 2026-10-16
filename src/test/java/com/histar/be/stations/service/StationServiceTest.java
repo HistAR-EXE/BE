@@ -3,12 +3,16 @@ package com.histar.be.stations.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.stations.dto.StationBlockRequest;
 import com.histar.be.stations.dto.StationImportItem;
 import com.histar.be.stations.dto.StationResponse;
@@ -24,6 +28,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,6 +40,12 @@ class StationServiceTest {
 
     @Mock
     private StationContentBlockRepository blockRepository;
+
+    @Mock
+    private CurrentUserAccessor currentUserAccessor;
+
+    @Mock
+    private AdminAuditService audit;
 
     @InjectMocks
     private StationService stationService;
@@ -68,6 +79,8 @@ class StationServiceTest {
 
     @Test
     void importUpsertsStationAndBlocks() {
+        UUID actorId = UUID.randomUUID();
+        when(currentUserAccessor.getUserId()).thenReturn(Optional.of(actorId));
         when(stationRepository.findBySiteCodeAndCode("cu-chi", "ST01")).thenReturn(Optional.empty());
         when(stationRepository.saveAndFlush(any(Station.class))).thenAnswer(inv -> {
             Station s = inv.getArgument(0);
@@ -97,5 +110,10 @@ class StationServiceTest {
         assertThat(result.get(0).sortOrder()).isEqualTo(1);
         assertThat(result.get(0).blocks()).hasSize(1);
         assertThat(result.get(0).blocks().get(0).blockType()).isEqualTo(StationBlockType.TEXT);
+        ArgumentCaptor<AdminAuditCommand> command = ArgumentCaptor.forClass(AdminAuditCommand.class);
+        verify(audit).append(command.capture());
+        assertThat(command.getValue().action()).isEqualTo("STATIONS_IMPORTED");
+        assertThat(command.getValue().metadata().get("count")).isEqualTo(1);
+        assertThat(command.getValue().metadata()).containsKey("stationIds");
     }
 }

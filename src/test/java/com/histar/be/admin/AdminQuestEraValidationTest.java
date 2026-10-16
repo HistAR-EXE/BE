@@ -56,7 +56,8 @@ class AdminQuestEraValidationTest {
                 false,
                 1,
                 null,
-                "key:a");
+                "key:a",
+                null);
 
         assertThrows(BusinessRuleException.class, () -> adminContentService.createQuest(request));
         verify(questRepository, never()).save(any());

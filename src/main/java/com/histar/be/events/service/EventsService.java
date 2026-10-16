@@ -1,5 +1,8 @@
 package com.histar.be.events.service;
 
+import com.histar.be.admin.contentreport.ContentReportCase;
+import com.histar.be.admin.contentreport.ContentReportCaseRepository;
+import com.histar.be.admin.contentreport.ContentReportStatus;
 import com.histar.be.checkin.repository.CheckinRepository;
 import com.histar.be.events.dto.EventBatchRequest;
 import com.histar.be.events.dto.EventBatchResponse;
@@ -70,6 +73,7 @@ public class EventsService {
 
     private final PilotEventRepository pilotEventRepository;
     private final CheckinRepository checkinRepository;
+    private final ContentReportCaseRepository contentReportCases;
 
     public static boolean isSupportedEventType(String eventType) {
         return eventType != null && SUPPORTED_TYPES.contains(eventType.trim().toLowerCase(Locale.ROOT));
@@ -102,7 +106,16 @@ public class EventsService {
                     .occurredAt(item.occurredAt())
                     .createdAt(now)
                     .build();
-            pilotEventRepository.save(event);
+            event = pilotEventRepository.save(event);
+            if (EVENT_CONTENT_REPORT.equals(event.getEventType())) {
+                contentReportCases.save(ContentReportCase.builder()
+                        .event(event)
+                        .status(ContentReportStatus.NEW)
+                        .rowVersion(0L)
+                        .createdAt(now)
+                        .updatedAt(now)
+                        .build());
+            }
             accepted++;
         }
 

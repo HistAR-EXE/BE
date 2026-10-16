@@ -55,7 +55,7 @@ public class PassportService {
         }
         Map<UUID, Quest> questsById = new HashMap<>();
         if (!questIds.isEmpty()) {
-            questRepository.findAllById(questIds).forEach(q -> questsById.put(q.getId(), q));
+            questRepository.findByIdInAndDeletedAtIsNull(questIds).forEach(q -> questsById.put(q.getId(), q));
         }
         for (UserQuestProgress progress : completed) {
             UUID locationId = progress.getLocationId();

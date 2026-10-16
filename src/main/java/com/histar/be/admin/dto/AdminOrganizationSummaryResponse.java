@@ -8,4 +8,5 @@ public record AdminOrganizationSummaryResponse(
         String orgType,
         String planType,
         String plan,
-        long memberCount) {}
+        long memberCount,
+        String status) {}

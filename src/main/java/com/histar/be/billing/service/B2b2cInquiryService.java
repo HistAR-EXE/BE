@@ -1,13 +1,20 @@
 package com.histar.be.billing.service;
 
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
+import com.histar.be.billing.dto.AdminCreateB2b2cInquiryRequest;
 import com.histar.be.billing.dto.B2b2cInquiryItem;
 import com.histar.be.billing.dto.B2b2cInquiryRequest;
 import com.histar.be.billing.dto.B2b2cInquiryResponse;
 import com.histar.be.billing.entity.HeritageDigitizationInquiry;
 import com.histar.be.billing.repository.HeritageDigitizationInquiryRepository;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.HistarOrgProperties;
+import com.histar.be.common.security.CurrentUserAccessor;
+import com.histar.be.common.response.PageResponse;
+import jakarta.persistence.criteria.Predicate;
 import com.histar.be.mail.HistarEmailService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,6 +27,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +41,8 @@ public class B2b2cInquiryService {
     private final HeritageDigitizationInquiryRepository repository;
     private final HistarEmailService histarEmailService;
     private final HistarOrgProperties histarOrgProperties;
+    private final AdminAuditService audit;
+    private final CurrentUserAccessor currentUser;
 
     private final Map<String, List<Instant>> submitAttemptsByEmail = new ConcurrentHashMap<>();
 
@@ -67,6 +79,61 @@ public class B2b2cInquiryService {
         return new B2b2cInquiryResponse(saved.getId(), saved.getStatus(), saved.getCreatedAt());
     }
 
+    /**
+     * Admin CRM intake — no honeypot / rate limit; optional notes + initial stage; no outbound email.
+     */
+    @Transactional
+    public B2b2cInquiryItem createAsAdmin(AdminCreateB2b2cInquiryRequest request) {
+        UUID actorId = currentUser.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
+        String packageType = request.packageType().trim().toUpperCase();
+        if (!packageType.matches("^[A-Z0-9_]{2,32}$")) {
+            throw new BusinessRuleException("packageType chỉ gồm A–Z, 0–9 và underscore (2–32 ký tự)");
+        }
+        String status = request.status() != null && !request.status().isBlank()
+                ? request.status().trim().toUpperCase()
+                : "NEW";
+        Instant now = Instant.now();
+        String interest = request.interestSiteCode() != null && !request.interestSiteCode().isBlank()
+                ? request.interestSiteCode().trim().toLowerCase()
+                : null;
+        HeritageDigitizationInquiry saved = repository.save(HeritageDigitizationInquiry.builder()
+                .siteName(request.siteName().trim())
+                .interestSiteCode(interest)
+                .contactName(request.contactName().trim())
+                .contactEmail(request.contactEmail().trim().toLowerCase())
+                .contactPhone(request.contactPhone() != null && !request.contactPhone().isBlank()
+                        ? request.contactPhone().trim()
+                        : null)
+                .packageType(packageType)
+                .message(request.message() != null && !request.message().isBlank() ? request.message().trim() : null)
+                .status(status)
+                .adminNotes(request.adminNotes() != null && !request.adminNotes().isBlank()
+                        ? request.adminNotes().trim()
+                        : null)
+                .contactedAt("CONTACTED".equals(status)
+                                || "QUALIFIED".equals(status)
+                                || "WON".equals(status)
+                        ? now
+                        : null)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "B2B2C_INQUIRY",
+                saved.getId(),
+                "CREATED",
+                null,
+                null,
+                null,
+                null,
+                Map.of(
+                        "siteName", saved.getSiteName(),
+                        "packageType", saved.getPackageType(),
+                        "status", saved.getStatus())));
+        return toItem(saved);
+    }
+
     @Transactional(readOnly = true)
     public List<B2b2cInquiryItem> listAll() {
         return repository.findAll().stream()
@@ -75,11 +142,45 @@ public class B2b2cInquiryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<B2b2cInquiryItem> listPaged(
+            int page, int size, String status, String q, Instant from, Instant to) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new BusinessRuleException("from must be before or equal to to");
+        }
+        Specification<HeritageDigitizationInquiry> filters = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(cb.upper(root.get("status")), status.trim().toUpperCase()));
+            }
+            if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            if (q != null && !q.isBlank()) {
+                String needle = "%" + q.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("siteName")), needle),
+                        cb.like(cb.lower(root.get("contactName")), needle),
+                        cb.like(cb.lower(root.get("contactEmail")), needle),
+                        cb.like(cb.lower(root.get("contactPhone")), needle)));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+        var result = repository.findAll(filters, PageRequest.of(
+                Math.max(0, page), Math.min(100, Math.max(1, size)), Sort.by(Sort.Direction.DESC, "createdAt")));
+        return PageResponse.<B2b2cInquiryItem>builder()
+                .items(result.getContent().stream().map(this::toItem).toList())
+                .page(result.getNumber()).size(result.getSize())
+                .totalItems(result.getTotalElements()).totalPages(result.getTotalPages()).build();
+    }
+
     @Transactional
     public B2b2cInquiryItem updateStatus(UUID id, String status, String adminNotes) {
+        UUID actorId = currentUser.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
         HeritageDigitizationInquiry inquiry = repository
                 .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Inquiry not found: " + id));
+        String oldStatus = inquiry.getStatus();
+        String oldNotes = inquiry.getAdminNotes();
         String normalized = status.trim().toUpperCase();
         Instant now = Instant.now();
         inquiry.setStatus(normalized);
@@ -90,7 +191,22 @@ public class B2b2cInquiryService {
         if ("CONTACTED".equals(normalized) && inquiry.getContactedAt() == null) {
             inquiry.setContactedAt(now);
         }
-        return toItem(repository.save(inquiry));
+        HeritageDigitizationInquiry saved = repository.save(inquiry);
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "B2B2C_INQUIRY",
+                id,
+                "STATUS_UPDATED",
+                null,
+                null,
+                null,
+                null,
+                Map.of(
+                        "oldStatus", oldStatus == null ? "" : oldStatus,
+                        "newStatus", normalized,
+                        "notesChanged", !java.util.Objects.equals(oldNotes, saved.getAdminNotes()),
+                        "notesLength", saved.getAdminNotes() == null ? 0 : saved.getAdminNotes().length())));
+        return toItem(saved);
     }
 
     private boolean isHoneypotFilled(B2b2cInquiryRequest request) {

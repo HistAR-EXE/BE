@@ -11,4 +11,7 @@ public interface QuestCampaignRepository extends JpaRepository<QuestCampaign, UU
     List<QuestCampaign> findActive(Instant now);
     @Query("SELECT c FROM QuestCampaign c WHERE c.enabled = true AND c.endsAt <= :now") List<QuestCampaign> findActiveBefore(Instant now);
     List<QuestCampaign> findByQuestIdAndCampaignTypeAndStartsAtLessThanAndEndsAtGreaterThan(UUID questId, String campaignType, Instant endsAt, Instant startsAt);
+
+    long countByQuestIdAndEnabledTrueAndStartsAtLessThanEqualAndEndsAtGreaterThan(
+            UUID questId, Instant startedBefore, Instant endsAfter);
 }

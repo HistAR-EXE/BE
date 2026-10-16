@@ -15,4 +15,5 @@ public record AdminQuestRequest(
         Boolean requireOnsiteCheckin,
         Integer stepsTotal,
         String coverImage,
-        String stepDiscoveryKeys) {}
+        String stepDiscoveryKeys,
+        Long rowVersion) {}

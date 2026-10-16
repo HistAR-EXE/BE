@@ -11,4 +11,5 @@ public record AdminArtifactRequest(
         String description,
         @NotBlank String unlockKey,
         String reliability,
-        Integer sortOrder) {}
+        Integer sortOrder,
+        Long rowVersion) {}

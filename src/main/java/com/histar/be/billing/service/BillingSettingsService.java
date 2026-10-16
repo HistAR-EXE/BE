@@ -1,12 +1,20 @@
 package com.histar.be.billing.service;
 
+import com.histar.be.admin.audit.AdminAuditCommand;
+import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.billing.dto.AdminBillingSettingsResponse;
 import com.histar.be.billing.dto.UpdateBillingSettingsRequest;
 import com.histar.be.billing.entity.BillingSetting;
 import com.histar.be.billing.repository.BillingSettingRepository;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.config.SepayProperties;
+import com.histar.be.common.security.CurrentUserAccessor;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +32,14 @@ public class BillingSettingsService {
     private static final int DEFAULT_CHAT_FREE_DAILY_LIMIT = 10;
     private static final int DEFAULT_VOLUME_DISCOUNT_PERCENT = 35;
     private static final int DEFAULT_VOLUME_DISCOUNT_MIN_LICENSES = 3;
-    private static final int MIN_CHAT_FREE_DAILY_LIMIT = 5;
-    private static final int MAX_CHAT_FREE_DAILY_LIMIT = 10;
+    /** Align with Admin Billing Stitch slider (3 thắt chặt → 50 rộng rãi). */
+    private static final int MIN_CHAT_FREE_DAILY_LIMIT = 3;
+    private static final int MAX_CHAT_FREE_DAILY_LIMIT = 50;
 
     private final BillingSettingRepository billingSettingRepository;
     private final SepayProperties sepayProperties;
+    private final AdminAuditService audit;
+    private final CurrentUserAccessor currentUser;
 
     @Transactional(readOnly = true)
     public int getB2cPremiumPriceVnd() {
@@ -110,6 +121,7 @@ public class BillingSettingsService {
 
     @Transactional
     public AdminBillingSettingsResponse updateSettings(UpdateBillingSettingsRequest request) {
+        UUID actorId = currentUser.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
         if (request.b2cPremiumPriceVnd() == null
                 && request.chatFreeDailyLimit() == null
                 && request.orgVolumeDiscountPercent() == null
@@ -134,6 +146,21 @@ public class BillingSettingsService {
         if (request.orgVolumeDiscountMinLicenses() != null) {
             saveSetting(ORG_VOLUME_DISCOUNT_MIN_LICENSES_KEY, String.valueOf(request.orgVolumeDiscountMinLicenses()));
         }
+        Map<String, Object> changes = new LinkedHashMap<>();
+        if (request.b2cPremiumPriceVnd() != null) changes.put(B2C_PREMIUM_PRICE_KEY, request.b2cPremiumPriceVnd());
+        if (request.chatFreeDailyLimit() != null) changes.put(CHAT_FREE_DAILY_LIMIT_KEY, request.chatFreeDailyLimit());
+        if (request.orgVolumeDiscountPercent() != null) changes.put(ORG_VOLUME_DISCOUNT_PERCENT_KEY, request.orgVolumeDiscountPercent());
+        if (request.orgVolumeDiscountMinLicenses() != null) changes.put(ORG_VOLUME_DISCOUNT_MIN_LICENSES_KEY, request.orgVolumeDiscountMinLicenses());
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "BILLING_SETTINGS",
+                UUID.nameUUIDFromBytes("billing-settings".getBytes(StandardCharsets.UTF_8)),
+                "SETTINGS_UPDATED",
+                null,
+                null,
+                null,
+                null,
+                changes));
         return getAdminSettings();
     }
 
@@ -147,7 +174,8 @@ public class BillingSettingsService {
 
     private int parseChatFreeDailyLimit(String raw) {
         try {
-            return validateChatFreeDailyLimit(Integer.parseInt(raw.trim()));
+            int value = Integer.parseInt(raw.trim());
+            return Math.min(MAX_CHAT_FREE_DAILY_LIMIT, Math.max(MIN_CHAT_FREE_DAILY_LIMIT, value));
         } catch (NumberFormatException ex) {
             return DEFAULT_CHAT_FREE_DAILY_LIMIT;
         }
@@ -156,7 +184,11 @@ public class BillingSettingsService {
     private int validateChatFreeDailyLimit(int limit) {
         if (limit < MIN_CHAT_FREE_DAILY_LIMIT || limit > MAX_CHAT_FREE_DAILY_LIMIT) {
             throw new BusinessRuleException(
-                    "Giới hạn chat FREE phải từ " + MIN_CHAT_FREE_DAILY_LIMIT + " đến " + MAX_CHAT_FREE_DAILY_LIMIT + ".");
+                    "Giới hạn thuyết minh AI Free phải từ "
+                            + MIN_CHAT_FREE_DAILY_LIMIT
+                            + " đến "
+                            + MAX_CHAT_FREE_DAILY_LIMIT
+                            + " câu/ngày.");
         }
         return limit;
     }

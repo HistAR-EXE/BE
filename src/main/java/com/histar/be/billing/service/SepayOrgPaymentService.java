@@ -2,6 +2,7 @@ package com.histar.be.billing.service;
 
 import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.billing.policy.OrgPlanLimits;
+import com.histar.be.billing.dto.AdminCreateB2bInvoiceRequest;
 import com.histar.be.billing.dto.OrgCreatePaymentRequest;
 import com.histar.be.billing.service.BillingSettingsService;
 import com.histar.be.billing.dto.OrgPaymentIntentResponse;
@@ -10,6 +11,8 @@ import com.histar.be.billing.dto.OrgSubscribeRequest;
 import com.histar.be.billing.dto.SepayWebhookPayload;
 import com.histar.be.billing.entity.OrgPaymentTransaction;
 import com.histar.be.billing.repository.OrgPaymentTransactionRepository;
+import com.histar.be.billing.repository.OrgBillingSubscriptionRepository;
+import com.histar.be.billing.entity.OrgBillingSubscription;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.SepayProperties;
@@ -43,6 +46,7 @@ public class SepayOrgPaymentService {
     private final SepayProperties sepayProperties;
     private final BillingSettingsService billingSettingsService;
     private final EmailVerifiedGuard emailVerifiedGuard;
+    private final OrgBillingSubscriptionRepository orgBillingSubscriptionRepository;
 
     @Transactional
     public OrgPaymentIntentResponse createPayment(UUID userId, OrgCreatePaymentRequest request) {
@@ -76,14 +80,14 @@ public class SepayOrgPaymentService {
                 .filter(tx -> tx.getPlanType().equals(plan.name()))
                 .orElse(null);
         if (underpaid != null) {
-            return toIntentResponse(underpaid, pricing);
+            return reuseIntent(underpaid, pricing);
         }
         OrgPaymentTransaction pending = orgPaymentTransactionRepository
                 .findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
                 .filter(tx -> tx.getExpiresAt() != null && tx.getExpiresAt().isAfter(now))
                 .orElse(null);
         if (pending != null && pending.getPlanType().equals(plan.name())) {
-            return toIntentResponse(pending, pricing);
+            return reuseIntent(pending, pricing);
         }
 
         String orderCode = generateOrderCode();
@@ -99,6 +103,9 @@ public class SepayOrgPaymentService {
                 .orderCode(orderCode)
                 .transferContent(orderCode)
                 .amountVnd(amountVnd)
+                .licenseCount(pricing.licenseCount())
+                .grossAmountVnd(pricing.subtotalVnd())
+                .discountAmountVnd(pricing.discountAmountVnd())
                 .status("PENDING")
                 .returnToPath(request.returnToPath())
                 .qrUrl(qrUrl)
@@ -106,7 +113,71 @@ public class SepayOrgPaymentService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
-        return toIntentResponse(tx, pricing);
+        return toIntentResponse(tx);
+    }
+
+    /**
+     * Admin-issued B2B invoice — always creates a fresh PENDING intent (no reuse / email verify).
+     * When SePay is configured, QR uses VietQR; otherwise provider=ADMIN and qrUrl is empty.
+     */
+    @Transactional
+    public OrgPaymentIntentResponse createAdminInvoice(UUID adminUserId, AdminCreateB2bInvoiceRequest request) {
+        profileRepository.findById(adminUserId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        OrgSubscription plan = OrgSubscription.fromPlanType(request.planType());
+        if (plan == OrgSubscription.NONE) {
+            throw new BusinessRuleException("planType phải là MICRO, STANDARD hoặc PREMIUM");
+        }
+
+        Organization existingOrg = null;
+        if (request.organizationId() != null) {
+            existingOrg = organizationRepository
+                    .findById(request.organizationId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Organization not found: " + request.organizationId()));
+        }
+        String orgName = resolveOrgName(request.orgName(), existingOrg);
+        String contactEmail = resolveContactEmail(request.contactEmail(), null, existingOrg);
+        long unitPriceVnd = OrgPlanLimits.forPlan(plan).priceVnd();
+        if (unitPriceVnd <= 0) {
+            throw new BusinessRuleException("Giá gói B2B không hợp lệ.");
+        }
+        int licenseCount = request.licenseCount() != null && request.licenseCount() > 0 ? request.licenseCount() : 1;
+        BillingSettingsService.OrgVolumePricing pricing =
+                billingSettingsService.calculateOrgVolumePricing(unitPriceVnd, licenseCount);
+        long amountVnd = pricing.totalVnd();
+
+        boolean sepayReady = sepayProperties.isEnabled()
+                && !sepayProperties.getBankCode().isBlank()
+                && !sepayProperties.getAccountNumber().isBlank()
+                && !sepayProperties.getAccountName().isBlank();
+
+        Instant now = Instant.now();
+        String orderCode = generateOrderCode();
+        Instant expiresAt = now.plus(
+                Math.max(15, sepayProperties.getOrderExpiryMinutes()), ChronoUnit.MINUTES);
+        String qrUrl = sepayReady ? buildQrUrl(orderCode, amountVnd) : "";
+        OrgPaymentTransaction tx = orgPaymentTransactionRepository.save(OrgPaymentTransaction.builder()
+                .requesterUserId(adminUserId)
+                .organizationId(existingOrg != null ? existingOrg.getId() : null)
+                .orgName(orgName)
+                .contactEmail(contactEmail)
+                .planType(plan.name())
+                .provider(sepayReady ? "SEPAY" : "ADMIN")
+                .orderCode(orderCode)
+                .transferContent(orderCode)
+                .amountVnd(amountVnd)
+                .licenseCount(pricing.licenseCount())
+                .grossAmountVnd(pricing.subtotalVnd())
+                .discountAmountVnd(pricing.discountAmountVnd())
+                .status("PENDING")
+                .returnToPath(null)
+                .qrUrl(qrUrl)
+                .expiresAt(expiresAt)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+        return toIntentResponse(tx);
     }
 
     @Transactional(readOnly = true)
@@ -212,6 +283,18 @@ public class SepayOrgPaymentService {
                 new OrgSubscribeRequest(tx.getOrgName(), tx.getPlanType(), tx.getContactEmail(), tx.getOrganizationId()),
                 "SEPAY");
         tx.setOrganizationId(orgStatus.organizationId());
+        OrgBillingSubscription subscription = orgBillingSubscriptionRepository
+                .findAllByOrganizationIdOrderByCreatedAtDesc(orgStatus.organizationId()).stream()
+                .filter(sub -> Boolean.TRUE.equals(sub.getIsActive()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessRuleException("Không tìm thấy subscription vừa kích hoạt"));
+        subscription.setSourcePaymentTransactionId(tx.getId());
+        subscription.setBillingCadence("ANNUAL");
+        subscription.setContractValueVnd(tx.getAmountVnd());
+        subscription.setCurrency("VND");
+        subscription.setQuantity(tx.getLicenseCount());
+        orgBillingSubscriptionRepository.save(subscription);
+        tx.setSubscriptionId(subscription.getId());
         orgPaymentTransactionRepository.save(tx);
     }
 
@@ -254,17 +337,32 @@ public class SepayOrgPaymentService {
         return value;
     }
 
-    private OrgPaymentIntentResponse toIntentResponse(
-            OrgPaymentTransaction tx, BillingSettingsService.OrgVolumePricing pricing) {
+    private OrgPaymentIntentResponse reuseIntent(
+            OrgPaymentTransaction tx, BillingSettingsService.OrgVolumePricing requested) {
+        if (tx.getLicenseCount() == null || tx.getGrossAmountVnd() == null || tx.getDiscountAmountVnd() == null) {
+            throw new BusinessRuleException("Payment intent cũ thiếu pricing snapshot; vui lòng tạo intent mới");
+        }
+        if (tx.getLicenseCount() != requested.licenseCount()
+                || tx.getGrossAmountVnd() != requested.subtotalVnd()
+                || tx.getDiscountAmountVnd() != requested.discountAmountVnd()
+                || tx.getAmountVnd() != requested.totalVnd()) {
+            throw new BusinessRuleException("Pricing hiện tại không khớp payment intent đang chờ");
+        }
+        return toIntentResponse(tx);
+    }
+
+    private OrgPaymentIntentResponse toIntentResponse(OrgPaymentTransaction tx) {
+        long gross = tx.getGrossAmountVnd();
+        int discountPercent = gross == 0 ? 0 : (int) Math.round(tx.getDiscountAmountVnd() * 100.0 / gross);
         return new OrgPaymentIntentResponse(
                 tx.getProvider(),
                 tx.getOrderCode(),
                 tx.getTransferContent(),
                 tx.getAmountVnd(),
-                pricing.subtotalVnd(),
-                pricing.discountPercent(),
-                pricing.discountAmountVnd(),
-                pricing.licenseCount(),
+                tx.getGrossAmountVnd(),
+                discountPercent,
+                tx.getDiscountAmountVnd(),
+                tx.getLicenseCount(),
                 sepayProperties.getBankCode(),
                 sepayProperties.getAccountNumber(),
                 sepayProperties.getAccountName(),

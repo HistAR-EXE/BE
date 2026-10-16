@@ -54,6 +54,18 @@ public class OrgPaymentTransaction {
     @Column(name = "amount_vnd", nullable = false)
     private Long amountVnd;
 
+    @Column(name = "license_count")
+    private Integer licenseCount;
+
+    @Column(name = "gross_amount_vnd")
+    private Long grossAmountVnd;
+
+    @Column(name = "discount_amount_vnd")
+    private Long discountAmountVnd;
+
+    @Column(name = "subscription_id")
+    private UUID subscriptionId;
+
     @Column(name = "status", nullable = false)
     private String status;
 
