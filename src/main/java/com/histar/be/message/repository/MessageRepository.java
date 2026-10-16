@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface MessageRepository extends JpaRepository<Message, UUID> {
+    @Query("select count(m) from Message m, Conversation c where m.conversationId = c.id and c.userId = :userId and m.role = 'assistant' and m.serverGenerated = true")
+    long countAssistantReplies(@Param("userId") UUID userId);
 
     List<Message> findByConversationIdOrderByCreatedAt(UUID conversationId);
 

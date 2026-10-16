@@ -15,6 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
   profiles.findByIdForUpdate(user).orElseThrow();
   if (ledger.existsByUserIdAndQuestIdAndRewardTypeAndRewardKey(user,quest,type,key)) return 0;
   ledger.save(QuestRewardLedgerEntry.builder().userId(user).questId(quest).rewardType(type).rewardKey(key).xp(xp).awardedAt(Instant.now()).build());
-  return points.award(user,xp);
+  return points.awardOnce(user,"narrative:"+quest+":"+type+":"+key,xp);
  }
 }

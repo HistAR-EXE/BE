@@ -42,6 +42,7 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
     private final MediaStorageService mediaStorageService;
     private final ViralProperties viralProperties;
     private final GamificationProperties gamificationProperties;
+    private final com.histar.be.profile.service.ProfilePointsService points;
 
     @Override
     @Transactional
@@ -98,6 +99,7 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
     @Override
     @Transactional
     public ShareRecordedResponse recordShare(UUID userId, UUID creationId) {
+        points.lockAccount(userId);
         UserCreation creation = userCreationRepository
                 .findById(creationId)
                 .orElseThrow(() -> new ResourceNotFoundException("UserCreation not found: " + creationId));
@@ -113,12 +115,9 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
         creation.setSharedAt(Instant.now());
         userCreationRepository.save(creation);
 
-        Profile profile = profileRepository.findById(userId).orElseThrow();
         int bonus = viralProperties.getShareBonusPoints();
-        int newPoints = (profile.getTotalPoints() == null ? 0 : profile.getTotalPoints()) + bonus;
-        profile.setTotalPoints(newPoints);
-        profile.setLevel(LevelCalculator.levelFromPoints(newPoints, gamificationProperties.parseLevelThresholds()));
-        profileRepository.save(profile);
+        bonus = points.awardOnce(userId, "share:" + creationId, bonus);
+        int newPoints = profileRepository.findById(userId).orElseThrow().getTotalPoints();
 
         return new ShareRecordedResponse(bonus, newPoints, viralProperties.getShareCaption());
     }

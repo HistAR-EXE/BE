@@ -48,6 +48,7 @@ public class QuestProgressCompleter {
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final HeritageOnsiteBonusService heritageOnsiteBonusService;
     private final com.histar.be.lms.service.LmsAssignmentService lmsAssignmentService;
+    private final com.histar.be.profile.service.ProfilePointsService points;
 
     @Transactional
     public Optional<QuestCompletedDto> completeIfInProgress(UUID userId, UUID questId) {
@@ -57,6 +58,7 @@ public class QuestProgressCompleter {
     @Transactional
     public Optional<QuestCompletedDto> completeIfInProgress(
             UUID userId, UUID questId, CompletionTrigger trigger) {
+        points.lockAccount(userId);
         Quest quest = questRepository.findById(questId).orElseThrow();
         Instant now = Instant.now();
         int updated = userQuestProgressRepository.markCompletedIfInProgress(
@@ -65,12 +67,8 @@ public class QuestProgressCompleter {
             return Optional.empty();
         }
 
-        Profile profile = profileRepository.findById(userId).orElseThrow();
         int reward = quest.getPointsReward() == null ? 0 : quest.getPointsReward();
-        int newPoints = (profile.getTotalPoints() == null ? 0 : profile.getTotalPoints()) + reward;
-        profile.setTotalPoints(newPoints);
-        profile.setLevel(LevelCalculator.levelFromPoints(newPoints, gamificationProperties.parseLevelThresholds()));
-        profileRepository.save(profile);
+        points.awardOnce(userId, "quest:" + questId, reward);
 
         UUID sessionId = resolveActiveSessionId(userId, quest.getLocationId());
         String metadataJson = buildCompletionMetadata(userId, quest, trigger);
