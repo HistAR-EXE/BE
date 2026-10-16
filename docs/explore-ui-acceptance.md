@@ -12,7 +12,7 @@
 
 1. Dùng môi trường local/staging và hai tài khoản thử nghiệm A/B.
 2. Sao lưu DB bằng quy trình hiện có. Không xóa bảng, không chạy lại seed để đặt lại dữ liệu.
-3. Áp dụng Flyway V68 và V69, xác nhận cả hai `success=true`. DB local lúc kiểm tra vẫn ở V67; các migration mới chưa được áp dụng vào dữ liệu ứng dụng.
+3. Áp dụng Flyway V74 và V75, xác nhận cả hai `success=true`. DB local lúc kiểm tra vẫn ở V67; các migration mới chưa được áp dụng vào dữ liệu ứng dụng.
 4. Với DB đã tồn tại và PostgreSQL đang chạy, tác vụ migration là `docker compose run --rm --no-deps postgres-migrate`; không chạy lại seed chỉ để nâng cấp schema. Kiểm tra cấu hình môi trường trước khi chạy để tránh trỏ nhầm DB. Dừng backend trước khi migrate vì cấu hình Hibernate `ddl-auto: update` có thể tự tạo bảng trước Flyway.
 5. Khởi động backend với code mới và frontend với code mới. Trong Network, `GET /api/me/explore` phải trả 200 với `profile`, `discovery.keys`, `archiveXp`, `badges`.
 
@@ -52,3 +52,5 @@ Backend: chạy `mvnw.cmd test` trong thư mục BE. Bộ kiểm thử mới bao
 UI: chạy `npx playwright test --config playwright.explore.config.ts` trong FE. Bộ này dùng Edge và API giả lập để kiểm tra hợp đồng UI; không thay thế nghiệm thu toàn luồng với backend và PostgreSQL đang chạy.
 
 Migration: chạy `BE/scripts/verify-explore-migrations.ps1`. Script kiểm tra trong schema tạm trên PostgreSQL local rồi rollback, không triển khai migration vào bảng ứng dụng.
+
+> Bản tích hợp nhóm: xem [explore-team-integration.md](explore-team-integration.md). Nếu DB từng dùng V68/V69 Khám phá cũ, cần chuyển lịch sử có kiểm tra trước khi migrate; không chạy trực tiếp để bỏ qua checksum.

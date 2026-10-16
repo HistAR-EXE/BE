@@ -44,7 +44,8 @@ public class VerifiedDialogueService {
         if (!request.locationId().equals(character.getLocationId())) throw invalid();
         var history = messages.findByConversationIdOrderByCreatedAt(conversation.getId());
         var matching = steps.findByUnlockKey(request.key()).stream()
-                .filter(s -> s.getQuest() != null && request.locationId().equals(s.getQuest().getLocationId()))
+                .filter(s -> s.getQuest() != null && s.getQuest().getDeletedAt() == null
+                        && request.locationId().equals(s.getQuest().getLocationId()))
                 .filter(s -> visibility.visible(s.getQuest()))
                 .filter(s -> s.getChatPrompt() != null && !s.getChatPrompt().isBlank())
                 .filter(s -> {

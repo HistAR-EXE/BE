@@ -16,9 +16,11 @@ Verification completed on 2026-10-16:
 - Backend: 344 tests, 0 failures, 0 errors, 0 skipped across 107 suites (`mvnw.cmd test`).
 - Frontend: production build and ESLint on affected files pass.
 - UI: 8 Playwright/Edge tests pass with mocked APIs, including storage deletion, forged local state, failed saves, retries, dialog keyboard behavior, account-switch races and Profile/Explore consistency.
-- PostgreSQL: V68/V69 syntax, seed records, historical opening balance and new columns validated in a dedicated schema inside a transaction, then rolled back.
+- PostgreSQL: V74/V75 syntax, seed records, historical opening balance and new columns validated in a dedicated schema inside a transaction, then rolled back.
 - Independent static review found no remaining introduced high-impact defect in the reviewed paths.
 
-Deployment is not performed: the application's local database was observed at Flyway V67. Apply V68/V69 to the intended environment, restart backend/frontend together, and follow `explore-ui-acceptance.md` for live end-to-end acceptance. No production database data was rewritten.
+Deployment is not performed: the application's local database was observed at Flyway V67. Apply V74/V75 to the intended environment, restart backend/frontend together, and follow `explore-ui-acceptance.md` for live end-to-end acceptance. No production database data was rewritten.
 
 Limits: persisted historical totals are not proof that all old rewards were legitimate. This change will not erase or recalculate those totals. A separate administrator audit is needed for historical correction. Merely serving educational content cannot prove that a person read it; viewing events remain distinct from server-graded challenges.
+
+> Bản tích hợp nhóm: xem [explore-team-integration.md](explore-team-integration.md). Nếu DB từng dùng V68/V69 Khám phá cũ, cần chuyển lịch sử có kiểm tra trước khi migrate; không chạy trực tiếp để bỏ qua checksum.
