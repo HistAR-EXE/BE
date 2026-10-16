@@ -41,6 +41,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     private final GamificationProperties gamificationProperties;
     private final ProfileAccessPolicy profileAccessPolicy;
     private final UsageQuotaService usageQuotaService;
+    private final com.histar.be.profile.service.ProfilePointsService points;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,10 +58,6 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         Set<String> pointKeys = new HashSet<>();
         for (DiscoveryPoint point : points) {
             pointKeys.add(point.getUnlockKey());
-        }
-        if (profileAccessPolicy.previewsAllGamificationContent(userId)) {
-            List<String> allKeys = points.stream().map(DiscoveryPoint::getUnlockKey).toList();
-            return new DiscoverySummaryResponse(allKeys.size(), points.size(), allKeys, System.currentTimeMillis());
         }
         List<String> userKeys = userDiscoveryRepository.findByUserIdAndLocationId(userId, locationId).stream()
                 .map(UserDiscovery::getDiscoveryKey)
@@ -90,6 +87,7 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     @Override
     @Transactional
     public boolean record(UUID userId, String unlockKey, UUID locationId) {
+        points.lockAccount(userId);
         DiscoveryPoint point = resolvePoint(userId, unlockKey, locationId);
         if (point == null) {
             return false;

@@ -57,6 +57,17 @@ SELECT
     true
 FROM seed_analytics_users u;
 
+-- V75 adds a durable XP journal. Recreating these demo-only profiles cascades
+-- their old entries, so recreate their opening balances in the same transaction.
+DO $$ BEGIN
+    IF to_regclass('public.xp_ledger') IS NOT NULL THEN
+        INSERT INTO xp_ledger (id, user_id, event_key, points, awarded_at)
+        SELECT gen_random_uuid(), p.id, 'baseline:v1', p.total_points, now()
+        FROM profiles p JOIN seed_analytics_users u ON u.user_id = p.id
+        ON CONFLICT (user_id, event_key) DO NOTHING;
+    END IF;
+END $$;
+
 -- Closed visit sessions (~14–22 min) with discovery events for drop-off + session quality
 WITH loc AS (
     SELECT '11111111-1111-1111-1111-111111111111'::uuid AS id

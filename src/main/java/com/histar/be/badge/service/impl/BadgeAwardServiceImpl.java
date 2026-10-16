@@ -30,10 +30,13 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
     private final CheckinRepository checkinRepository;
     private final ProfileRepository profileRepository;
     private final QuestRepository questRepository;
+    private final com.histar.be.profile.service.ProfilePointsService points;
+    private final com.histar.be.discovery.explore.ExploreBadgeContextService exploreContext;
 
     @Override
     @Transactional
     public List<BadgeEarnedDto> evaluateAndAward(UUID userId) {
+        points.lockAccount(userId);
         Profile profile = profileRepository.findById(userId).orElse(null);
         if (profile == null) {
             return List.of();
@@ -43,12 +46,17 @@ public class BadgeAwardServiceImpl implements BadgeAwardService {
         long checkinCount = checkinRepository.countByUserId(userId);
         int totalPoints = profile.getTotalPoints() == null ? 0 : profile.getTotalPoints();
 
+        var explore = com.histar.be.discovery.explore.ExploreBadgeRules.evaluate(exploreContext.context(userId, totalPoints));
         List<BadgeEarnedDto> earned = new ArrayList<>();
         for (Badge badge : badgeRepository.findAll()) {
             if (userBadgeRepository.existsByUserIdAndBadgeId(userId, badge.getId())) {
                 continue;
             }
-            if (!meetsCondition(badge, userId, questCompletedCount, checkinCount, totalPoints)) {
+            boolean eligible = "explore".equals(badge.getConditionType())
+                    ? java.util.stream.IntStream.range(0, explore.size())
+                        .anyMatch(i -> com.histar.be.discovery.explore.ExploreBadgeRules.databaseId(i).equals(badge.getId()) && explore.get(i).eligible())
+                    : meetsCondition(badge, userId, questCompletedCount, checkinCount, totalPoints);
+            if (!eligible) {
                 continue;
             }
             userBadgeRepository.save(UserBadge.builder()

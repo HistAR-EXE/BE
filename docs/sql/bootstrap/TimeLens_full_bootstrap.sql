@@ -1,5 +1,5 @@
-﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V71.
+-- HistAR full local bootstrap SQL
+-- Generated from schema, seed manifest, and Flyway migrations through V75.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -7,7 +7,7 @@ SET client_encoding TO 'UTF8';
 
 -- ============================================================================
 -- BEGIN schema: TimeLens_DB_Schema.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\schema\TimeLens_DB_Schema.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\schema\TimeLens_DB_Schema.sql
 -- ============================================================================
 -- ============================================================
 -- TimeLens — PostgreSQL Schema (17 bảng) + Seed data Củ Chi
@@ -372,7 +372,7 @@ ON CONFLICT (user_id, quest_id) DO NOTHING;
 
 -- ============================================================================
 -- BEGIN schema: 2026-06-02_fe_compat_migration.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\schema\2026-06-02_fe_compat_migration.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\schema\2026-06-02_fe_compat_migration.sql
 -- ============================================================================
 -- FE compatibility migration pack (manual run, PostgreSQL)
 -- Apply in non-prod first, then prod with backup.
@@ -413,7 +413,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-02_fe_compat_indexes_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-02_fe_compat_indexes_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-02_fe_compat_indexes_seed.sql
 -- ============================================================================
 -- FE compatibility indexes + demo seeds (manual run, PostgreSQL)
 
@@ -482,7 +482,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-02_fe_compat_data_topup.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-02_fe_compat_data_topup.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-02_fe_compat_data_topup.sql
 -- ============================================================================
 -- FE data top-up — Cu Chi MVP only (no fake multi-site locations)
 BEGIN;
@@ -573,7 +573,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-10_cu_chi_multi_panoramas.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-10_cu_chi_multi_panoramas.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-10_cu_chi_multi_panoramas.sql
 -- ============================================================================
 SET client_encoding TO 'UTF8';
 -- Cu Chi multi-scene tour — generated from docs/cu-chi-tour-manifest.json
@@ -637,7 +637,7 @@ INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label, marker_
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-11_cp3_gamification_upgrade.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-11_cp3_gamification_upgrade.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-11_cp3_gamification_upgrade.sql
 -- ============================================================================
 -- CP3 gamification upgrade (additive): photo_scenes, time_layers, artifacts,
 -- user_artifacts, discovery_points, user_discoveries, hotspot_contents
@@ -816,7 +816,7 @@ WHERE NOT EXISTS (
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-11_admin_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-11_admin_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-11_admin_seed.sql
 -- ============================================================================
 -- Platform admin account (dev/demo only — change password on production)
 -- Same password hash as seed users in TimeLens_DB_Schema.sql (register new password in prod)
@@ -840,7 +840,7 @@ ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-11_unlock_rules.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-11_unlock_rules.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-11_unlock_rules.sql
 -- ============================================================================
 -- Unlock rules engine (Phase B) — additive; legacy path remains default when flag off
 BEGIN;
@@ -876,7 +876,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-12_photo_scene_unlock_keys.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-12_photo_scene_unlock_keys.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-12_photo_scene_unlock_keys.sql
 -- ============================================================================
 -- Add unlock_key to photo_scenes for Time Portal discovery alignment
 BEGIN;
@@ -904,7 +904,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-12_discovery_artifact_links.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-12_discovery_artifact_links.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-12_discovery_artifact_links.sql
 -- ============================================================================
 -- Bridge discovery unlock_key → artifact unlock_key (keys that differ)
 BEGIN;
@@ -929,7 +929,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-12_quest_completion_trigger.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-12_quest_completion_trigger.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-12_quest_completion_trigger.sql
 -- ============================================================================
 -- Quest completion trigger for check-in evaluator
 BEGIN;
@@ -944,7 +944,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-12_value_layer_upgrade.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-12_value_layer_upgrade.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-12_value_layer_upgrade.sql
 -- ============================================================================
 -- HistAR Value Layer upgrade (visit_sessions, quest steps, bindings, composite artifacts, analytics events, B2B2E stub)
 
@@ -1040,7 +1040,7 @@ ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-13_phase_b_upgrade.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-13_phase_b_upgrade.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-13_phase_b_upgrade.sql
 -- ============================================================================
 -- Phase B upgrade: session ownership, analytics schema, multi-site keys, composite artifacts
 
@@ -1100,7 +1100,7 @@ ON CONFLICT (location_id, unlock_key) DO NOTHING;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-14_phase1_hardening.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-14_phase1_hardening.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-14_phase1_hardening.sql
 -- ============================================================================
 -- Phase 1 hardening: quest unique guard, session activity, ended_reason
 
@@ -1116,7 +1116,7 @@ ALTER TABLE visit_sessions ADD COLUMN IF NOT EXISTS ended_reason VARCHAR(20);
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-15_visit_session_event_snapshot.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-15_visit_session_event_snapshot.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-15_visit_session_event_snapshot.sql
 -- ============================================================================
 -- POI name snapshot for session replay (immutable label at event time)
 ALTER TABLE visit_session_events
@@ -1126,7 +1126,7 @@ ALTER TABLE visit_session_events
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-16_analytics_event_metadata.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-16_analytics_event_metadata.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-16_analytics_event_metadata.sql
 -- ============================================================================
 ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS metadata TEXT;
 
@@ -1134,7 +1134,7 @@ ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS metadata TEXT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-17_cu_chi_artifacts_story_admin.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-17_cu_chi_artifacts_story_admin.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-17_cu_chi_artifacts_story_admin.sql
 -- ============================================================================
 -- Cu Chi: artifact story column, 3 missing artifacts, discovery links, demo admin account
 BEGIN;
@@ -1280,7 +1280,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-18_cu_chi_only_cleanup.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-18_cu_chi_only_cleanup.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-18_cu_chi_only_cleanup.sql
 -- ============================================================================
 -- Cu Chi only: remove fake / placeholder locations and related demo data
 -- Keeps location 11111111-1111-1111-1111-111111111111 (Địa đạo Củ Chi)
@@ -1379,7 +1379,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-19_heritage_sites_from_dataset.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-19_heritage_sites_from_dataset.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-19_heritage_sites_from_dataset.sql
 -- ============================================================================
 -- Heritage sites: FULL content from Dataset docx (locations + parsed artifacts + stories)
 BEGIN;
@@ -2166,7 +2166,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-20_fix_den_hung_vuong_name.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-20_fix_den_hung_vuong_name.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-20_fix_den_hung_vuong_name.sql
 -- ============================================================================
 -- Fix typo: Đền Hùng Vướng → Đền Hùng Vương
 UPDATE locations
@@ -2178,7 +2178,7 @@ WHERE id = '22222222-2222-2222-2222-222222222209'
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-21_heritage_quests_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-21_heritage_quests_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-21_heritage_quests_seed.sql
 -- ============================================================================
 -- Heritage quests: one main quest per location (content from dataset / AI docs)
 BEGIN;
@@ -2327,7 +2327,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-22_fix_quest_progress_current_step.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-22_fix_quest_progress_current_step.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-22_fix_quest_progress_current_step.sql
 -- ============================================================================
 -- Fix user_quest_progress rows missing current_step (caused start quest 500)
 UPDATE user_quest_progress
@@ -2338,7 +2338,7 @@ WHERE current_step IS NULL;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-23_quest_mission_keys.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-23_quest_mission_keys.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-23_quest_mission_keys.sql
 -- ============================================================================
 -- Quest mission keys: briefing → dialogue → reveal (decoupled from artifact pokédex)
 BEGIN;
@@ -2403,7 +2403,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-24_quest_visual_artifact_keys.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-24_quest_visual_artifact_keys.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-24_quest_visual_artifact_keys.sql
 -- ============================================================================
 -- Quest visual flow: artifact discovery keys (see objects, not read text)
 BEGIN;
@@ -2459,7 +2459,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-25_quest_mixed_visual_pipeline.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-25_quest_mixed_visual_pipeline.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-25_quest_mixed_visual_pipeline.sql
 -- ============================================================================
 -- P1 mixed visual pipeline: artifact → era:2026 portal → artifact (9 heritage quests)
 BEGIN;
@@ -2515,7 +2515,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-26_heritage_quest_discovery_points.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-26_heritage_quest_discovery_points.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-26_heritage_quest_discovery_points.sql
 -- ============================================================================
 -- P1 support data: discovery_points + photo_pairs for 9 heritage quest pipelines
 BEGIN;
@@ -2592,7 +2592,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-27_heritage_p2_checkin_bonus.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-27_heritage_p2_checkin_bonus.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-27_heritage_p2_checkin_bonus.sql
 -- ============================================================================
 -- P2: heritage onsite check-in bonus XP + per-site "Đã đến nơi" badges + real Then/Now photo_pairs
 BEGIN;
@@ -2657,7 +2657,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-06-30_cu_chi_supplementary_assets.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-06-30_cu_chi_supplementary_assets.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-06-30_cu_chi_supplementary_assets.sql
 -- ============================================================================
 -- Cu Chi: ảnh hiện vật / sinh hoạt từ folder "địa đạo củ chi" + gallery
 BEGIN;
@@ -2741,7 +2741,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-04_location_unlock.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-04_location_unlock.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-04_location_unlock.sql
 -- ============================================================================
 -- Location progression: unlock after completing prerequisite quest (FR-15)
 ALTER TABLE locations
@@ -2763,7 +2763,7 @@ WHERE id = '11111111-1111-1111-1111-111111111111';
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-04_discovery_bindings_enrich.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-04_discovery_bindings_enrich.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-04_discovery_bindings_enrich.sql
 -- ============================================================================
 -- Discovery content bindings enrich (BR-09)
 ALTER TABLE discovery_content_bindings
@@ -2789,7 +2789,7 @@ WHERE xp_bonus = 0 AND engagement IS NOT NULL;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-04_quest_onsite_flag.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-04_quest_onsite_flag.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-04_quest_onsite_flag.sql
 -- ============================================================================
 -- Quest onsite requirement flag (BR-12)
 ALTER TABLE quests
@@ -2803,7 +2803,7 @@ WHERE LOWER(completion_trigger) = 'checkin';
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-04_profile_tier.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-04_profile_tier.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-04_profile_tier.sql
 -- ============================================================================
 -- Freemium tier on profiles (FREE / PREMIUM)
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tier VARCHAR(20) NOT NULL DEFAULT 'FREE';
@@ -2814,7 +2814,7 @@ UPDATE profiles SET tier = 'FREE' WHERE tier IS NULL OR tier = '';
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-04_org_members_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-04_org_members_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-04_org_members_seed.sql
 -- ============================================================================
 -- Seed demo B2B org membership (cu-chi-demo) + teacher account
 INSERT INTO profiles (email, password_hash, provider, role, display_name, avatar_url, level, total_points, city, tier, created_at)
@@ -2862,7 +2862,7 @@ ON CONFLICT (organization_id, user_id) DO NOTHING;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-05_ensure_admin_accounts.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-05_ensure_admin_accounts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-05_ensure_admin_accounts.sql
 -- ============================================================================
 -- Ensure platform admin accounts have role ADMIN and known demo password.
 -- Run after self-registration may have created these emails as USER.
@@ -2927,7 +2927,7 @@ WHERE email = 'teacher@histar.vn';
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-06_org_rbac_and_groups.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-06_org_rbac_and_groups.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-06_org_rbac_and_groups.sql
 -- ============================================================================
 -- Org RBAC + study groups (Phase C)
 
@@ -2966,7 +2966,7 @@ WHERE slug = 'cu-chi-demo' AND invite_code IS NULL;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-07_monetization_p0.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-07_monetization_p0.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-07_monetization_p0.sql
 -- ============================================================================
 -- Monetization P0: usage quotas, B2C/B2B subscriptions, org plan limits
 
@@ -3036,7 +3036,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_quotas_user_day
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-08_quest_steps_schema.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-08_quest_steps_schema.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-08_quest_steps_schema.sql
 -- ============================================================================
 -- Quest + QuestStep entities: normalized step rows per quest (Cu Chi campaigns, etc.)
 
@@ -3067,7 +3067,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quest_steps_quest_unlock
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-08_quest_steps_init.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-08_quest_steps_init.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-08_quest_steps_init.sql
 -- ============================================================================
 BEGIN;
 
@@ -3100,7 +3100,7 @@ COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-09_shedlock.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-09_shedlock.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-09_shedlock.sql
 -- ============================================================================
 -- ShedLock table for multi-instance scheduled jobs (Render / prod Postgres).
 -- Also applied via Flyway: classpath:db/migration/V11__shedlock.sql
@@ -3117,7 +3117,7 @@ CREATE TABLE IF NOT EXISTS shedlock (
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-10_visit_sessions_ai_fields.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-10_visit_sessions_ai_fields.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-10_visit_sessions_ai_fields.sql
 -- ============================================================================
 -- Backfill visit_sessions columns expected by current BE entity/runtime.
 
@@ -3130,7 +3130,7 @@ ALTER TABLE visit_sessions
 
 -- ============================================================================
 -- BEGIN seed: 2026-07-10_demo_billing_accounts.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-07-10_demo_billing_accounts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-07-10_demo_billing_accounts.sql
 -- ============================================================================
 -- Demo billing accounts (dev/local/Render seed) — password: Demo@2026
 -- 1) premium@histar.vn       — B2C Premium (tier + active subscription, no expiry practical)
@@ -3332,10 +3332,11 @@ WHERE organization_id = (SELECT id FROM organizations WHERE slug = 'demo-standar
 COMMIT;
 
 -- END seed: 2026-07-10_demo_billing_accounts.sql
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V1__monetization_history_ready.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V1__monetization_history_ready.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V1__monetization_history_ready.sql
 -- ============================================================================
 -- Production-ready monetization migration baseline.
 -- Keeps existing data, enables Flyway on non-empty databases,
@@ -3450,10 +3451,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_quotas_user_day
     WHERE user_id IS NOT NULL AND day IS NOT NULL;
 
 -- END migration: V1__monetization_history_ready.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V2__add_sepay_b2c_payment_transactions.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V2__add_sepay_b2c_payment_transactions.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V2__add_sepay_b2c_payment_transactions.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS b2c_payment_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3489,10 +3492,12 @@ CREATE INDEX IF NOT EXISTS idx_b2c_payment_transactions_user_created_at
     ON b2c_payment_transactions (user_id, created_at DESC);
 
 -- END migration: V2__add_sepay_b2c_payment_transactions.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V3__add_billing_settings.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V3__add_billing_settings.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V3__add_billing_settings.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS billing_settings (
     setting_key VARCHAR(100) PRIMARY KEY,
@@ -3505,10 +3510,12 @@ VALUES ('b2c_premium_price_vnd', '79000', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V3__add_billing_settings.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V4__add_org_payment_transactions.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V4__add_org_payment_transactions.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V4__add_org_payment_transactions.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS org_payment_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3548,20 +3555,24 @@ CREATE INDEX IF NOT EXISTS idx_org_payment_transactions_user_created_at
     ON org_payment_transactions (requester_user_id, created_at DESC);
 
 -- END migration: V4__add_org_payment_transactions.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V5__add_chat_free_daily_limit_setting.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V5__add_chat_free_daily_limit_setting.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V5__add_chat_free_daily_limit_setting.sql
 -- ============================================================================
 INSERT INTO billing_settings (setting_key, setting_value, updated_at)
 VALUES ('chat_free_daily_limit', '10', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V5__add_chat_free_daily_limit_setting.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V6__multiplayer_b2b2c_volume_discount.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V6__multiplayer_b2b2c_volume_discount.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V6__multiplayer_b2b2c_volume_discount.sql
 -- ============================================================================
 -- V6: Multiplayer org teams, B2B2C inquiries, volume discount settings
 
@@ -3594,10 +3605,12 @@ VALUES ('org_volume_discount_min_licenses', '3', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V6__multiplayer_b2b2c_volume_discount.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V7__ccu_sessions_lms_assignments.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V7__ccu_sessions_lms_assignments.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V7__ccu_sessions_lms_assignments.sql
 -- ============================================================================
 -- V7: Real CCU sessions + LMS Premium assignments
 
@@ -3640,10 +3653,12 @@ CREATE INDEX IF NOT EXISTS idx_assignment_submissions_assignment ON assignment_s
 CREATE INDEX IF NOT EXISTS idx_assignment_submissions_student ON assignment_submissions(student_id);
 
 -- END migration: V7__ccu_sessions_lms_assignments.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V8__location_geo_and_maps_url.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V8__location_geo_and_maps_url.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V8__location_geo_and_maps_url.sql
 -- ============================================================================
 -- V8: Địa chỉ + Google Maps URL + tọa độ GPS chuẩn cho 10 di tích
 
@@ -3732,10 +3747,12 @@ UPDATE locations SET
 WHERE id = '22222222-2222-2222-2222-222222222209';
 
 -- END migration: V8__location_geo_and_maps_url.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V9__email_verification.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V9__email_verification.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V9__email_verification.sql
 -- ============================================================================
 -- Email verification + optional Firebase UID (Phase 2)
 
@@ -3766,10 +3783,12 @@ SET email_verified = TRUE,
 WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn');
 
 -- END migration: V9__email_verification.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V10__repair_email_verified_column.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V10__repair_email_verified_column.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V10__repair_email_verified_column.sql
 -- ============================================================================
 -- Repair partial schema when Hibernate ddl-auto ran before Flyway V9 completed.
 -- Safe to run on DBs where V9 already applied (IF NOT EXISTS / idempotent updates).
@@ -3804,10 +3823,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_email_verification_tokens_hash
     ON email_verification_tokens(token_hash);
 
 -- END migration: V10__repair_email_verified_column.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V11__shedlock.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V11__shedlock.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V11__shedlock.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS shedlock (
     name VARCHAR(64) NOT NULL,
@@ -3818,10 +3839,12 @@ CREATE TABLE IF NOT EXISTS shedlock (
 );
 
 -- END migration: V11__shedlock.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V12__add_b2c_renewal_reminders.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V12__add_b2c_renewal_reminders.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V12__add_b2c_renewal_reminders.sql
 -- ============================================================================
 -- Add B2C renewal reminder persistence
 -- Needed because Hibernate ddl-auto=validate requires table existence.
@@ -3837,10 +3860,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_b2c_renewal_reminders_subscription_day
     ON b2c_renewal_reminders (subscription_id, reminder_day);
 
 -- END migration: V12__add_b2c_renewal_reminders.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V13__visit_sessions_ai_fields.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V13__visit_sessions_ai_fields.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V13__visit_sessions_ai_fields.sql
 -- ============================================================================
 -- Align visit_sessions with current VisitSession entity fields.
 
@@ -3850,10 +3875,12 @@ ALTER TABLE visit_sessions
     ADD COLUMN IF NOT EXISTS ai_tone VARCHAR(64);
 
 -- END migration: V13__visit_sessions_ai_fields.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V14__quest_steps.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V14__quest_steps.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V14__quest_steps.sql
 -- ============================================================================
 -- QuestStep entity — see docs/database/2026-07-08_quest_steps_schema.sql
 
@@ -3881,10 +3908,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quest_steps_quest_unlock
     ON quest_steps (quest_id, unlock_key);
 
 -- END migration: V14__quest_steps.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V15__tour360_multi_scene.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V15__tour360_multi_scene.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V15__tour360_multi_scene.sql
 -- ============================================================================
 SET client_encoding TO 'UTF8';
 
@@ -3945,10 +3974,12 @@ INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label, marker_
 ('22222222-2222-2222-2222-222222222227', 3.3615926535897933, -0.55, 'scene', '22222222-2222-2222-2222-222222222226', '← Quay lại', 'far');
 
 -- END migration: V15__tour360_multi_scene.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V16__b2c_premium_price_79000.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V16__b2c_premium_price_79000.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V16__b2c_premium_price_79000.sql
 -- ============================================================================
 -- Raise default B2C Premium price from 49.000đ to 79.000đ/tháng.
 -- Updates runtime billing_settings used by public pricing + SePay QR amount.
@@ -3966,10 +3997,12 @@ WHERE NOT EXISTS (
 );
 
 -- END migration: V16__b2c_premium_price_79000.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V17__cu_chi_scene_discovery_points.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V17__cu_chi_scene_discovery_points.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V17__cu_chi_scene_discovery_points.sql
 -- ============================================================================
 -- Award discovery XP for every Củ Chi 360 scene, once per user.
 -- V15 added 14 panoramas; only scene:…221 / …222 / …223 already exist where the
@@ -4000,10 +4033,12 @@ INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unloc
 ON CONFLICT (location_id, unlock_key) DO NOTHING;
 
 -- END migration: V17__cu_chi_scene_discovery_points.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V18__cu_chi_hotspot_yaw_pitch_patch.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V18__cu_chi_hotspot_yaw_pitch_patch.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V18__cu_chi_hotspot_yaw_pitch_patch.sql
 -- ============================================================================
 -- Patch 5 scene-link hotspots that commonly point the wrong way (Epic A calibrate).
 -- Values from field calibrate pass (?calibrate=1) + spread overlapping BTL markers.
@@ -4044,10 +4079,12 @@ WHERE panorama_id = '22222222-2222-2222-2222-222222222223'
   AND content_ref = '22222222-2222-2222-2222-22222222222e';
 
 -- END migration: V18__cu_chi_hotspot_yaw_pitch_patch.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V19__b2b2c_inquiry_admin_fields.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V19__b2b2c_inquiry_admin_fields.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V19__b2b2c_inquiry_admin_fields.sql
 -- ============================================================================
 ALTER TABLE heritage_digitization_inquiries
     ADD COLUMN IF NOT EXISTS admin_notes TEXT;
@@ -4056,10 +4093,12 @@ ALTER TABLE heritage_digitization_inquiries
     ADD COLUMN IF NOT EXISTS contacted_at TIMESTAMPTZ NULL;
 
 -- END migration: V19__b2b2c_inquiry_admin_fields.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V20__b2c_premium_49000_and_payment_subscription.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V20__b2c_premium_49000_and_payment_subscription.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V20__b2c_premium_49000_and_payment_subscription.sql
 -- ============================================================================
 -- Gate 0 SePay entitlement hardening.
 -- 1) B2C Premium price is 49.000đ/tháng (supersedes V16's 79.000đ).
@@ -4085,10 +4124,12 @@ CREATE INDEX IF NOT EXISTS idx_b2c_payment_transactions_subscription_id
     WHERE subscription_id IS NOT NULL;
 
 -- END migration: V20__b2c_premium_49000_and_payment_subscription.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V21__stations_content_blocks.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V21__stations_content_blocks.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V21__stations_content_blocks.sql
 -- ============================================================================
 -- A3: Củ Chi pilot stations + content blocks.
 CREATE TABLE IF NOT EXISTS stations (
@@ -4145,10 +4186,12 @@ INSERT INTO station_content_blocks (id, station_id, block_type, title, body, sor
 ON CONFLICT (id) DO NOTHING;
 
 -- END migration: V21__stations_content_blocks.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V22__checkin_presence.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V22__checkin_presence.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V22__checkin_presence.sql
 -- ============================================================================
 -- A2 QR-first presence: store how/where presence was proven and an idempotency key.
 
@@ -4167,10 +4210,12 @@ CREATE INDEX IF NOT EXISTS idx_checkins_user_station
     WHERE station_code IS NOT NULL;
 
 -- END migration: V22__checkin_presence.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V23__pilot_events.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V23__pilot_events.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V23__pilot_events.sql
 -- ============================================================================
 CREATE TABLE pilot_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4189,10 +4234,12 @@ CREATE INDEX idx_pilot_events_occurred_at ON pilot_events (occurred_at);
 CREATE INDEX idx_pilot_events_user_id ON pilot_events (user_id);
 
 -- END migration: V23__pilot_events.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V24__story_chapters.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V24__story_chapters.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V24__story_chapters.sql
 -- ============================================================================
 -- B4: Story chapters mapped to stations; chapters 1-2 free, 3+ require Premium.
 CREATE TABLE IF NOT EXISTS story_chapters (
@@ -4240,10 +4287,12 @@ INSERT INTO story_chapters (id, site_code, chapter_number, station_code, title, 
 ON CONFLICT (site_code, chapter_number) DO NOTHING;
 
 -- END migration: V24__story_chapters.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V25__pgvector_rag.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V25__pgvector_rag.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V25__pgvector_rag.sql
 -- ============================================================================
 -- B5: pgvector RAG (verified sources -> chunks -> cosine search), station chat chips, offline FAQ, quality log, semantic cache.
 --
@@ -4454,10 +4503,12 @@ INSERT INTO rag_chunks (id, source_id, station_code, era, content, chunk_index) 
 ON CONFLICT (id) DO NOTHING;
 
 -- END migration: V25__pgvector_rag.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V26__squads.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V26__squads.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V26__squads.sql
 -- ============================================================================
 -- B7 Tiểu đội co-op (squads)
 
@@ -4483,10 +4534,12 @@ CREATE TABLE squad_members (
 CREATE INDEX idx_squad_members_user_id ON squad_members (user_id);
 
 -- END migration: V26__squads.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V27__station_minigames.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V27__station_minigames.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V27__station_minigames.sql
 -- ============================================================================
 -- B6: Station mini-games (one per ST01–ST06) and per-user scores.
 CREATE TABLE IF NOT EXISTS station_minigames (
@@ -4545,10 +4598,12 @@ INSERT INTO station_minigames (id, site_code, station_code, game_type, title, co
 ON CONFLICT (site_code, station_code) DO NOTHING;
 
 -- END migration: V27__station_minigames.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V28__stations_content_refresh.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V28__stations_content_refresh.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V28__stations_content_refresh.sql
 -- ============================================================================
 -- Week 0: align Củ Chi pilot station names with MVBP doc (ST01–ST06 codes unchanged).
 UPDATE stations SET name = 'Phòng họp', sort_order = 1
@@ -4600,10 +4655,12 @@ UPDATE station_content_blocks SET
 WHERE id = 'a3000002-0000-4000-8000-000000000006';
 
 -- END migration: V28__stations_content_refresh.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V29__media_transcode_jobs.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V29__media_transcode_jobs.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V29__media_transcode_jobs.sql
 -- ============================================================================
 -- C2b: WebM (MediaRecorder) -> MP4 transcode jobs (FAILED_NO_FFMPEG when ffmpeg is unavailable).
 CREATE TABLE IF NOT EXISTS media_transcode_jobs (
@@ -4629,10 +4686,12 @@ CREATE INDEX IF NOT EXISTS idx_media_transcode_jobs_user
     ON media_transcode_jobs (user_id, created_at DESC);
 
 -- END migration: V29__media_transcode_jobs.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V30__device_push_tokens.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V30__device_push_tokens.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V30__device_push_tokens.sql
 -- ============================================================================
 -- E2: FCM device tokens (one row per user + platform)
 
@@ -4649,10 +4708,12 @@ CREATE TABLE IF NOT EXISTS device_push_tokens (
 CREATE INDEX IF NOT EXISTS idx_device_push_tokens_user ON device_push_tokens (user_id);
 
 -- END migration: V30__device_push_tokens.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V31__referral_codes.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V31__referral_codes.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V31__referral_codes.sql
 -- ============================================================================
 -- C4: Creator referral codes + landing visit tracking.
 CREATE TABLE IF NOT EXISTS referral_codes (
@@ -4679,10 +4740,12 @@ INSERT INTO referral_codes (id, code, creator_name, headline) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- END migration: V31__referral_codes.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V32__align_story_minigames_mvbp.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V32__align_story_minigames_mvbp.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V32__align_story_minigames_mvbp.sql
 -- ============================================================================
 -- V32: Align story_chapters + station_minigames with MVBP doc §5 / V28 station names.
 -- ST01 Phòng họp → ST02 Kho ngầm → ST03 Giếng hầm → ST04 Quân y → ST05 Xưởng vũ khí → ST06 Hầm phòng thủ
@@ -4755,10 +4818,12 @@ UPDATE station_minigames SET
 WHERE site_code = 'cu-chi' AND station_code = 'ST06';
 
 -- END migration: V32__align_story_minigames_mvbp.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V33__journey_pass_and_site_code.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V33__journey_pass_and_site_code.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V33__journey_pass_and_site_code.sql
 -- ============================================================================
 -- V33: Journey Pass (72h visit entitlement) + locations.site_code for multi-site pilot registry.
 
@@ -4807,10 +4872,12 @@ ALTER TABLE b2c_payment_transactions
     ADD COLUMN IF NOT EXISTS site_code VARCHAR(64);
 
 -- END migration: V33__journey_pass_and_site_code.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V34__pilot_httl_hue_stations.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V34__pilot_httl_hue_stations.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V34__pilot_httl_hue_stations.sql
 -- ============================================================================
 -- V34: Pilot sites — Hoàng thành Thăng Long + Đại Nội Huế (same format as Cu Chi ST01–ST06).
 -- Station names follow the approved 3-region draft; story/minigame copy based on public heritage facts
@@ -4991,10 +5058,12 @@ INSERT INTO station_chat_prompts (id, site_code, station_code, persona, chip_lab
 (gen_random_uuid(), 'dai-noi-hue', 'ST06', 'guide', 'Kết tour', 'Sau sáu trạm Đại Nội nên làm gì tiếp theo trong TimeLens?', 1);
 
 -- END migration: V34__pilot_httl_hue_stations.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V35__rag_site_code.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V35__rag_site_code.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V35__rag_site_code.sql
 -- ============================================================================
 -- V35: Scope RAG retrieval by site so ST01 at Hue does not pull Cu Chi chunks.
 
@@ -5015,10 +5084,12 @@ CREATE INDEX IF NOT EXISTS idx_rag_sources_site_station ON rag_sources (site_cod
 CREATE INDEX IF NOT EXISTS idx_rag_chunks_site_station ON rag_chunks (site_code, station_code);
 
 -- END migration: V35__rag_site_code.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V36__b2b2c_interest_site.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V36__b2b2c_interest_site.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V36__b2b2c_interest_site.sql
 -- ============================================================================
 -- B2B2C: which pilot site the lead is interested in (cu-chi | hoang-thanh-thang-long | dai-noi-hue)
 ALTER TABLE heritage_digitization_inquiries
@@ -5028,10 +5099,12 @@ CREATE INDEX IF NOT EXISTS idx_heritage_inq_interest_site
     ON heritage_digitization_inquiries (interest_site_code);
 
 -- END migration: V36__b2b2c_interest_site.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V37__password_reset_otp.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V37__password_reset_otp.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V37__password_reset_otp.sql
 -- ============================================================================
 -- Password reset via email OTP (local email/password accounts)
 
@@ -5057,10 +5130,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_challenges_reset_token
     WHERE reset_token_hash IS NOT NULL;
 
 -- END migration: V37__password_reset_otp.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V38__chrono_quest_prompts.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V38__chrono_quest_prompts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V38__chrono_quest_prompts.sql
 -- ============================================================================
 UPDATE quest_steps
 SET title = 'Chương 1 · Hỏi Chrono về các tầng',
@@ -5083,10 +5158,12 @@ WHERE unlock_key = 'dialogue:chi-nam'
   AND quest_id = '33333333-3333-3333-3333-333333333335';
 
 -- END migration: V38__chrono_quest_prompts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V39__restore_vietnamese_quest_text.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V39__restore_vietnamese_quest_text.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V39__restore_vietnamese_quest_text.sql
 -- ============================================================================
 -- Seed cũ bị ghi vào database bằng kết nối không phải UTF-8, dấu tiếng Việt thành dấu hỏi thật.
 UPDATE locations
@@ -5157,10 +5234,12 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333335'
   AND title LIKE '%?%';
 
 -- END migration: V39__restore_vietnamese_quest_text.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V40__cu_chi_quest_discovery_points.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V40__cu_chi_quest_discovery_points.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V40__cu_chi_quest_discovery_points.sql
 -- ============================================================================
 INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order) VALUES
 ('d0000001-0000-4000-8000-000000000030', '11111111-1111-1111-1111-111111111111', 'Hỏi Chrono về các tầng', 30.00, 35.00, 'dialogue:anh-ba', 30),
@@ -5178,10 +5257,12 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333334'
   AND unlock_key = 'tour:sa-ban';
 
 -- END migration: V40__cu_chi_quest_discovery_points.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V41__quest1_journey_steps.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V41__quest1_journey_steps.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V41__quest1_journey_steps.sql
 -- ============================================================================
 -- Mật lệnh Hành trình dưới lòng đất: bốn chương UI khớp ba khóa đã có.
 -- Không thêm khóa vào step_discovery_keys. Chương 4 là check-in, không phải khóa khám phá.
@@ -5294,10 +5375,12 @@ WHERE EXISTS (
 ON CONFLICT (quest_id, unlock_key) DO NOTHING;
 
 -- END migration: V41__quest1_journey_steps.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V42__quest_minigames.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V42__quest_minigames.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V42__quest_minigames.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS quest_minigames (
     id          UUID PRIMARY KEY,
@@ -5324,10 +5407,12 @@ ALTER TABLE quest_steps
     ADD COLUMN IF NOT EXISTS minigame_id UUID REFERENCES quest_minigames(id);
 
 -- END migration: V42__quest_minigames.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V43__quest_minigame_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V43__quest_minigame_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V43__quest_minigame_seed.sql
 -- ============================================================================
 -- Seed bốn mini game và một mật lệnh thử, chỉ hiện trên bản dev của web.
 -- Đáp án nằm trong config. GET không trả các trường này.
@@ -5486,10 +5571,12 @@ WHERE EXISTS (SELECT 1 FROM quests WHERE id = '33333333-3333-3333-3333-333333333
 ON CONFLICT (quest_id, unlock_key) DO NOTHING;
 
 -- END migration: V43__quest_minigame_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V44__phase2_quests_collections.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V44__phase2_quests_collections.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V44__phase2_quests_collections.sql
 -- ============================================================================
 -- Chạy tay trên Windows: đặt PGCLIENTENCODING=UTF8 trước khi gọi psql.
 -- Flyway đọc file này bằng spring.flyway.encoding=UTF-8.
@@ -5808,10 +5895,12 @@ UPDATE quests SET
 WHERE id = '44444444-4444-4444-4444-444444444409';
 
 -- END migration: V44__phase2_quests_collections.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V45__silence_relic_wording.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V45__silence_relic_wording.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V45__silence_relic_wording.sql
 -- ============================================================================
 -- Món mở bằng Im lặng giữ câu của nguồn giếng, không gắn dữ kiện vào luật im lặng.
 
@@ -5821,10 +5910,12 @@ SET description = 'Hai giếng cách nhau khoảng 6 đến 15 mét và được
 WHERE id = 'c1000001-0000-4000-8000-000000000023';
 
 -- END migration: V45__silence_relic_wording.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V46__journey_memory.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V46__journey_memory.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V46__journey_memory.sql
 -- ============================================================================
 CREATE TABLE journey_memories (
     id UUID PRIMARY KEY,
@@ -5843,10 +5934,12 @@ CREATE TABLE journey_memories (
 CREATE INDEX idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
 
 -- END migration: V46__journey_memory.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V47__teacher_ai_drafts.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V47__teacher_ai_drafts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V47__teacher_ai_drafts.sql
 -- ============================================================================
 CREATE TABLE teacher_ai_drafts (
     id UUID PRIMARY KEY,
@@ -5870,10 +5963,12 @@ CREATE INDEX idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher
 CREATE INDEX idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
 
 -- END migration: V47__teacher_ai_drafts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V48__narrative_investigation_foundation.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V48__narrative_investigation_foundation.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V48__narrative_investigation_foundation.sql
 -- ============================================================================
 CREATE TABLE narrative_investigations (
     id UUID PRIMARY KEY,
@@ -5906,10 +6001,12 @@ CREATE TABLE quest_reward_ledger (
 );
 
 -- END migration: V48__narrative_investigation_foundation.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V49__quest_campaigns.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V49__quest_campaigns.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V49__quest_campaigns.sql
 -- ============================================================================
 CREATE TABLE quest_campaigns (
     id UUID PRIMARY KEY,
@@ -5925,10 +6022,12 @@ CREATE TABLE quest_campaigns (
 CREATE INDEX idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
 
 -- END migration: V49__quest_campaigns.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V50__narrative_pilot_progress_and_review.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V50__narrative_pilot_progress_and_review.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V50__narrative_pilot_progress_and_review.sql
 -- ============================================================================
 ALTER TABLE user_narrative_investigation_progress ADD COLUMN investigation_version INTEGER;
 ALTER TABLE user_narrative_investigation_progress ADD COLUMN visited_node_codes_json TEXT;
@@ -5945,10 +6044,12 @@ SELECT '33333333-3333-3333-3333-333333333390'::uuid, '33333333-3333-3333-3333-33
 WHERE NOT EXISTS (SELECT 1 FROM narrative_investigations WHERE quest_id='33333333-3333-3333-3333-333333333338'::uuid);
 
 -- END migration: V50__narrative_pilot_progress_and_review.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V51__narrative_specialist_review_audit.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V51__narrative_specialist_review_audit.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V51__narrative_specialist_review_audit.sql
 -- ============================================================================
 CREATE TABLE narrative_investigation_reviews (
     id UUID PRIMARY KEY,
@@ -5964,10 +6065,12 @@ CREATE INDEX idx_narrative_investigation_reviews_investigation_time
     ON narrative_investigation_reviews (investigation_id, reviewed_at DESC);
 
 -- END migration: V51__narrative_specialist_review_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V52__cu_chi_nap_ham_review_ready_graph.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V52__cu_chi_nap_ham_review_ready_graph.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V52__cu_chi_nap_ham_review_ready_graph.sql
 -- ============================================================================
 -- Review-ready only. A specialist must approve all four locales through the admin review API
 -- before this disabled investigation may be enabled for a pilot cohort.
@@ -5983,10 +6086,12 @@ SET version = 2,
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V52__cu_chi_nap_ham_review_ready_graph.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V53__quest_campaign_audit.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V53__quest_campaign_audit.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V53__quest_campaign_audit.sql
 -- ============================================================================
 CREATE TABLE quest_campaign_audit (
   id UUID PRIMARY KEY, campaign_id UUID NOT NULL REFERENCES quest_campaigns(id), action VARCHAR(32) NOT NULL,
@@ -5995,19 +6100,23 @@ CREATE TABLE quest_campaign_audit (
 CREATE INDEX idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
 
 -- END migration: V53__quest_campaign_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V54__assignment_campaign_link.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V54__assignment_campaign_link.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V54__assignment_campaign_link.sql
 -- ============================================================================
 ALTER TABLE assignments ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
 CREATE INDEX idx_assignments_campaign ON assignments(campaign_id);
 
 -- END migration: V54__assignment_campaign_link.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V55__campaign_release_gate_and_rollback_reason.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V55__campaign_release_gate_and_rollback_reason.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V55__campaign_release_gate_and_rollback_reason.sql
 -- ============================================================================
 ALTER TABLE quest_campaigns ADD COLUMN pilot_status VARCHAR(24) NOT NULL DEFAULT 'PENDING';
 ALTER TABLE quest_campaigns ADD COLUMN release_decision VARCHAR(24) NOT NULL DEFAULT 'PENDING';
@@ -6017,19 +6126,23 @@ ALTER TABLE quest_campaigns ADD COLUMN release_decided_at TIMESTAMP WITH TIME ZO
 ALTER TABLE quest_campaign_audit ADD COLUMN rollback_reason TEXT;
 
 -- END migration: V55__campaign_release_gate_and_rollback_reason.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V56__teacher_ai_draft_campaign_link.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V56__teacher_ai_draft_campaign_link.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V56__teacher_ai_draft_campaign_link.sql
 -- ============================================================================
 ALTER TABLE teacher_ai_drafts ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(id);
 CREATE INDEX idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
 
 -- END migration: V56__teacher_ai_draft_campaign_link.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V57__cooperative_leaderboard_access_audit.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V57__cooperative_leaderboard_access_audit.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V57__cooperative_leaderboard_access_audit.sql
 -- ============================================================================
 CREATE TABLE cooperative_leaderboard_access_audit (
     id UUID PRIMARY KEY,
@@ -6044,10 +6157,12 @@ CREATE TABLE cooperative_leaderboard_access_audit (
 CREATE INDEX idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
 
 -- END migration: V57__cooperative_leaderboard_access_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V58__repair_pgvector_rag_schema.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V58__repair_pgvector_rag_schema.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V58__repair_pgvector_rag_schema.sql
 -- ============================================================================
 -- Repair legacy databases where V25 was recorded after rag_chunks / semantic_cache
 -- already existed without their vector columns. Do not fail non-pgvector hosts:
@@ -6070,10 +6185,12 @@ BEGIN
 END $$;
 
 -- END migration: V58__repair_pgvector_rag_schema.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V59__repair_phase2_schema_constraints.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V59__repair_phase2_schema_constraints.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V59__repair_phase2_schema_constraints.sql
 -- ============================================================================
 -- Reconcile databases that received Phase 2/3 tables from Hibernate before
 -- Flyway V46-V57 was recorded. The earlier migrations are now idempotent;
@@ -6136,10 +6253,12 @@ BEGIN
 END $$;
 
 -- END migration: V59__repair_phase2_schema_constraints.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V60__cu_chi_vietnamese_only_pilot_citations.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V60__cu_chi_vietnamese_only_pilot_citations.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V60__cu_chi_vietnamese_only_pilot_citations.sql
 -- ============================================================================
 -- The Củ Chi pilot is Vietnamese-only.  This migration deliberately keeps the
 -- pilot disabled and in DRAFT until an authorised reviewer records approval.
@@ -6234,10 +6353,12 @@ $graph$,
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V60__cu_chi_vietnamese_only_pilot_citations.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V61__admin_audit_events.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V61__admin_audit_events.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V61__admin_audit_events.sql
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS admin_audit_events (
     id UUID PRIMARY KEY,
@@ -6280,10 +6401,12 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_deleted_at ON artifacts(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_quests_deleted_at ON quests(deleted_at);
 
 -- END migration: V61__admin_audit_events.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V62__chrono_only_chat_agents.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V62__chrono_only_chat_agents.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V62__chrono_only_chat_agents.sql
 -- ============================================================================
 -- Keep historical characters and their conversations intact, but expose only
 -- Chrono as the technical chat agent for new conversations.
@@ -6332,10 +6455,12 @@ SET persona = 'chrono',
 WHERE persona <> 'chrono';
 
 -- END migration: V62__chrono_only_chat_agents.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V63__verify_seed_accounts.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V63__verify_seed_accounts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V63__verify_seed_accounts.sql
 -- ============================================================================
 -- Seeded platform accounts are controlled demo/test identities. They must not
 -- enter the end-user email-verification flow after a database reset or reseed.
@@ -6346,10 +6471,12 @@ WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn')
   AND email_verified IS DISTINCT FROM TRUE;
 
 -- END migration: V63__verify_seed_accounts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V64__repair_admin_audit_schema.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V64__repair_admin_audit_schema.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V64__repair_admin_audit_schema.sql
 -- ============================================================================
 -- Repair databases that were baselined or bootstrapped before the complete
 -- admin audit/optimistic-lock schema from V61 was applied.
@@ -6397,10 +6524,12 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_deleted_at ON artifacts(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_quests_deleted_at ON quests(deleted_at);
 
 -- END migration: V64__repair_admin_audit_schema.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V65__cu_chi_narrative_flow_v4.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V65__cu_chi_narrative_flow_v4.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V65__cu_chi_narrative_flow_v4.sql
 -- ============================================================================
 -- Rich Vietnamese-only narrative flow. It remains disabled/DRAFT until reviewed in Admin Console.
 UPDATE narrative_investigations
@@ -6510,28 +6639,34 @@ $graph$
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V65__cu_chi_narrative_flow_v4.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V66__narrative_observation_progress.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V66__narrative_observation_progress.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V66__narrative_observation_progress.sql
 -- ============================================================================
 ALTER TABLE user_narrative_investigation_progress
     ADD COLUMN IF NOT EXISTS observation_codes_json TEXT NOT NULL DEFAULT '[]';
 
 -- END migration: V66__narrative_observation_progress.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V67__narrative_chat_progress.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V67__narrative_chat_progress.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V67__narrative_chat_progress.sql
 -- ============================================================================
 ALTER TABLE user_narrative_investigation_progress
     ADD COLUMN IF NOT EXISTS chat_node_codes_json TEXT NOT NULL DEFAULT '[]';
 
 -- END migration: V67__narrative_chat_progress.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V68__narrative_investigation_versioning.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V68__narrative_investigation_versioning.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V68__narrative_investigation_versioning.sql
 -- ============================================================================
 CREATE TABLE narrative_investigation_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6625,10 +6760,12 @@ CREATE INDEX idx_narrative_rollout_idempotency_created
     ON narrative_rollout_idempotency(investigation_id, created_at DESC);
 
 -- END migration: V68__narrative_investigation_versioning.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V69__admin_console_phase_1_2.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V69__admin_console_phase_1_2.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V69__admin_console_phase_1_2.sql
 -- ============================================================================
 CREATE TABLE content_report_cases (
     event_id UUID PRIMARY KEY REFERENCES pilot_events(id) ON DELETE CASCADE,
@@ -6690,10 +6827,12 @@ CREATE UNIQUE INDEX uq_subscriptions_source_payment
     WHERE source_payment_transaction_id IS NOT NULL;
 
 -- END migration: V69__admin_console_phase_1_2.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V70__organization_ops_note.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V70__organization_ops_note.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V70__organization_ops_note.sql
 -- ============================================================================
 ALTER TABLE organizations
     ADD COLUMN IF NOT EXISTS ops_note TEXT;
@@ -6709,10 +6848,12 @@ WHERE slug = 'demo-standard-org'
   AND (ops_note IS NULL OR BTRIM(ops_note) = '');
 
 -- END migration: V70__organization_ops_note.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V71__admin_billing_crm_pipeline_seed.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V71__admin_billing_crm_pipeline_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V71__admin_billing_crm_pipeline_seed.sql
 -- ============================================================================
 -- Seed B2B commercial inquiries for Admin Billing & CRM Kanban (idempotent).
 -- Statuses map to Stitch pipeline: NEW → CONTACTED → QUALIFIED → WON.
@@ -6861,10 +7002,464 @@ INSERT INTO heritage_digitization_inquiries (
 );
 
 -- END migration: V71__admin_billing_crm_pipeline_seed.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V72__admin_analytics_cu_chi_demo_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V72__admin_analytics_cu_chi_demo_seed.sql
+-- ============================================================================
+-- Admin Analytics demo seed for Äá»‹a Ä‘áº¡o Cá»§ Chi (location 11111111-...).
+-- Proportions inspired by Stitch AnalyticsView mock, scaled for local DB (K-anonymity threshold = 10).
+-- Idempotent: removes prior seed-analytics-* rows then re-inserts.
+
+-- Applied inside Flyway transaction.
+
+CREATE TEMP TABLE seed_analytics_users (
+    idx int PRIMARY KEY,
+    user_id uuid NOT NULL,
+    email text NOT NULL
+) ON COMMIT DROP;
+
+INSERT INTO seed_analytics_users (idx, user_id, email)
+SELECT
+    g,
+    ('a1000000-0000-4000-8000-' || lpad(to_hex(g), 12, '0'))::uuid,
+    'seed-analytics-' || lpad(g::text, 3, '0') || '@histar.vn'
+FROM generate_series(1, 120) AS g;
+
+-- Cleanup previous seed (FK-safe order)
+DELETE FROM visit_session_events
+WHERE visit_session_id IN (
+    SELECT vs.id FROM visit_sessions vs
+    JOIN seed_analytics_users u ON u.user_id = vs.user_id
+);
+DELETE FROM analytics_events
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users)
+   OR metadata = 'seed-admin-analytics-cu-chi';
+DELETE FROM visit_sessions
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM pilot_events
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users)
+   OR payload_json LIKE '%"seed":"admin-analytics-cu-chi"%';
+DELETE FROM checkins
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM user_discoveries
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM user_quest_progress
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM profiles
+WHERE email LIKE 'seed-analytics-%@histar.vn'
+   OR id IN (SELECT user_id FROM seed_analytics_users);
+
+INSERT INTO profiles (id, email, password_hash, provider, role, tier, display_name, level, total_points, city, created_at, email_verified)
+SELECT
+    u.user_id,
+    u.email,
+    crypt('Demo@2026', gen_salt('bf', 4)),
+    'local',
+    'USER',
+    CASE WHEN u.idx <= 40 THEN 'PREMIUM' ELSE 'FREE' END,
+    'Seed Analytics ' || lpad(u.idx::text, 3, '0'),
+    1 + (u.idx % 8),
+    100 + u.idx * 17,
+    'TP.HCM',
+    now() - ((u.idx % 25) || ' days')::interval,
+    true
+FROM seed_analytics_users u;
+
+-- Closed visit sessions (~14â€“22 min) with discovery events for drop-off + session quality
+WITH loc AS (
+    SELECT '11111111-1111-1111-1111-111111111111'::uuid AS id
+),
+pois AS (
+    SELECT unlock_key, name, sort_order,
+           row_number() OVER (ORDER BY sort_order) AS rn
+    FROM discovery_points
+    WHERE location_id = '11111111-1111-1111-1111-111111111111'
+      AND deleted_at IS NULL
+),
+sessions AS (
+    INSERT INTO visit_sessions (
+        id, user_id, location_id, mode, started_at, ended_at, status, last_activity_at, ended_reason
+    )
+    SELECT
+        ('b2000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+        u.user_id,
+        loc.id,
+        CASE WHEN u.idx % 3 = 0 THEN 'onsite' ELSE 'online' END,
+        now() - ((u.idx % 28) || ' days')::interval - interval '90 minutes',
+        now() - ((u.idx % 28) || ' days')::interval - interval '90 minutes'
+            + ((14 + (u.idx % 9)) || ' minutes')::interval,
+        'CLOSED',
+        now() - ((u.idx % 28) || ' days')::interval - interval '70 minutes',
+        'COMPLETED'
+    FROM seed_analytics_users u
+    CROSS JOIN loc
+    RETURNING id, user_id
+)
+INSERT INTO visit_session_events (id, visit_session_id, event_type, event_key, source, created_at, poi_name_snapshot)
+SELECT
+    gen_random_uuid(),
+    s.id,
+    'discovery',
+    p.unlock_key,
+    'seed-admin-analytics',
+    now() - ((su.idx % 28) || ' days')::interval - interval '80 minutes' + (p.rn || ' minutes')::interval,
+    p.name
+FROM sessions s
+JOIN seed_analytics_users su ON su.user_id = s.user_id
+JOIN pois p ON p.rn <= CASE
+    WHEN su.idx <= 100 THEN 6
+    WHEN su.idx <= 110 THEN 4
+    ELSE 2
+END;
+
+-- user_discoveries (POI unlock ranking) â€” top POIs get more distinct users
+INSERT INTO user_discoveries (user_id, discovery_key, discovered_at, location_id)
+SELECT
+    u.user_id,
+    p.unlock_key,
+    now() - ((u.idx % 27) || ' days')::interval - (p.sort_order || ' hours')::interval,
+    '11111111-1111-1111-1111-111111111111'::uuid
+FROM seed_analytics_users u
+JOIN discovery_points p
+  ON p.location_id = '11111111-1111-1111-1111-111111111111'
+ AND p.deleted_at IS NULL
+WHERE
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222222' AND u.idx <= 110) OR -- Cá»•ng vÃ o ~92%
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222221' AND u.idx <= 95) OR  -- Báº¿p
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222223' AND u.idx <= 82) OR  -- PhÃ²ng há»p
+    (p.unlock_key = 'photo:cua-ham' AND u.idx <= 70) OR
+    (p.unlock_key = 'photo:gieng' AND u.idx <= 58) OR
+    (p.unlock_key = 'artifact:vu-khi' AND u.idx <= 48) OR
+    (p.unlock_key = 'artifact:tram-xa' AND u.idx <= 40) OR
+    (p.unlock_key = 'hotspot:vent' AND u.idx <= 28) OR
+    (p.unlock_key = 'artifact:bay' AND u.idx <= 22);
+
+-- Quest funnel (started vs completed) â€” rates ~100 / 86 / 71 / 68 / 65 / 60 / 55 of base 120
+INSERT INTO user_quest_progress (
+    id, user_id, quest_id, status, started_at, completed_at, location_id, current_step, steps_total
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    q.id,
+    CASE
+        WHEN u.idx <= q.complete_upto THEN 'COMPLETED'
+        WHEN u.idx <= q.start_upto THEN 'IN_PROGRESS'
+        ELSE 'NOT_STARTED'
+    END,
+    CASE WHEN u.idx <= q.start_upto
+        THEN now() - ((u.idx % 26) || ' days')::interval ELSE NULL END,
+    CASE WHEN u.idx <= q.complete_upto
+        THEN now() - ((u.idx % 26) || ' days')::interval + interval '40 minutes' ELSE NULL END,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    CASE WHEN u.idx <= q.complete_upto THEN 3 WHEN u.idx <= q.start_upto THEN 1 ELSE 0 END,
+    3
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('33333333-3333-3333-3333-333333333335'::uuid, 120, 104), -- Ãnh sÃ¡ng ÄÃ¨n MÃ¹ U
+        ('33333333-3333-3333-3333-333333333339'::uuid, 110, 86),  -- Ba táº§ng lÃ²ng Ä‘áº¥t
+        ('33333333-3333-3333-3333-333333333337'::uuid, 100, 72),  -- Báº¿p khÃ´ng khÃ³i
+        ('33333333-3333-3333-3333-333333333333'::uuid, 95, 65),   -- HÃ nh trÃ¬nh dÆ°á»›i lÃ²ng Ä‘áº¥t
+        ('33333333-3333-3333-3333-333333333336'::uuid, 90, 58),   -- Máº­t lá»‡nh thá»­ game
+        ('33333333-3333-3333-3333-333333333334'::uuid, 85, 52),   -- Máº­t mÃ£ Sa bÃ n
+        ('33333333-3333-3333-3333-333333333338'::uuid, 80, 45)    -- Náº¯p háº§m vÃ  cáº¡m báº«y
+) AS q(id, start_upto, complete_upto)
+WHERE u.idx <= q.start_upto;
+
+-- Online â†’ onsite conversion (~32% of discoverers also check in after discovery)
+INSERT INTO checkins (id, user_id, location_id, latitude, longitude, created_at, presence_method)
+SELECT
+    ('c3000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    11.1438 + (u.idx * 0.00001),
+    106.4631 + (u.idx * 0.00001),
+    now() - ((u.idx % 25) || ' days')::interval + interval '2 hours',
+    'GPS'
+FROM seed_analytics_users u
+WHERE u.idx <= 38;
+
+-- analytics_events for KPI activeUsers / eventCount / activity-series / quest_completed
+INSERT INTO analytics_events (
+    id, user_id, location_id, visit_session_id, event_type, event_key, source, created_at, metadata
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    ('b2000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+    e.event_type,
+    e.event_key,
+    'seed-admin-analytics',
+    -- Bias weekends (Sat/Sun) higher density like Stitch heatmap
+    date_trunc('day', now()) - ((u.idx + e.day_offset) % 28 || ' days')::interval
+        + ((9 + (u.idx % 7)) || ' hours')::interval
+        + ((u.idx % 50) || ' minutes')::interval,
+    'seed-admin-analytics-cu-chi'
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('session_start', 'visit', 0),
+        ('session_end', 'visit', 0),
+        ('discovery', 'poi', 1),
+        ('quest_started', 'quest', 2),
+        ('quest_completed', 'quest', 3),
+        ('checkin', 'gps', 4)
+) AS e(event_type, event_key, day_offset)
+WHERE NOT (e.event_type = 'quest_completed' AND u.idx > 78)
+  AND NOT (e.event_type = 'checkin' AND u.idx > 38);
+
+-- Extra weekdayÃ—hour events for Stitch heatmap peaks (09:30 / 14:30) and weekend denser cells
+INSERT INTO analytics_events (
+    id, user_id, location_id, event_type, event_key, source, created_at, metadata
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'session_start',
+    'visit',
+    'seed-admin-analytics',
+    date_trunc('week', now())
+      + ((d.dow) || ' days')::interval
+      + ((h.hour) || ' hours')::interval
+      + ((u.idx % 40) || ' minutes')::interval,
+    'seed-admin-analytics-cu-chi'
+FROM seed_analytics_users u
+CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6)) AS d(dow)
+CROSS JOIN (VALUES (8), (9), (10), (11), (13), (14), (15), (16)) AS h(hour)
+WHERE u.idx <= CASE
+    WHEN h.hour IN (9, 10, 14, 15) AND d.dow IN (5, 6) THEN 110
+    WHEN h.hour IN (9, 10, 14, 15) THEN 85
+    WHEN d.dow IN (5, 6) THEN 55
+    ELSE 28
+END;
+
+-- Pilot KPI attribution (last 7 days) for "Nguá»“n thu hÃºt"
+INSERT INTO pilot_events (id, client_uuid, user_id, session_id, event_type, station_code, payload_json, occurred_at, created_at)
+SELECT
+    gen_random_uuid(),
+    gen_random_uuid(),
+    u.user_id,
+    gen_random_uuid(),
+    e.event_type,
+    NULL,
+    '{"seed":"admin-analytics-cu-chi"}',
+    now() - ((u.idx % 6) || ' days')::interval - ((u.idx % 8) || ' hours')::interval,
+    now()
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('landing_visit', 90),
+        ('pack_loaded', 70),
+        ('share_initiated', 35),
+        ('checkin_result', 38),
+        ('nps_submitted', 25),
+        ('session_start', 100),
+        ('session_end', 95)
+) AS e(event_type, max_idx)
+WHERE u.idx <= e.max_idx;
+
+-- END migration: V72__admin_analytics_cu_chi_demo_seed.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V73__admin_audit_client_ip_location_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V73__admin_audit_client_ip_location_seed.sql
+-- ============================================================================
+-- Backfill clientIp + location into existing admin_audit_events metadata (demo / ops).
+-- Skips rows that already have clientIp or ip. Cycles a small VN ISP sample set.
+
+WITH ranked AS (
+    SELECT
+        id,
+        ROW_NUMBER() OVER (ORDER BY occurred_at DESC, id) AS rn
+    FROM admin_audit_events
+    WHERE metadata_json IS NULL
+       OR NOT (
+            COALESCE(metadata_json::jsonb, '{}'::jsonb) ? 'clientIp'
+            OR COALESCE(metadata_json::jsonb, '{}'::jsonb) ? 'ip'
+       )
+),
+sample AS (
+    SELECT *
+    FROM (VALUES
+        (0, '14.232.18.91',  'Hà Nội, VN'),
+        (1, '118.70.211.42', 'Hà Nội, VN'),
+        (2, '42.116.89.15',  'Đà Nẵng, VN'),
+        (3, '113.161.72.8',  'TP. Hồ Chí Minh, VN'),
+        (4, '171.224.178.33','Hà Nội, VN'),
+        (5, '27.72.144.10',  'Hải Phòng, VN'),
+        (6, '115.73.214.55', 'Cần Thơ, VN'),
+        (7, '203.113.131.7', 'TP. Hồ Chí Minh, VN')
+    ) AS t(slot, client_ip, location)
+)
+UPDATE admin_audit_events e
+SET metadata_json = (
+    COALESCE(e.metadata_json::jsonb, '{}'::jsonb)
+    || jsonb_build_object(
+        'clientIp', s.client_ip,
+        'location', s.location
+    )
+)::text
+FROM ranked r
+JOIN sample s ON s.slot = ((r.rn - 1) % 8)
+WHERE e.id = r.id;
+
+-- END migration: V73__admin_audit_client_ip_location_seed.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V74__cu_chi_explore_archive_points.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V74__cu_chi_explore_archive_points.sql
+-- ============================================================================
+-- src/main/resources/db/migration/V68__cu_chi_explore_archive_points.sql
+-- Đăng ký các điểm giải mã Mật thư, Hồ sơ câu chuyện, Bàn điều tra & Mặt cắt độ sâu cho Địa đạo Củ Chi
+
+INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order) VALUES
+-- 1. Ba Mật thư Chiến khu (Ciphers)
+('d0000001-0000-4000-8000-000000000101', '11111111-1111-1111-1111-111111111111', 'Mật lệnh số 19-HC: Bếp Hoàng Cầm', 32.00, 38.00, 'cipher:hoang-cam', 101),
+('d0000001-0000-4000-8000-000000000102', '11111111-1111-1111-1111-111111111111', 'Mật thư kỹ thuật 68-ĐH: Đào hầm 2 giếng', 35.00, 40.00, 'cipher:two-wells', 102),
+('d0000001-0000-4000-8000-000000000103', '11111111-1111-1111-1111-111111111111', 'Mật lệnh trinh sát 07-DR: Dép râu ngược', 40.00, 45.00, 'cipher:sandals', 103),
+
+-- 2. Sáu Hồ sơ Mảnh chuyện Đất Thép (Story Dossiers)
+('d0000001-0000-4000-8000-000000000104', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-01: Kỳ quan 250km Thành phố ngầm', 36.00, 42.00, 'dossier:architecture', 104),
+('d0000001-0000-4000-8000-000000000105', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-02: Trận địa chông mìn tự tạo', 44.00, 48.00, 'dossier:trap-warfare', 105),
+('d0000001-0000-4000-8000-000000000106', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-03: Đời sống dưới hầm sâu 6m', 38.00, 36.00, 'dossier:underground-life', 106),
+('d0000001-0000-4000-8000-000000000107', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-04: Sở chỉ huy ngầm Mậu Thân 1968', 48.00, 52.00, 'dossier:command-center', 107),
+('d0000001-0000-4000-8000-000000000108', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-05: Tư liệu đối chứng Tunnel Rats', 52.00, 55.00, 'dossier:tunnel-rats', 108),
+('d0000001-0000-4000-8000-000000000109', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-06: Đền tưởng niệm Bến Dược', 28.00, 30.00, 'dossier:ben-duoc', 109),
+
+-- 3. Bốn Mảnh chứng cứ & Kết luận Bàn điều tra (Investigation Board)
+('d0000001-0000-4000-8000-000000000110', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-01: Vết cắt vát chữ V nắp hầm', 33.00, 39.00, 'clue:ev-01', 110),
+('d0000001-0000-4000-8000-000000000111', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-02: Ống thông hơi ụ mối', 37.00, 41.00, 'clue:ev-02', 111),
+('d0000001-0000-4000-8000-000000000112', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-03: Báo cáo hành quân Crimp', 41.00, 43.00, 'clue:ev-03', 112),
+('d0000001-0000-4000-8000-000000000113', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-04: Bố cục liên hoàn ấp', 45.00, 47.00, 'clue:ev-04', 113),
+('d0000001-0000-4000-8000-000000000114', '11111111-1111-1111-1111-111111111111', 'Kết luận điều tra: Hệ thống ngụy trang Củ Chi', 46.00, 49.00, 'investigation:cu-chi-conclusion', 114),
+
+-- 4. Bốn Tầng mặt cắt độ sâu (Depth Cross-Section) - Đã chuyển thành 0 XP (Chỉ là hành động xem)
+('d0000001-0000-4000-8000-000000000115', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu 0m: Mặt đất ngụy trang', 30.00, 32.00, 'depth:surface', 0),
+('d0000001-0000-4000-8000-000000000116', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -3m: Tầng 1 chiến đấu & sinh hoạt', 30.00, 34.00, 'depth:layer1', 0),
+('d0000001-0000-4000-8000-000000000117', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -6m: Tầng 2 y tế & chỉ huy', 30.00, 36.00, 'depth:layer2', 0),
+('d0000001-0000-4000-8000-000000000118', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -10m: Tầng 3 đáy sinh tồn', 30.00, 38.00, 'depth:layer3', 0),
+
+-- 5. Bốn Thử thách Trắc nghiệm của Tầng ngầm (Depth Quizzes) - Trả lời đúng mới nhận 15 XP
+('d0000001-0000-4000-8000-000000000119', '11111111-1111-1111-1111-111111111111', 'Thử thách: Mùi tiêu và chó nghiệp vụ', 30.00, 33.00, 'depth_quiz:surface', 15),
+('d0000001-0000-4000-8000-000000000120', '11111111-1111-1111-1111-111111111111', 'Thử thách: Nút chặn chữ Z', 30.00, 35.00, 'depth_quiz:layer1', 15),
+('d0000001-0000-4000-8000-000000000121', '11111111-1111-1111-1111-111111111111', 'Thử thách: Bẫy nước chống khí độc', 30.00, 37.00, 'depth_quiz:layer2', 15),
+('d0000001-0000-4000-8000-000000000122', '11111111-1111-1111-1111-111111111111', 'Thử thách: Kết cấu đất đá ong', 30.00, 39.00, 'depth_quiz:layer3', 15)
+    ON CONFLICT (location_id, unlock_key) DO NOTHING;
+
+-- END migration: V74__cu_chi_explore_archive_points.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V75__reward_integrity.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V75__reward_integrity.sql
+-- ============================================================================
+-- Historical totals are retained as an explicitly unverified opening balance.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS server_generated BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Viewing the Cedar Falls diorama is distinct from finding the 360 tour's sa-ban fragment.
+INSERT INTO discovery_points(id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order)
+VALUES ('d0000001-0000-4000-8000-000000000123', '11111111-1111-1111-1111-111111111111',
+    'Trải nghiệm sa bàn Cedar Falls (không thưởng XP)', 50, 50, 'feature:diorama', 0)
+ON CONFLICT(location_id, unlock_key) DO NOTHING;
+
+-- Existing local databases may already contain Hibernate-created tables. Adopt them
+-- without dropping records; defaults and constraints are installed below as well.
+CREATE TABLE IF NOT EXISTS xp_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    event_key VARCHAR(255) NOT NULL,
+    points INTEGER NOT NULL,
+    awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(user_id, event_key)
+);
+ALTER TABLE xp_ledger ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE xp_ledger ALTER COLUMN awarded_at SET DEFAULT now();
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass
+        AND contype = 'u' AND pg_get_constraintdef(oid) = 'UNIQUE (user_id, event_key)') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_user_event_unique UNIQUE(user_id, event_key);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass AND conname = 'xp_ledger_points_nonnegative') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_points_nonnegative CHECK(points >= 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass AND conname = 'xp_ledger_user_fk') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_user_fk FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+    -- A missing opening balance may be reconstructed only if journal entries
+    -- do not already exceed the account total. Never silently rewrite a total.
+    IF EXISTS (SELECT 1 FROM profiles p WHERE NOT EXISTS (
+        SELECT 1 FROM xp_ledger x WHERE x.user_id = p.id AND x.event_key = 'baseline:v1')
+        AND COALESCE((SELECT SUM(x.points) FROM xp_ledger x WHERE x.user_id = p.id), 0)
+            > GREATEST(COALESCE(p.total_points, 0), 0)) THEN
+        RAISE EXCEPTION 'XP journal exceeds account total; reconcile historical data before V69.';
+    END IF;
+END $$;
+
+INSERT INTO xp_ledger(id, user_id, event_key, points, awarded_at)
+SELECT gen_random_uuid(), p.id, 'baseline:v1',
+    GREATEST(COALESCE(p.total_points, 0), 0) -
+        COALESCE((SELECT SUM(x.points) FROM xp_ledger x WHERE x.user_id = p.id), 0), now()
+FROM profiles p
+WHERE NOT EXISTS (SELECT 1 FROM xp_ledger x WHERE x.user_id = p.id AND x.event_key = 'baseline:v1')
+ON CONFLICT(user_id, event_key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS explore_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    location_id UUID NOT NULL,
+    challenge_key VARCHAR(128) NOT NULL,
+    answer INTEGER,
+    passed BOOLEAN NOT NULL,
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE explore_attempts ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE explore_attempts ALTER COLUMN submitted_at SET DEFAULT now();
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_answer_range') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_answer_range CHECK(answer BETWEEN 0 AND 3);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_user_fk') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_user_fk FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_location_fk') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_location_fk FOREIGN KEY(location_id) REFERENCES locations(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = current_schema()
+        AND tablename = 'explore_attempts' AND indexdef LIKE '% USING btree (user_id, submitted_at)') THEN
+        CREATE INDEX idx_explore_attempts_user_time ON explore_attempts(user_id, submitted_at);
+    END IF;
+END $$;
+
+INSERT INTO badges(id, name, description, icon_url, condition_type, condition_value, location_id) VALUES
+('b0000001-0000-4000-8000-000000000201', 'La Bàn Khởi Nguyên', '50 XP toàn tài khoản hoặc hoàn thành một thử thách tầng.', '/badges/badge-2.png', 'explore', 1, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000202', 'Dấu Chân Đất Thép', 'Hoàn thành bốn thử thách tầng.', '/badges/badge-5.png', 'explore', 2, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000203', 'Bậc Thầy Cơ Yếu', 'Giải ba mật thư.', '/badges/badge-8.png', 'explore', 3, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000204', 'Thám Tử Sử Liệu', 'Bốn chứng cứ và kết luận được server xác nhận.', '/badges/badge-6.png', 'explore', 4, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000205', 'Tri Kỷ Tiền Nhân', 'Có hội thoại AI, 300 XP toàn tài khoản và hai hồ sơ.', '/badges/badge-1.png', 'explore', 5, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000206', 'Người Giữ Kho Báu', 'Mở khóa cổ vật, 500 XP toàn tài khoản và ba mật thư.', '/badges/badge-7.png', 'explore', 6, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000207', 'Tinh Hoa Bác Học', 'Hoàn thành sáu hồ sơ.', '/badges/badge-3.png', 'explore', 7, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000208', 'Sứ Giả Thời Không', 'Có trải nghiệm 360°, sa bàn và 600 XP toàn tài khoản.', '/badges/badge-4.png', 'explore', 8, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000209', 'Nhãn Quan Xuyên Thấu', '1.130 XP toàn tài khoản, 360°, sa bàn, AI và mở khóa cổ vật.', '/badges/badge-10.png', 'explore', 9, '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (id) DO NOTHING;
+
+-- END migration: V75__reward_integrity.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
--- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-10-15_admin_dashboard_revenue_demo.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\docs\sql\seed\2026-10-15_admin_dashboard_revenue_demo.sql
 -- ============================================================================
 -- Demo revenue for Admin dashboard chart (Stitch-like 6-month B2C/B2B).
 -- Idempotent: keyed by order_code / transfer_content prefix SEED-DASH-*.
@@ -7032,7 +7627,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V71
+-- Flyway baseline after full bootstrap: V75
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -7059,7 +7654,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '71', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '75', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

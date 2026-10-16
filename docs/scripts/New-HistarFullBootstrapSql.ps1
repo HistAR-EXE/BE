@@ -57,7 +57,11 @@ Get-Content $manifestPath | ForEach-Object {
 }
 
 foreach ($migration in $migrations) {
+    # Flyway executes PostgreSQL migrations in a transaction. Preserve that
+    # boundary when flattening them for psql (V72 uses ON COMMIT DROP tables).
+    [void]$builder.AppendLine('BEGIN;')
     Add-SqlSection $builder "migration: $($migration.Name)" $migration.FullName
+    [void]$builder.AppendLine('COMMIT;')
 }
 
 if (Test-Path $postFlywayManifestPath) {

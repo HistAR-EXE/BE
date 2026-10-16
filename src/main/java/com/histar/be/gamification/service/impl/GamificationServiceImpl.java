@@ -91,6 +91,7 @@ public class GamificationServiceImpl implements GamificationService {
             String qrCode,
             PresenceInput presence) {
         PresenceInput input = presence != null ? presence : PresenceInput.NONE;
+        profilePointsService.lockAccount(userId);
 
         QrPayload payload = null;
         if (qrCode != null && !qrCode.isBlank()) {
@@ -192,6 +193,7 @@ public class GamificationServiceImpl implements GamificationService {
     @Override
     @Transactional
     public CheckinResultDto processDemoCheckin(UUID userId, UUID locationId) {
+        profilePointsService.lockAccount(userId);
         Location location = locationService.findById(locationId);
         return recordVisitAndMaybeReward(
                 userId,
@@ -256,10 +258,11 @@ public class GamificationServiceImpl implements GamificationService {
         int xpPerStation = stationCode != null && !stationCode.isBlank()
                 ? ProfilePointsService.XP_STATION
                 : ProfilePointsService.XP_CHECKIN;
-        int checkinXp = awardStationXp ? profilePointsService.award(userId, xpPerStation) : 0;
+        int checkinXp = awardStationXp ? profilePointsService.awardOnce(userId,
+                "checkin:" + locationId + ":" + (stationCode == null ? "location" : stationCode.trim().toLowerCase(java.util.Locale.ROOT)), xpPerStation) : 0;
         // First location visit also awards the classic check-in XP once (on top of first station).
         if (firstLocationVisit && stationCode != null && !stationCode.isBlank()) {
-            checkinXp += profilePointsService.award(userId, ProfilePointsService.XP_CHECKIN);
+            checkinXp += profilePointsService.awardOnce(userId, "checkin:" + locationId + ":location", ProfilePointsService.XP_CHECKIN);
         }
         int xpEarned = checkinXp + bonusXp;
         List<UnlockedArtifactDto> newArtifacts = collectCheckinArtifacts(userId, locationId, firstLocationVisit);
