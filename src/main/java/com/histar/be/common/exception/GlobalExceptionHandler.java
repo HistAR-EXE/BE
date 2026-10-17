@@ -3,6 +3,7 @@ package com.histar.be.common.exception;
 import com.histar.be.common.response.ErrorResponse;
 import com.histar.be.common.response.ValidationErrorResponse;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import jakarta.validation.ConstraintViolationException;
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler {
                     .code(rag.getErrorCode().getCode()).message(rag.getMessage())
                     .retryable(rag.isRetryable()).requestId(rag.getRequestId()).timestamp(Instant.now()).build());
         }
+        if (ex instanceof RateLimitedException rateLimited) {
+            return ResponseEntity.status(status)
+                    .header("Retry-After", String.valueOf(rateLimited.getRetryAfterSeconds()))
+                    .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+        }
         if (ex instanceof QuotaExceededException quotaEx) {
             return ResponseEntity.status(status)
                     .body(ErrorResponse.ofQuota(
@@ -37,6 +43,18 @@ public class GlobalExceptionHandler {
                             quotaEx.getUpgradeUrl(),
                             quotaEx.getQuotaType(),
                             quotaEx.getUpgradePackage()));
+        }
+        if (ex instanceof TrialExpiredException trialExpired) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            if (trialExpired.getExpiredAt() != null) {
+                details.put("expiredAt", trialExpired.getExpiredAt());
+            }
+            return ResponseEntity.status(status).body(ErrorResponse.builder()
+                    .code(ex.getErrorCode().getCode())
+                    .message(ex.getMessage())
+                    .details(details.isEmpty() ? null : details)
+                    .timestamp(Instant.now())
+                    .build());
         }
         return ResponseEntity.status(status).body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
     }
@@ -125,6 +143,7 @@ public class GlobalExceptionHandler {
         return switch (errorCode) {
             case CONFLICT, VERSION_CONFLICT, DRAFT_ALREADY_EXISTS, IDEMPOTENCY_CONFLICT,
                     RESTORE_CONFLICT, PARENT_DELETED, NARRATIVE_CANNOT_CONTINUE -> HttpStatus.CONFLICT;
+            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
             case RAG_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case RAG_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;

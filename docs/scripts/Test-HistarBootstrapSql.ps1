@@ -35,10 +35,23 @@ $migrations = Get-ChildItem (Join-Path $beRoot 'src\main\resources\db\migration'
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
 
 $lastVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
+if ($lastVersion -ne '79') {
+    throw "Bootstrap smoke check expects the latest migration to be V79, found V$lastVersion."
+}
 Assert-Contains $bootstrap "'$lastVersion',"
 
 foreach ($migration in $migrations) {
     Assert-Contains $bootstrap "BEGIN migration: $($migration.Name)"
+}
+
+foreach ($requiredMigration in @(
+    'V75__organization_ops_extensions.sql',
+    'V76__admin_audit_hash_chain.sql',
+    'V77__location_ar_readiness_seed.sql',
+    'V78__station_latlng_cuuchi_placeholder.sql',
+    'V79__seed_platform_accounts.sql'
+)) {
+    Assert-Contains $bootstrap "BEGIN migration: $requiredMigration"
 }
 
 $lastMigrationMarker = "BEGIN migration: $($migrations[-1].Name)"

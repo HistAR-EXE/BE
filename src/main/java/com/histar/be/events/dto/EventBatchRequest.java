@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record EventBatchRequest(@NotEmpty @Valid List<PilotEventItem> events) {
+public record EventBatchRequest(@NotEmpty @Size(max = 200) @Valid List<PilotEventItem> events) {
 
     public record PilotEventItem(
             UUID clientUuid,

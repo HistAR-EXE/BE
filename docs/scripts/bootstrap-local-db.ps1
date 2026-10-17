@@ -24,7 +24,8 @@ $billingCrmSeedScript = Join-Path $PSScriptRoot 'seed-admin-billing-crm.ps1'
 $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
-$ExpectedMinFlywayVersion = 73
+# Keep this aligned with the latest migration-specific smoke checks below.
+$ExpectedMinFlywayVersion = 79
 
 function Assert-SafeIdentifier([string]$Value, [string]$Label) {
     if ($Value -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
@@ -165,7 +166,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Admin Flyway chain (V70–V73) ---
+# --- Smoke checks for recent Flyway chain (V70–V79) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -196,11 +197,35 @@ if ([int]$auditWithIp -lt 1) {
     throw "Bootstrap baselined at V$lastVersion but V73 audit clientIp/location metadata is missing."
 }
 
+# V77: AR readiness is explicitly seeded for the Củ Chi pilot.
+$cuChiArReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM locations WHERE id = '11111111-1111-1111-1111-111111111111' AND is_ar_available = TRUE;") -join '').Trim()
+if ([int]$cuChiArReady -ne 1) {
+    throw "Bootstrap baselined at V$lastVersion but V77 Củ Chi AR readiness is not TRUE."
+}
+
+# V78: Củ Chi stations have the placeholder coordinates required by the local pilot.
+$stationCoordinates = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM stations WHERE site_code = 'cu-chi' AND code IN ('ST01','ST02','ST03','ST04','ST05','ST06') AND lat IS NOT NULL AND lng IS NOT NULL;") -join '').Trim()
+if ([int]$stationCoordinates -lt 6) {
+    throw "Bootstrap baselined at V$lastVersion but V78 Củ Chi station coordinates are incomplete ($stationCoordinates/6)."
+}
+
+# V79: local platform accounts are present and verified after a reset.
+$platformAccounts = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM profiles WHERE email IN ('admin@histar.vn','demo@histar.vn','teacher@histar.vn') AND email_verified = TRUE;") -join '').Trim()
+if ([int]$platformAccounts -lt 3) {
+    throw "Bootstrap baselined at V$lastVersion but V79 verified platform accounts are incomplete ($platformAccounts/3)."
+}
+
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."
 Write-Host "V71 billing CRM seed inquiries: $crmSeeded."
 Write-Host "V72/analytics demo profiles: $analyticsUsers."
 Write-Host "V73 audit events with clientIp/ip: $auditWithIp."
+Write-Host "V77 Củ Chi AR readiness: ready."
+Write-Host "V78 Củ Chi station coordinates: $stationCoordinates/6."
+Write-Host "V79 verified platform accounts: $platformAccounts/3."
 Write-Host 'Hard-refresh Admin Organizations / Billing CRM / Analytics / Audit after bootstrap.'
 if (-not $SkipDashboardRevenueSeed) {
     Write-Host 'Admin dashboard revenue demo seed applied (B2C/B2B 6-month chart + sample audit).'

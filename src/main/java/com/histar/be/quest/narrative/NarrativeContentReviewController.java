@@ -106,6 +106,15 @@ public class NarrativeContentReviewController {
         return ApiResponse.ok(pilotAdminService.publishDraft(questId, request.version(), request.rowVersion(), actorId(),
                 request.resolvedReason("Phát hành draft mới"), idempotencyKey));
     }
+    @PostMapping("/{questId}/rollback")
+    public ApiResponse<NarrativeAdminDetailResponse> rollback(@PathVariable UUID questId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestBody @Valid NarrativePilotRolloutRequest request) {
+        requireRowVersion(request);
+        if (request.version() == null) throw new com.histar.be.common.exception.BusinessRuleException("Rollback version is required");
+        return ApiResponse.ok(pilotAdminService.rollback(questId, request.version(), request.rowVersion(), actorId(),
+                request.resolvedReason(null), idempotencyKey));
+    }
     @PostMapping("/{questId}/disable")
     public ApiResponse<NarrativeAdminDetailResponse> disable(@PathVariable UUID questId,
             @RequestHeader("Idempotency-Key") String idempotencyKey,

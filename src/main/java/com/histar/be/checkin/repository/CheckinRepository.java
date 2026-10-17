@@ -16,6 +16,8 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
 
     long countByUserId(UUID userId);
 
+    long countByUserIdInAndCreatedAtGreaterThanEqual(Collection<UUID> userIds, Instant from);
+
     boolean existsByUserIdAndLocationId(UUID userId, UUID locationId);
 
     List<Checkin> findByUserIdOrderByCreatedAtDesc(UUID userId);

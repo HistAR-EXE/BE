@@ -1,6 +1,7 @@
 package com.histar.be.organization.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -87,5 +88,34 @@ class OrgStudentProvisionServiceTest {
                         new ProvisionStudentRequest("new@school.vn", "Student", false)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("giới hạn");
+    }
+
+    @Test
+    void provisionStudent_doesNotClaimCredentialsWereEmailedWhenMailIsDisabled() {
+        Organization org = Organization.builder()
+                .id(orgId)
+                .name("Local School")
+                .maxVerifiedAccounts(10)
+                .build();
+        var teacher = com.histar.be.profile.entity.Profile.builder()
+                .id(teacherId)
+                .displayName("Teacher")
+                .build();
+
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(org));
+        when(profileRepository.findByEmail("student@school.vn")).thenReturn(Optional.empty());
+        when(profileRepository.findById(teacherId)).thenReturn(Optional.of(teacher));
+        when(passwordEncoder.encode(any())).thenReturn("encoded");
+        when(appProperties.getFrontendUrl()).thenReturn("http://localhost:5173");
+        when(mailProperties.isEnabled()).thenReturn(false);
+
+        var result = orgStudentProvisionService.provisionStudent(
+                orgId,
+                teacherId,
+                new ProvisionStudentRequest("student@school.vn", "Student", true));
+
+        assertThat(result.accountCreated()).isTrue();
+        assertThat(result.credentialsEmailed()).isFalse();
+        assertThat(result.temporaryPassword()).isNotBlank();
     }
 }

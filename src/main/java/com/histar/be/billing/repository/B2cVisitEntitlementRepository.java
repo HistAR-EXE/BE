@@ -15,4 +15,6 @@ public interface B2cVisitEntitlementRepository extends JpaRepository<B2cVisitEnt
     boolean existsByUserIdAndSiteCodeAndExpiresAtAfter(UUID userId, String siteCode, Instant now);
 
     List<B2cVisitEntitlement> findByUserIdAndExpiresAtAfterOrderByExpiresAtDesc(UUID userId, Instant now);
+
+    List<B2cVisitEntitlement> findByOrderCode(String orderCode);
 }

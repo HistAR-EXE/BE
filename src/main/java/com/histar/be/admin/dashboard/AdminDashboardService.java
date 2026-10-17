@@ -37,13 +37,14 @@ public class AdminDashboardService {
                 + quests.countByDeletedAtIsNotNull();
         long reports = pilotEvents.countByEventTypeAndOccurredAtGreaterThanEqual(
                 "content_report", Instant.now().minus(30, ChronoUnit.DAYS));
+        long openDrafts = narrativeVersions.countByOpenDraftTrue();
         long draftsPendingReview = narrativeVersions.countByOpenDraftTrueAndReviewStatus("DRAFT");
         long openReports = contentReports.countByStatusIn(
                 List.of(ContentReportStatus.NEW, ContentReportStatus.IN_REVIEW));
         var finance = financials.overview(6);
         return new AdminDashboardResponse(
                 investigations.countByRolloutState(NarrativeRolloutState.ACTIVE),
-                draftsPendingReview,
+                openDrafts,
                 draftsPendingReview,
                 trashCount,
                 reports,

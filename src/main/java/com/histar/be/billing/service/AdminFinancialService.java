@@ -96,6 +96,9 @@ public class AdminFinancialService {
             long b2b = orgPayments.sumPaidAmountBetween(from, to);
             trend.add(new RevenueTrendPoint(month.toString(), b2c, b2b, b2c + b2b));
         }
+        if (trend.stream().allMatch(point -> point.totalRevenue() == 0)) {
+            trend = List.of();
+        }
 
         MrrResult mrr = estimateMrr(LocalDate.now(clock));
         Double coverage = mrr.included + mrr.excluded == 0

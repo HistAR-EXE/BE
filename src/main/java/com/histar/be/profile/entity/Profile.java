@@ -59,5 +59,9 @@ public class Profile {
     @Column(name = "firebase_uid", length = 128)
     private String firebaseUid;
 
+    @Column(name = "account_status", nullable = false, length = 20)
+    @Builder.Default
+    private String accountStatus = "ACTIVE";
+
     private Instant createdAt;
 }

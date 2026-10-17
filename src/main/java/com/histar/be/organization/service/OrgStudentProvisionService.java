@@ -91,8 +91,8 @@ public class OrgStudentProvisionService {
 
         boolean emailed = false;
         if (sendEmail) {
-            dispatchCredentialsEmail(teacher.getDisplayName(), org.getName(), email, displayName, tempPassword);
-            emailed = true;
+            emailed = dispatchCredentialsEmail(
+                    teacher.getDisplayName(), org.getName(), email, displayName, tempPassword);
         }
 
         return new ProvisionStudentResponse(
@@ -104,7 +104,7 @@ public class OrgStudentProvisionService {
                 emailed ? null : tempPassword);
     }
 
-    private void dispatchCredentialsEmail(
+    private boolean dispatchCredentialsEmail(
             String teacherName, String orgName, String to, String studentName, String tempPassword) {
         String loginUrl = appProperties.getFrontendUrl().replaceAll("/$", "") + "/login";
         if (!mailProperties.isEnabled()) {
@@ -112,7 +112,7 @@ public class OrgStudentProvisionService {
                     "Mail disabled — student credentials for {} (org {}): temp password logged for teacher only",
                     to,
                     orgName);
-            return;
+            return false;
         }
         try {
             String html =
@@ -128,6 +128,7 @@ public class OrgStudentProvisionService {
                     """
                             .formatted(studentName, teacherName, orgName, to, tempPassword, loginUrl);
             histarEmailService.sendHtml(to, "Tài khoản TimeLens — lớp " + orgName, html);
+            return true;
         } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email thông tin đăng nhập. Thử lại sau.");
         }

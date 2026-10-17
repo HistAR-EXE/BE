@@ -17,21 +17,25 @@ import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.common.exception.*;
 import com.histar.be.common.response.PageResponse;
 import com.histar.be.config.PilotFeatureProperties;
+import com.histar.be.location.entity.Location;
+import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.narrative.entity.*;
 import com.histar.be.quest.narrative.model.NarrativeQuestGraph;
 import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.stations.entity.Station;
+import com.histar.be.stations.repository.StationContentBlockRepository;
+import com.histar.be.stations.repository.StationRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Supplier;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class NarrativePilotAdminService {
     private final NarrativeInvestigationRepository investigations;
     private final NarrativeInvestigationVersionRepository versions;
@@ -41,6 +45,47 @@ public class NarrativePilotAdminService {
     private final NarrativeQuestGraphValidator graphValidator;
     private final PilotFeatureProperties pilotFeatures;
     private final AdminAuditService audit;
+    private final LocationRepository locations;
+    private final StationRepository stations;
+    private final StationContentBlockRepository stationContentBlocks;
+
+    @Autowired
+    public NarrativePilotAdminService(NarrativeInvestigationRepository investigations,
+            NarrativeInvestigationVersionRepository versions,
+            NarrativeRolloutIdempotencyRepository idempotency,
+            QuestRepository quests,
+            ObjectMapper objectMapper,
+            NarrativeQuestGraphValidator graphValidator,
+            PilotFeatureProperties pilotFeatures,
+            AdminAuditService audit,
+            LocationRepository locations,
+            StationRepository stations,
+            StationContentBlockRepository stationContentBlocks) {
+        this.investigations = investigations;
+        this.versions = versions;
+        this.idempotency = idempotency;
+        this.quests = quests;
+        this.objectMapper = objectMapper;
+        this.graphValidator = graphValidator;
+        this.pilotFeatures = pilotFeatures;
+        this.audit = audit;
+        this.locations = locations;
+        this.stations = stations;
+        this.stationContentBlocks = stationContentBlocks;
+    }
+
+    /** Compatibility constructor for unit callers that do not exercise destination readiness. */
+    public NarrativePilotAdminService(NarrativeInvestigationRepository investigations,
+            NarrativeInvestigationVersionRepository versions,
+            NarrativeRolloutIdempotencyRepository idempotency,
+            QuestRepository quests,
+            ObjectMapper objectMapper,
+            NarrativeQuestGraphValidator graphValidator,
+            PilotFeatureProperties pilotFeatures,
+            AdminAuditService audit) {
+        this(investigations, versions, idempotency, quests, objectMapper, graphValidator, pilotFeatures, audit,
+                null, null, null);
+    }
 
     @Transactional(readOnly = true)
     public List<NarrativePilotAdminResponse> list() {
@@ -129,10 +174,12 @@ public class NarrativePilotAdminService {
     @Transactional(readOnly = true)
     public NarrativeReadinessResponse readiness(UUID questId, int draftVersion) {
         NarrativeInvestigation parent = find(questId);
-        List<NarrativeReadinessItem> checks = checklist(version(parent, draftVersion));
+        NarrativeInvestigationVersion candidate = version(parent, draftVersion);
+        List<NarrativeDestinationReadiness> destinations = destinationReadiness(candidate);
+        List<NarrativeReadinessItem> checks = checklist(candidate);
         return new NarrativeReadinessResponse(questId, draftVersion,
                 checks.stream().allMatch(NarrativeReadinessItem::passed),
-                pilotFeatures.isNarrativeInvestigation(), checks);
+                pilotFeatures.isNarrativeInvestigation(), checks, destinations);
     }
 
     @Transactional
@@ -260,6 +307,50 @@ public class NarrativePilotAdminService {
         return publishDraftLocked(parent, version, rowVersion, actorId, reason, key);
     }
 
+    @Transactional
+    public NarrativeAdminDetailResponse rollback(UUID questId, int version, UUID actorId, String reason, String key) {
+        NarrativeInvestigation parent = lock(questId);
+        return rollbackLocked(parent, version, null, actorId, reason, key);
+    }
+
+    @Transactional
+    public NarrativeAdminDetailResponse rollback(UUID questId, int version, long rowVersion, UUID actorId,
+            String reason, String key) {
+        NarrativeInvestigation parent = lock(questId);
+        return rollbackLocked(parent, version, rowVersion, actorId, reason, key);
+    }
+
+    private NarrativeAdminDetailResponse rollbackLocked(NarrativeInvestigation parent, int version,
+            Long expectedRowVersion, UUID actorId, String reason, String key) {
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessRuleException("Rollback reason is required");
+        }
+        return idempotent(parent, "ROLLBACK", version, expectedRowVersion, reason, key, () -> {
+            requireParentVersion(parent, expectedRowVersion);
+            if (parent.getRolloutState() == NarrativeRolloutState.NOT_RELEASED) {
+                throw new BusinessRuleException("Only a released narrative pilot can be rolled back");
+            }
+            NarrativeInvestigationVersion current = published(parent);
+            NarrativeInvestigationVersion target = version(parent, version);
+            if (target.getId().equals(current.getId())) {
+                throw new BusinessRuleException("Rollback target must differ from the current published version");
+            }
+            if (target.isOpenDraft()) {
+                throw new BusinessRuleException("Rollback target must be a published narrative version");
+            }
+            requireApproved(target);
+            if (!checklist(target).stream().allMatch(NarrativeReadinessItem::passed)) {
+                throw new BusinessRuleException("Rollback target is not ready to publish");
+            }
+            long oldRowVersion = parent.getRowVersion();
+            NarrativeRolloutState state = parent.getRolloutState();
+            publish(parent, target, state);
+            auditRollout(actorId, parent, "ROLLED_BACK", reason, oldRowVersion, parent.getRowVersion(),
+                    target.getVersion(), key, state, parent.getRolloutState());
+            return detailOf(parent);
+        });
+    }
+
     /* Legacy adapters: version resolution is explicit and published graph rows are never edited. */
     @Transactional(readOnly = true)
     public NarrativePilotAdminResponse readiness(UUID questId) { return listItem(find(questId)); }
@@ -383,7 +474,59 @@ public class NarrativePilotAdminService {
             checks.add(check("GRAPH_VALID", false, "Graph JSON cannot be read", "graphJson"));
             checks.add(check("SOURCE_PRESENT", false, "Graph must include at least one source", "sources"));
         }
+        destinationReadiness(version).stream().flatMap(destination -> destination.checks().stream())
+                .forEach(checks::add);
         return checks;
+    }
+
+    private List<NarrativeDestinationReadiness> destinationReadiness(NarrativeInvestigationVersion version) {
+        if (locations == null || stations == null || stationContentBlocks == null) {
+            return List.of();
+        }
+        Optional<Quest> quest = Optional.ofNullable(investigationQuestId(version)).flatMap(quests::findById);
+        Optional<Location> location = quest.map(Quest::getLocationId)
+                .filter(Objects::nonNull)
+                .flatMap(locations::findById);
+        UUID destinationId = location.map(Location::getId).orElse(null);
+        String destinationName = location.map(Location::getName).orElse("Chưa xác định");
+        List<NarrativeReadinessItem> checks = new ArrayList<>();
+        checks.add(check("DESTINATION_QUEST", quest.isPresent(),
+                quest.isPresent() ? "Destination quest exists" : "Destination quest was not found", "questId"));
+        checks.add(check("DESTINATION_LOCATION", location.isPresent(),
+                location.isPresent() ? "Destination location exists" : "Destination location was not found", "locationId"));
+        boolean mediaReady = quest.map(Quest::getCoverImage).filter(this::present).isPresent()
+                || location.map(Location::getCoverImage).filter(this::present).isPresent()
+                || location.map(Location::getSiteCode).filter(this::present)
+                        .map(stations::findBySiteCodeAndActiveTrueOrderBySortOrderAsc)
+                        .filter(found -> !found.isEmpty())
+                        .map(found -> found.stream().map(Station::getId).toList())
+                        .map(stationContentBlocks::findByStationIdInOrderBySortOrderAsc)
+                        .map(blocks -> blocks.stream().anyMatch(block -> present(block.getMediaUrl())))
+                        .orElse(false);
+        checks.add(check("MEDIA_READY", mediaReady,
+                mediaReady ? "Destination media is available" : "Destination media is missing", "media"));
+        boolean reviewApproved = "APPROVED".equals(version.getReviewStatus()) && version.getReviewedAt() != null;
+        checks.add(check("REVIEW_APPROVED", reviewApproved,
+                reviewApproved ? "Draft review is approved" : "Draft review is not approved", "reviewStatus"));
+        boolean localeReady = locales(version.getApprovedLocalesJson()).contains("vi");
+        checks.add(check("LOCALE_READY", localeReady,
+                localeReady ? "Required locale vi is complete" : "Required locale vi is missing", "approvedLocales"));
+        boolean graphReferencesReady = checks.stream().noneMatch(item -> item.code().equals("DESTINATION_QUEST") && !item.passed())
+                && checks.stream().noneMatch(item -> item.code().equals("DESTINATION_LOCATION") && !item.passed());
+        checks.add(check("CONTENT_REFERENCE_READY", graphReferencesReady,
+                graphReferencesReady ? "Destination content references are available" : "Destination content references are missing", "references"));
+        return List.of(new NarrativeDestinationReadiness(destinationId, destinationName, true,
+                checks.stream().allMatch(NarrativeReadinessItem::passed), List.copyOf(checks)));
+    }
+
+    private UUID investigationQuestId(NarrativeInvestigationVersion version) {
+        return investigations.findById(version.getInvestigationId())
+                .map(NarrativeInvestigation::getQuestId)
+                .orElse(null);
+    }
+
+    private boolean present(String value) {
+        return value != null && !value.isBlank();
     }
 
     private NarrativeReadinessItem check(String code, boolean passed, String message, String field) {

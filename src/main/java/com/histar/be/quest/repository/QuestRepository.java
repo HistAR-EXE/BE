@@ -36,6 +36,8 @@ public interface QuestRepository extends JpaRepository<Quest, UUID> {
 
     List<Quest> findByUnlockAfterQuestIdAndDeletedAtIsNull(UUID questId);
 
+    List<Quest> findByUnlockAfterQuestId(UUID questId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from Quest q where q.unlockAfterQuestId = :questId and q.deletedAt is null order by q.id")
     List<Quest> findActiveChildrenForUpdate(@Param("questId") UUID questId);

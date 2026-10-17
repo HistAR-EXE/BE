@@ -10,10 +10,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "admin_audit_events")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -29,4 +31,6 @@ public class AdminAuditEvent {
     @Column(name = "idempotency_key") private String idempotencyKey;
     @Column(name = "metadata_json", nullable = false, columnDefinition = "text") private String metadataJson;
     @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Column(name = "event_hash", length = 64) private String eventHash;
+    @Column(name = "prev_event_hash", length = 64) private String prevEventHash;
 }

@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V71.
+-- Generated from schema, seed manifest, and Flyway migrations through V79.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -6863,6 +6863,571 @@ INSERT INTO heritage_digitization_inquiries (
 -- END migration: V71__admin_billing_crm_pipeline_seed.sql
 
 -- ============================================================================
+-- BEGIN migration: V72__admin_analytics_cu_chi_demo_seed.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V72__admin_analytics_cu_chi_demo_seed.sql
+-- ============================================================================
+-- Admin Analytics demo seed for Äá»‹a Ä‘áº¡o Cá»§ Chi (location 11111111-...).
+-- Proportions inspired by Stitch AnalyticsView mock, scaled for local DB (K-anonymity threshold = 10).
+-- Idempotent: removes prior seed-analytics-* rows then re-inserts.
+
+-- Applied inside Flyway transaction.
+
+-- Session-scoped TEMP (no ON COMMIT DROP): bootstrap runs via psql autocommit;
+-- ON COMMIT DROP would drop the table before the next statement.
+CREATE TEMP TABLE seed_analytics_users (
+    idx int PRIMARY KEY,
+    user_id uuid NOT NULL,
+    email text NOT NULL
+);
+
+INSERT INTO seed_analytics_users (idx, user_id, email)
+SELECT
+    g,
+    ('a1000000-0000-4000-8000-' || lpad(to_hex(g), 12, '0'))::uuid,
+    'seed-analytics-' || lpad(g::text, 3, '0') || '@histar.vn'
+FROM generate_series(1, 120) AS g;
+
+-- Cleanup previous seed (FK-safe order)
+DELETE FROM visit_session_events
+WHERE visit_session_id IN (
+    SELECT vs.id FROM visit_sessions vs
+    JOIN seed_analytics_users u ON u.user_id = vs.user_id
+);
+DELETE FROM analytics_events
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users)
+   OR metadata = 'seed-admin-analytics-cu-chi';
+DELETE FROM visit_sessions
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM pilot_events
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users)
+   OR payload_json LIKE '%"seed":"admin-analytics-cu-chi"%';
+DELETE FROM checkins
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM user_discoveries
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM user_quest_progress
+WHERE user_id IN (SELECT user_id FROM seed_analytics_users);
+DELETE FROM profiles
+WHERE email LIKE 'seed-analytics-%@histar.vn'
+   OR id IN (SELECT user_id FROM seed_analytics_users);
+
+INSERT INTO profiles (id, email, password_hash, provider, role, tier, display_name, level, total_points, city, created_at, email_verified)
+SELECT
+    u.user_id,
+    u.email,
+    crypt('Demo@2026', gen_salt('bf', 4)),
+    'local',
+    'USER',
+    CASE WHEN u.idx <= 40 THEN 'PREMIUM' ELSE 'FREE' END,
+    'Seed Analytics ' || lpad(u.idx::text, 3, '0'),
+    1 + (u.idx % 8),
+    100 + u.idx * 17,
+    'TP.HCM',
+    now() - ((u.idx % 25) || ' days')::interval,
+    true
+FROM seed_analytics_users u;
+
+-- Closed visit sessions (~14â€“22 min) with discovery events for drop-off + session quality
+WITH loc AS (
+    SELECT '11111111-1111-1111-1111-111111111111'::uuid AS id
+),
+pois AS (
+    SELECT unlock_key, name, sort_order,
+           row_number() OVER (ORDER BY sort_order) AS rn
+    FROM discovery_points
+    WHERE location_id = '11111111-1111-1111-1111-111111111111'
+      AND deleted_at IS NULL
+),
+sessions AS (
+    INSERT INTO visit_sessions (
+        id, user_id, location_id, mode, started_at, ended_at, status, last_activity_at, ended_reason
+    )
+    SELECT
+        ('b2000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+        u.user_id,
+        loc.id,
+        CASE WHEN u.idx % 3 = 0 THEN 'onsite' ELSE 'online' END,
+        now() - ((u.idx % 28) || ' days')::interval - interval '90 minutes',
+        now() - ((u.idx % 28) || ' days')::interval - interval '90 minutes'
+            + ((14 + (u.idx % 9)) || ' minutes')::interval,
+        'CLOSED',
+        now() - ((u.idx % 28) || ' days')::interval - interval '70 minutes',
+        'COMPLETED'
+    FROM seed_analytics_users u
+    CROSS JOIN loc
+    RETURNING id, user_id
+)
+INSERT INTO visit_session_events (id, visit_session_id, event_type, event_key, source, created_at, poi_name_snapshot)
+SELECT
+    gen_random_uuid(),
+    s.id,
+    'discovery',
+    p.unlock_key,
+    'seed-admin-analytics',
+    now() - ((su.idx % 28) || ' days')::interval - interval '80 minutes' + (p.rn || ' minutes')::interval,
+    p.name
+FROM sessions s
+JOIN seed_analytics_users su ON su.user_id = s.user_id
+JOIN pois p ON p.rn <= CASE
+    WHEN su.idx <= 100 THEN 6
+    WHEN su.idx <= 110 THEN 4
+    ELSE 2
+END;
+
+-- user_discoveries (POI unlock ranking) â€” top POIs get more distinct users
+INSERT INTO user_discoveries (user_id, discovery_key, discovered_at, location_id)
+SELECT
+    u.user_id,
+    p.unlock_key,
+    now() - ((u.idx % 27) || ' days')::interval - (p.sort_order || ' hours')::interval,
+    '11111111-1111-1111-1111-111111111111'::uuid
+FROM seed_analytics_users u
+JOIN discovery_points p
+  ON p.location_id = '11111111-1111-1111-1111-111111111111'
+ AND p.deleted_at IS NULL
+WHERE
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222222' AND u.idx <= 110) OR -- Cá»•ng vÃ o ~92%
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222221' AND u.idx <= 95) OR  -- Báº¿p
+    (p.unlock_key = 'scene:22222222-2222-2222-2222-222222222223' AND u.idx <= 82) OR  -- PhÃ²ng há»p
+    (p.unlock_key = 'photo:cua-ham' AND u.idx <= 70) OR
+    (p.unlock_key = 'photo:gieng' AND u.idx <= 58) OR
+    (p.unlock_key = 'artifact:vu-khi' AND u.idx <= 48) OR
+    (p.unlock_key = 'artifact:tram-xa' AND u.idx <= 40) OR
+    (p.unlock_key = 'hotspot:vent' AND u.idx <= 28) OR
+    (p.unlock_key = 'artifact:bay' AND u.idx <= 22);
+
+-- Quest funnel (started vs completed) â€” rates ~100 / 86 / 71 / 68 / 65 / 60 / 55 of base 120
+INSERT INTO user_quest_progress (
+    id, user_id, quest_id, status, started_at, completed_at, location_id, current_step, steps_total
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    q.id,
+    CASE
+        WHEN u.idx <= q.complete_upto THEN 'COMPLETED'
+        WHEN u.idx <= q.start_upto THEN 'IN_PROGRESS'
+        ELSE 'NOT_STARTED'
+    END,
+    CASE WHEN u.idx <= q.start_upto
+        THEN now() - ((u.idx % 26) || ' days')::interval ELSE NULL END,
+    CASE WHEN u.idx <= q.complete_upto
+        THEN now() - ((u.idx % 26) || ' days')::interval + interval '40 minutes' ELSE NULL END,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    CASE WHEN u.idx <= q.complete_upto THEN 3 WHEN u.idx <= q.start_upto THEN 1 ELSE 0 END,
+    3
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('33333333-3333-3333-3333-333333333335'::uuid, 120, 104), -- Ãnh sÃ¡ng ÄÃ¨n MÃ¹ U
+        ('33333333-3333-3333-3333-333333333339'::uuid, 110, 86),  -- Ba táº§ng lÃ²ng Ä‘áº¥t
+        ('33333333-3333-3333-3333-333333333337'::uuid, 100, 72),  -- Báº¿p khÃ´ng khÃ³i
+        ('33333333-3333-3333-3333-333333333333'::uuid, 95, 65),   -- HÃ nh trÃ¬nh dÆ°á»›i lÃ²ng Ä‘áº¥t
+        ('33333333-3333-3333-3333-333333333336'::uuid, 90, 58),   -- Máº­t lá»‡nh thá»­ game
+        ('33333333-3333-3333-3333-333333333334'::uuid, 85, 52),   -- Máº­t mÃ£ Sa bÃ n
+        ('33333333-3333-3333-3333-333333333338'::uuid, 80, 45)    -- Náº¯p háº§m vÃ  cáº¡m báº«y
+) AS q(id, start_upto, complete_upto)
+WHERE u.idx <= q.start_upto;
+
+-- Online â†’ onsite conversion (~32% of discoverers also check in after discovery)
+INSERT INTO checkins (id, user_id, location_id, latitude, longitude, created_at, presence_method)
+SELECT
+    ('c3000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    11.1438 + (u.idx * 0.00001),
+    106.4631 + (u.idx * 0.00001),
+    now() - ((u.idx % 25) || ' days')::interval + interval '2 hours',
+    'GPS'
+FROM seed_analytics_users u
+WHERE u.idx <= 38;
+
+-- analytics_events for KPI activeUsers / eventCount / activity-series / quest_completed
+INSERT INTO analytics_events (
+    id, user_id, location_id, visit_session_id, event_type, event_key, source, created_at, metadata
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    ('b2000000-0000-4000-8000-' || lpad(to_hex(u.idx), 12, '0'))::uuid,
+    e.event_type,
+    e.event_key,
+    'seed-admin-analytics',
+    -- Bias weekends (Sat/Sun) higher density like Stitch heatmap
+    date_trunc('day', now()) - ((u.idx + e.day_offset) % 28 || ' days')::interval
+        + ((9 + (u.idx % 7)) || ' hours')::interval
+        + ((u.idx % 50) || ' minutes')::interval,
+    'seed-admin-analytics-cu-chi'
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('session_start', 'visit', 0),
+        ('session_end', 'visit', 0),
+        ('discovery', 'poi', 1),
+        ('quest_started', 'quest', 2),
+        ('quest_completed', 'quest', 3),
+        ('checkin', 'gps', 4)
+) AS e(event_type, event_key, day_offset)
+WHERE NOT (e.event_type = 'quest_completed' AND u.idx > 78)
+  AND NOT (e.event_type = 'checkin' AND u.idx > 38);
+
+-- Extra weekdayÃ—hour events for Stitch heatmap peaks (09:30 / 14:30) and weekend denser cells
+INSERT INTO analytics_events (
+    id, user_id, location_id, event_type, event_key, source, created_at, metadata
+)
+SELECT
+    gen_random_uuid(),
+    u.user_id,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'session_start',
+    'visit',
+    'seed-admin-analytics',
+    date_trunc('week', now())
+      + ((d.dow) || ' days')::interval
+      + ((h.hour) || ' hours')::interval
+      + ((u.idx % 40) || ' minutes')::interval,
+    'seed-admin-analytics-cu-chi'
+FROM seed_analytics_users u
+CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6)) AS d(dow)
+CROSS JOIN (VALUES (8), (9), (10), (11), (13), (14), (15), (16)) AS h(hour)
+WHERE u.idx <= CASE
+    WHEN h.hour IN (9, 10, 14, 15) AND d.dow IN (5, 6) THEN 110
+    WHEN h.hour IN (9, 10, 14, 15) THEN 85
+    WHEN d.dow IN (5, 6) THEN 55
+    ELSE 28
+END;
+
+-- Pilot KPI attribution (last 7 days) for "Nguá»“n thu hÃºt"
+INSERT INTO pilot_events (id, client_uuid, user_id, session_id, event_type, station_code, payload_json, occurred_at, created_at)
+SELECT
+    gen_random_uuid(),
+    gen_random_uuid(),
+    u.user_id,
+    gen_random_uuid(),
+    e.event_type,
+    NULL,
+    '{"seed":"admin-analytics-cu-chi"}',
+    now() - ((u.idx % 6) || ' days')::interval - ((u.idx % 8) || ' hours')::interval,
+    now()
+FROM seed_analytics_users u
+CROSS JOIN (
+    VALUES
+        ('landing_visit', 90),
+        ('pack_loaded', 70),
+        ('share_initiated', 35),
+        ('checkin_result', 38),
+        ('nps_submitted', 25),
+        ('session_start', 100),
+        ('session_end', 95)
+) AS e(event_type, max_idx)
+WHERE u.idx <= e.max_idx;
+
+-- END migration: V72__admin_analytics_cu_chi_demo_seed.sql
+
+-- ============================================================================
+-- BEGIN migration: V73__admin_audit_client_ip_location_seed.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V73__admin_audit_client_ip_location_seed.sql
+-- ============================================================================
+-- Backfill clientIp + location into existing admin_audit_events metadata (demo / ops).
+-- Skips rows that already have clientIp or ip. Cycles a small VN ISP sample set.
+
+WITH ranked AS (
+    SELECT
+        id,
+        ROW_NUMBER() OVER (ORDER BY occurred_at DESC, id) AS rn
+    FROM admin_audit_events
+    WHERE metadata_json IS NULL
+       OR NOT (
+            COALESCE(metadata_json::jsonb, '{}'::jsonb) ? 'clientIp'
+            OR COALESCE(metadata_json::jsonb, '{}'::jsonb) ? 'ip'
+       )
+),
+sample AS (
+    SELECT *
+    FROM (VALUES
+        (0, '14.232.18.91',  'Hà Nội, VN'),
+        (1, '118.70.211.42', 'Hà Nội, VN'),
+        (2, '42.116.89.15',  'Đà Nẵng, VN'),
+        (3, '113.161.72.8',  'TP. Hồ Chí Minh, VN'),
+        (4, '171.224.178.33','Hà Nội, VN'),
+        (5, '27.72.144.10',  'Hải Phòng, VN'),
+        (6, '115.73.214.55', 'Cần Thơ, VN'),
+        (7, '203.113.131.7', 'TP. Hồ Chí Minh, VN')
+    ) AS t(slot, client_ip, location)
+)
+UPDATE admin_audit_events e
+SET metadata_json = (
+    COALESCE(e.metadata_json::jsonb, '{}'::jsonb)
+    || jsonb_build_object(
+        'clientIp', s.client_ip,
+        'location', s.location
+    )
+)::text
+FROM ranked r
+JOIN sample s ON s.slot = ((r.rn - 1) % 8)
+WHERE e.id = r.id;
+
+-- END migration: V73__admin_audit_client_ip_location_seed.sql
+
+-- ============================================================================
+-- BEGIN migration: V74__profiles_account_status.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V74__profiles_account_status.sql
+-- ============================================================================
+-- Admin IAM P0: suspend / unsuspend accounts
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS account_status VARCHAR(20);
+
+UPDATE profiles
+SET account_status = 'ACTIVE'
+WHERE account_status IS NULL OR BTRIM(account_status) = '';
+
+ALTER TABLE profiles
+    ALTER COLUMN account_status SET DEFAULT 'ACTIVE';
+
+ALTER TABLE profiles
+    ALTER COLUMN account_status SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'chk_profiles_account_status'
+    ) THEN
+        ALTER TABLE profiles
+            ADD CONSTRAINT chk_profiles_account_status
+            CHECK (UPPER(account_status) IN ('ACTIVE', 'SUSPENDED'));
+    END IF;
+END $$;
+
+-- END migration: V74__profiles_account_status.sql
+
+-- ============================================================================
+-- BEGIN migration: V75__organization_ops_extensions.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V75__organization_ops_extensions.sql
+-- ============================================================================
+-- Admin Organizations P0: contracts, AR cards, certificates, CRM link
+
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS last_crm_synced_at TIMESTAMPTZ;
+
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS crm_linked_inquiry_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE heritage_digitization_inquiries
+    ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+
+CREATE INDEX IF NOT EXISTS idx_heritage_digitization_inquiries_org
+    ON heritage_digitization_inquiries (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_contracts (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    contract_code VARCHAR(64) NOT NULL,
+    license_seats INT,
+    plan_type VARCHAR(32),
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    starts_on DATE,
+    ends_on DATE,
+    document_url TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID REFERENCES profiles(id),
+    CONSTRAINT uq_org_contracts_org_code UNIQUE (organization_id, contract_code),
+    CONSTRAINT chk_org_contracts_status CHECK (UPPER(status) IN ('DRAFT', 'ACTIVE', 'EXPIRED', 'CANCELLED'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_organization_contracts_org
+    ON organization_contracts (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_ar_cards (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    card_code VARCHAR(64) NOT NULL UNIQUE,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    issued_by UUID REFERENCES profiles(id),
+    revoked_at TIMESTAMPTZ,
+    CONSTRAINT chk_org_ar_cards_status CHECK (UPPER(status) IN ('ACTIVE', 'REVOKED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_org_ar_cards_active_member
+    ON organization_ar_cards (organization_id, user_id)
+    WHERE UPPER(status) = 'ACTIVE';
+
+CREATE INDEX IF NOT EXISTS idx_organization_ar_cards_org
+    ON organization_ar_cards (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_certificates (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    certificate_code VARCHAR(64) NOT NULL UNIQUE,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    issued_by UUID REFERENCES profiles(id),
+    metadata_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_organization_certificates_org
+    ON organization_certificates (organization_id);
+
+-- Optional demo contracts for first two orgs (idempotent by code)
+INSERT INTO organization_contracts (
+    id, organization_id, title, contract_code, license_seats, plan_type, status,
+    starts_on, ends_on, notes, created_at, updated_at
+)
+SELECT
+    gen_random_uuid(),
+    o.id,
+    'Hợp đồng trải nghiệm AR HistAR',
+    'CTR-DEMO-' || UPPER(SUBSTRING(REPLACE(o.id::text, '-', ''), 1, 6)),
+    COALESCE(o.max_verified_accounts, 30),
+    COALESCE(o.plan_type, o.plan, 'STANDARD'),
+    'ACTIVE',
+    CURRENT_DATE - 30,
+    CURRENT_DATE + 335,
+    'Seed hợp đồng demo (V75)',
+    NOW(),
+    NOW()
+FROM organizations o
+WHERE NOT EXISTS (
+    SELECT 1 FROM organization_contracts c
+    WHERE c.organization_id = o.id AND c.contract_code LIKE 'CTR-DEMO-%'
+)
+ORDER BY o.created_at NULLS LAST, o.name
+LIMIT 2;
+
+-- END migration: V75__organization_ops_extensions.sql
+
+-- ============================================================================
+-- BEGIN migration: V76__admin_audit_hash_chain.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V76__admin_audit_hash_chain.sql
+-- ============================================================================
+-- Admin audit SHA-256 hash chain (prev + event hash).
+-- Row hashes are backfilled by AdminAuditHashBackfill on startup so Instant formatting matches Java verify.
+
+ALTER TABLE admin_audit_events
+    ADD COLUMN IF NOT EXISTS event_hash VARCHAR(64);
+
+ALTER TABLE admin_audit_events
+    ADD COLUMN IF NOT EXISTS prev_event_hash VARCHAR(64);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_events_occurred_id
+    ON admin_audit_events (occurred_at ASC, id ASC);
+
+-- END migration: V76__admin_audit_hash_chain.sql
+
+-- ============================================================================
+-- BEGIN migration: V77__location_ar_readiness_seed.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V77__location_ar_readiness_seed.sql
+-- ============================================================================
+-- V77: Seed is_ar_available for all 10 heritage locations.
+-- Column was added via Hibernate DDL; this migration sets the authoritative values.
+-- Admin can toggle individual sites via PATCH /api/admin/locations/{id} (W1.2).
+--
+-- READY (has panoramas + stations + quest content):
+--   Củ Chi (11111111-...) — full content, panoramas, minigames
+--   Hoàng Thành Thăng Long (204) — content seeded in narrative pilots
+--
+-- NOT READY (content pending — see Wave 3 of GO_TO_MARKET_PLAN):
+--   All others — enable via admin console when content is complete.
+
+UPDATE locations
+SET is_ar_available = TRUE
+WHERE id IN (
+    '11111111-1111-1111-1111-111111111111',  -- Địa Đạo Củ Chi
+    '22222222-2222-2222-2222-222222222204'   -- Hoàng Thành Thăng Long
+);
+
+UPDATE locations
+SET is_ar_available = FALSE
+WHERE id IN (
+    '22222222-2222-2222-2222-222222222209',  -- Đền Hùng Vương
+    '22222222-2222-2222-2222-222222222207',  -- Văn Miếu Quốc Tử Giám
+    '22222222-2222-2222-2222-222222222203',  -- Cố Đô Hoa Lư
+    '22222222-2222-2222-2222-222222222206',  -- Thành Nhà Hồ
+    '22222222-2222-2222-2222-222222222202',  -- Chùa Thiên Mụ
+    '22222222-2222-2222-2222-222222222208',  -- Đại Nội Huế
+    '22222222-2222-2222-2222-222222222205'   -- Phố Cổ Hội An
+)
+  AND (is_ar_available IS NULL OR is_ar_available = FALSE);
+-- Note: 10th location (Dinh Độc Lập / Ben Nha Rong) — not seeded in V8, check before enabling.
+
+-- END migration: V77__location_ar_readiness_seed.sql
+
+-- ============================================================================
+-- BEGIN migration: V78__station_latlng_cuuchi_placeholder.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V78__station_latlng_cuuchi_placeholder.sql
+-- ============================================================================
+-- V78: Placeholder GPS coordinates for Củ Chi pilot stations ST01–ST06.
+--
+-- ⚠️  PLACEHOLDER — cần đo thực địa và thay bằng tọa độ chính xác.
+-- Các tọa độ này nằm trong khuôn viên khu di tích Địa đạo Củ Chi (Ben Duoc)
+-- và được bố trí dọc tuyến tham quan ~200m.
+-- Sau khi field test: cập nhật lại bằng migration V79 hoặc UPDATE thủ công qua admin.
+--
+-- Ref GPS trung tâm khu Ben Duoc: 11.1416°N, 106.4616°E
+
+UPDATE stations SET lat = 11.14155, lng = 106.46135
+WHERE site_code = 'cu-chi' AND code = 'ST01'; -- Phòng họp (khu đón tiếp)
+
+UPDATE stations SET lat = 11.14148, lng = 106.46148
+WHERE site_code = 'cu-chi' AND code = 'ST02'; -- Kho ngầm
+
+UPDATE stations SET lat = 11.14140, lng = 106.46162
+WHERE site_code = 'cu-chi' AND code = 'ST03'; -- Giếng hầm & thông gió
+
+UPDATE stations SET lat = 11.14133, lng = 106.46175
+WHERE site_code = 'cu-chi' AND code = 'ST04'; -- Quân y
+
+UPDATE stations SET lat = 11.14126, lng = 106.46188
+WHERE site_code = 'cu-chi' AND code = 'ST05'; -- Xưởng vũ khí
+
+UPDATE stations SET lat = 11.14119, lng = 106.46200
+WHERE site_code = 'cu-chi' AND code = 'ST06'; -- Hầm phòng thủ (điểm cuối)
+
+-- END migration: V78__station_latlng_cuuchi_placeholder.sql
+
+-- ============================================================================
+-- BEGIN migration: V79__seed_platform_accounts.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V79__seed_platform_accounts.sql
+-- ============================================================================
+-- Seed platform accounts (admin, demo, teacher) via Flyway so they survive DB resets.
+-- Uses pgcrypto crypt() with bcrypt (bf, cost 10) to hash Demo@2026.
+-- Idempotent: ON CONFLICT DO UPDATE ensures re-runnable.
+-- These accounts are dev/demo only — rotate passwords on production.
+
+-- Ensure pgcrypto extension is available (needed for crypt + gen_salt)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+INSERT INTO profiles (email, password_hash, provider, role, tier, display_name, level, total_points, city, created_at, email_verified, email_verified_at)
+VALUES
+    ('admin@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'ADMIN', 'FREE', 'Platform Admin',
+     1, 0, 'TP.HCM', now(), true, now()),
+    ('demo@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'ADMIN', 'FREE', 'Demo Admin',
+     10, 999, 'TP.HCM', now(), true, now()),
+    ('teacher@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'TEACHER', 'FREE', 'Giáo viên Demo',
+     1, 0, 'TP.HCM', now(), true, now())
+ON CONFLICT (email) DO UPDATE
+    SET password_hash      = crypt('Demo@2026', gen_salt('bf', 10)),
+        role               = EXCLUDED.role,
+        email_verified     = TRUE,
+        email_verified_at  = COALESCE(profiles.email_verified_at, now());
+
+-- END migration: V79__seed_platform_accounts.sql
+
+-- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\docs\sql\seed\2026-10-15_admin_dashboard_revenue_demo.sql
 -- ============================================================================
@@ -7032,7 +7597,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V71
+-- Flyway baseline after full bootstrap: V79
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -7059,7 +7624,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '71', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '79', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

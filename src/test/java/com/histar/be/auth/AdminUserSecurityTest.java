@@ -3,9 +3,11 @@ package com.histar.be.auth;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.histar.be.profile.entity.AccountStatus;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.repository.ProfileRepository;
@@ -56,6 +58,9 @@ class AdminUserSecurityTest {
                 .displayName("Regular User")
                 .provider("local")
                 .role(UserRole.USER.name())
+                .accountStatus(AccountStatus.ACTIVE.name())
+                .emailVerified(true)
+                .emailVerifiedAt(Instant.now())
                 .level(1)
                 .totalPoints(0)
                 .createdAt(Instant.now())
@@ -69,6 +74,9 @@ class AdminUserSecurityTest {
                 .displayName("Admin User")
                 .provider("local")
                 .role(UserRole.ADMIN.name())
+                .accountStatus(AccountStatus.ACTIVE.name())
+                .emailVerified(true)
+                .emailVerifiedAt(Instant.now())
                 .level(1)
                 .totalPoints(0)
                 .createdAt(Instant.now())
@@ -116,6 +124,51 @@ class AdminUserSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\",\"reason\":\"Promote for console operations\",\"expectedRole\":\"USER\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void nonAdminCannotUseNewIamEndpoints() throws Exception {
+        mockMvc.perform(get("/api/admin/users/export.csv").header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/admin/users/" + regularUserId + "/status")
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"status\":\"SUSPENDED\",\"reason\":\"Khóa tạm thử nghiệm bảo mật\",\"expectedStatus\":\"ACTIVE\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/admin/users/bulk")
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userIds\":[\""
+                                + regularUserId
+                                + "\"],\"action\":\"SUSPEND\",\"reason\":\"Khóa tạm thử nghiệm bảo mật\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanSuspendAndSuspendedUserCannotUseJwt() throws Exception {
+        mockMvc.perform(patch("/api/admin/users/" + regularUserId + "/status")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"status\":\"SUSPENDED\",\"reason\":\"Khóa tạm sau báo cáo lạm dụng\",\"expectedStatus\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accountStatus").value("SUSPENDED"));
+
+        // Suspended JWT is ignored by filter → unauthenticated → 401
+        mockMvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"regular@test.local\",\"password\":\"Test1234!\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminCanExportUsersCsv() throws Exception {
+        mockMvc.perform(get("/api/admin/users/export.csv").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
     }
 
     @Test

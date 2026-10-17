@@ -1,14 +1,16 @@
-﻿-- Admin Analytics demo seed for Äá»‹a Ä‘áº¡o Cá»§ Chi (location 11111111-...).
+-- Admin Analytics demo seed for Äá»‹a Ä‘áº¡o Cá»§ Chi (location 11111111-...).
 -- Proportions inspired by Stitch AnalyticsView mock, scaled for local DB (K-anonymity threshold = 10).
 -- Idempotent: removes prior seed-analytics-* rows then re-inserts.
 
 -- Applied inside Flyway transaction.
 
+-- Session-scoped TEMP (no ON COMMIT DROP): bootstrap runs via psql autocommit;
+-- ON COMMIT DROP would drop the table before the next statement.
 CREATE TEMP TABLE seed_analytics_users (
     idx int PRIMARY KEY,
     user_id uuid NOT NULL,
     email text NOT NULL
-) ON COMMIT DROP;
+);
 
 INSERT INTO seed_analytics_users (idx, user_id, email)
 SELECT
