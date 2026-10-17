@@ -10,4 +10,5 @@ public interface QuestStepRepository extends JpaRepository<QuestStep, UUID> {
     List<QuestStep> findByQuestId(UUID questId);
 
     List<QuestStep> findByMinigameId(UUID minigameId);
+    List<QuestStep> findByUnlockKey(String unlockKey);
 }

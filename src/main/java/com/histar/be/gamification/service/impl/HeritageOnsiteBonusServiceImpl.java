@@ -34,10 +34,12 @@ public class HeritageOnsiteBonusServiceImpl implements HeritageOnsiteBonusServic
     private final ProfileRepository profileRepository;
     private final GamificationProperties gamificationProperties;
     private final BadgeAwardService badgeAwardService;
+    private final com.histar.be.profile.service.ProfilePointsService points;
 
     @Override
     @Transactional
     public Optional<HeritageOnsiteBonusResult> tryAward(UUID userId, UUID locationId) {
+        points.lockAccount(userId);
         if (bonusRepository.existsByIdUserIdAndIdLocationId(userId, locationId)) {
             return Optional.empty();
         }
@@ -53,11 +55,7 @@ public class HeritageOnsiteBonusServiceImpl implements HeritageOnsiteBonusServic
             return Optional.empty();
         }
 
-        int newPoints =
-                (profile.getTotalPoints() == null ? 0 : profile.getTotalPoints()) + HERITAGE_ONSITE_BONUS_XP;
-        profile.setTotalPoints(newPoints);
-        profile.setLevel(LevelCalculator.levelFromPoints(newPoints, gamificationProperties.parseLevelThresholds()));
-        profileRepository.save(profile);
+        points.awardOnce(userId, "heritage:" + locationId, HERITAGE_ONSITE_BONUS_XP);
 
         bonusRepository.save(UserHeritageOnsiteBonus.builder()
                 .id(new UserHeritageOnsiteBonusId(userId, locationId))

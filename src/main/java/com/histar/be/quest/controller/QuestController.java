@@ -66,10 +66,14 @@ public class QuestController {
     @PostMapping("/quests/chapter-bonus")
     public ApiResponse<ChapterBonusResponse> claimChapterBonus(
             @RequestParam UUID locationId,
-            @RequestParam String unlockKey) {
+            @RequestParam String unlockKey,
+            @RequestParam String answer) {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new AuthException("Unauthorized"));
+        if (!"deep".equals(answer)) {
+            throw new com.histar.be.common.exception.BusinessRuleException("Đáp án chưa chính xác. Hãy thử lại.");
+        }
         return ApiResponse.ok(questChapterBonusService.claim(userId, locationId, unlockKey));
     }
 

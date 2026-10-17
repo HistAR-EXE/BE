@@ -34,4 +34,8 @@ public class Message {
     private String content;
 
     private Instant createdAt;
+
+    /** Client-synced transcripts are retained, but cannot prove a server-completed activity. */
+    @Column(name = "server_generated", nullable = false)
+    private boolean serverGenerated;
 }

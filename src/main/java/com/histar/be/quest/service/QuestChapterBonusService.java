@@ -28,6 +28,7 @@ public class QuestChapterBonusService {
 
     @Transactional
     public ChapterBonusResponse claim(UUID userId, UUID locationId, String unlockKey) {
+        profilePointsService.lockAccount(userId);
         if (!SA_BAN_STEP.equals(unlockKey)) {
             throw new BusinessRuleException("Chương này không có thưởng đố.");
         }
@@ -47,7 +48,7 @@ public class QuestChapterBonusService {
         } catch (DataIntegrityViolationException already) {
             return new ChapterBonusResponse(0, true);
         }
-        int awarded = profilePointsService.award(userId, chapterXp(locationId));
+        int awarded = profilePointsService.awardOnce(userId, "chapter:" + locationId + ":" + unlockKey, chapterXp(locationId));
         return new ChapterBonusResponse(awarded, false);
     }
 

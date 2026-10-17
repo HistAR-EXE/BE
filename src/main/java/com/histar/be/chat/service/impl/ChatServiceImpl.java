@@ -262,7 +262,7 @@ public class ChatServiceImpl implements ChatService {
         }
         messageRepository.save(Message.builder().conversationId(conversation.getId()).role("user")
                 .content(request.message()).createdAt(Instant.now()).build());
-        messageRepository.save(Message.builder().conversationId(conversation.getId()).role("assistant")
+        messageRepository.save(Message.builder().conversationId(conversation.getId()).role("assistant").serverGenerated(true)
                 .content(prepared.reply()).createdAt(Instant.now()).build());
         if (request.narrativeQuestId() != null && request.narrativeNodeCode() != null && request.narrativeVersion() != null) {
             narrativeInvestigationService.recordChatInteraction(userId, request.narrativeQuestId(),

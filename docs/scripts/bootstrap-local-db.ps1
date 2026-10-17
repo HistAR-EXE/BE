@@ -25,7 +25,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 79
+$ExpectedMinFlywayVersion = 81
 
 function Assert-SafeIdentifier([string]$Value, [string]$Label) {
     if ($Value -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
@@ -166,7 +166,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V79) ---
+# --- Smoke checks for recent Flyway chain (V70–V81) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -218,6 +218,18 @@ if ([int]$platformAccounts -lt 3) {
     throw "Bootstrap baselined at V$lastVersion but V79 verified platform accounts are incomplete ($platformAccounts/3)."
 }
 
+# V80/V81: Explore archive points and reward integrity migrations are included.
+$exploreArchiveReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM discovery_points WHERE location_id = '11111111-1111-1111-1111-111111111111' AND deleted_at IS NULL AND unlock_key <> 'feature:diorama';") -join '').Trim()
+if ([int]$exploreArchiveReady -lt 22) {
+    throw "Bootstrap baselined at V$lastVersion but V80 Explore archive points are incomplete ($exploreArchiveReady/22)."
+}
+$rewardIntegrityReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('xp_ledger','explore_attempts');") -join '').Trim()
+if ([int]$rewardIntegrityReady -ne 2) {
+    throw "Bootstrap baselined at V$lastVersion but V81 reward integrity tables are incomplete ($rewardIntegrityReady/2)."
+}
+
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."
 Write-Host "V71 billing CRM seed inquiries: $crmSeeded."
@@ -226,6 +238,8 @@ Write-Host "V73 audit events with clientIp/ip: $auditWithIp."
 Write-Host "V77 Củ Chi AR readiness: ready."
 Write-Host "V78 Củ Chi station coordinates: $stationCoordinates/6."
 Write-Host "V79 verified platform accounts: $platformAccounts/3."
+Write-Host "V80 Explore archive points: $exploreArchiveReady/22."
+Write-Host 'V81 reward integrity tables: xp_ledger and explore_attempts.'
 Write-Host 'Hard-refresh Admin Organizations / Billing CRM / Analytics / Audit after bootstrap.'
 if (-not $SkipDashboardRevenueSeed) {
     Write-Host 'Admin dashboard revenue demo seed applied (B2C/B2B 6-month chart + sample audit).'

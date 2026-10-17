@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V79.
+-- Generated from schema, seed manifest, and Flyway migrations through V81.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -3332,6 +3332,7 @@ WHERE organization_id = (SELECT id FROM organizations WHERE slug = 'demo-standar
 COMMIT;
 
 -- END seed: 2026-07-10_demo_billing_accounts.sql
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V1__monetization_history_ready.sql
@@ -3450,6 +3451,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_quotas_user_day
     WHERE user_id IS NOT NULL AND day IS NOT NULL;
 
 -- END migration: V1__monetization_history_ready.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V2__add_sepay_b2c_payment_transactions.sql
@@ -3489,6 +3492,8 @@ CREATE INDEX IF NOT EXISTS idx_b2c_payment_transactions_user_created_at
     ON b2c_payment_transactions (user_id, created_at DESC);
 
 -- END migration: V2__add_sepay_b2c_payment_transactions.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V3__add_billing_settings.sql
@@ -3505,6 +3510,8 @@ VALUES ('b2c_premium_price_vnd', '79000', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V3__add_billing_settings.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V4__add_org_payment_transactions.sql
@@ -3548,6 +3555,8 @@ CREATE INDEX IF NOT EXISTS idx_org_payment_transactions_user_created_at
     ON org_payment_transactions (requester_user_id, created_at DESC);
 
 -- END migration: V4__add_org_payment_transactions.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V5__add_chat_free_daily_limit_setting.sql
@@ -3558,6 +3567,8 @@ VALUES ('chat_free_daily_limit', '10', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V5__add_chat_free_daily_limit_setting.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V6__multiplayer_b2b2c_volume_discount.sql
@@ -3594,6 +3605,8 @@ VALUES ('org_volume_discount_min_licenses', '3', NOW())
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- END migration: V6__multiplayer_b2b2c_volume_discount.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V7__ccu_sessions_lms_assignments.sql
@@ -3640,6 +3653,8 @@ CREATE INDEX IF NOT EXISTS idx_assignment_submissions_assignment ON assignment_s
 CREATE INDEX IF NOT EXISTS idx_assignment_submissions_student ON assignment_submissions(student_id);
 
 -- END migration: V7__ccu_sessions_lms_assignments.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V8__location_geo_and_maps_url.sql
@@ -3732,6 +3747,8 @@ UPDATE locations SET
 WHERE id = '22222222-2222-2222-2222-222222222209';
 
 -- END migration: V8__location_geo_and_maps_url.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V9__email_verification.sql
@@ -3766,6 +3783,8 @@ SET email_verified = TRUE,
 WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn');
 
 -- END migration: V9__email_verification.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V10__repair_email_verified_column.sql
@@ -3804,6 +3823,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_email_verification_tokens_hash
     ON email_verification_tokens(token_hash);
 
 -- END migration: V10__repair_email_verified_column.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V11__shedlock.sql
@@ -3818,6 +3839,8 @@ CREATE TABLE IF NOT EXISTS shedlock (
 );
 
 -- END migration: V11__shedlock.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V12__add_b2c_renewal_reminders.sql
@@ -3837,6 +3860,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_b2c_renewal_reminders_subscription_day
     ON b2c_renewal_reminders (subscription_id, reminder_day);
 
 -- END migration: V12__add_b2c_renewal_reminders.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V13__visit_sessions_ai_fields.sql
@@ -3850,6 +3875,8 @@ ALTER TABLE visit_sessions
     ADD COLUMN IF NOT EXISTS ai_tone VARCHAR(64);
 
 -- END migration: V13__visit_sessions_ai_fields.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V14__quest_steps.sql
@@ -3881,6 +3908,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quest_steps_quest_unlock
     ON quest_steps (quest_id, unlock_key);
 
 -- END migration: V14__quest_steps.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V15__tour360_multi_scene.sql
@@ -3945,6 +3974,8 @@ INSERT INTO hotspots (panorama_id, yaw, pitch, type, content_ref, label, marker_
 ('22222222-2222-2222-2222-222222222227', 3.3615926535897933, -0.55, 'scene', '22222222-2222-2222-2222-222222222226', '← Quay lại', 'far');
 
 -- END migration: V15__tour360_multi_scene.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V16__b2c_premium_price_79000.sql
@@ -3966,6 +3997,8 @@ WHERE NOT EXISTS (
 );
 
 -- END migration: V16__b2c_premium_price_79000.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V17__cu_chi_scene_discovery_points.sql
@@ -4000,6 +4033,8 @@ INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unloc
 ON CONFLICT (location_id, unlock_key) DO NOTHING;
 
 -- END migration: V17__cu_chi_scene_discovery_points.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V18__cu_chi_hotspot_yaw_pitch_patch.sql
@@ -4044,6 +4079,8 @@ WHERE panorama_id = '22222222-2222-2222-2222-222222222223'
   AND content_ref = '22222222-2222-2222-2222-22222222222e';
 
 -- END migration: V18__cu_chi_hotspot_yaw_pitch_patch.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V19__b2b2c_inquiry_admin_fields.sql
@@ -4056,6 +4093,8 @@ ALTER TABLE heritage_digitization_inquiries
     ADD COLUMN IF NOT EXISTS contacted_at TIMESTAMPTZ NULL;
 
 -- END migration: V19__b2b2c_inquiry_admin_fields.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V20__b2c_premium_49000_and_payment_subscription.sql
@@ -4085,6 +4124,8 @@ CREATE INDEX IF NOT EXISTS idx_b2c_payment_transactions_subscription_id
     WHERE subscription_id IS NOT NULL;
 
 -- END migration: V20__b2c_premium_49000_and_payment_subscription.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V21__stations_content_blocks.sql
@@ -4145,6 +4186,8 @@ INSERT INTO station_content_blocks (id, station_id, block_type, title, body, sor
 ON CONFLICT (id) DO NOTHING;
 
 -- END migration: V21__stations_content_blocks.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V22__checkin_presence.sql
@@ -4167,6 +4210,8 @@ CREATE INDEX IF NOT EXISTS idx_checkins_user_station
     WHERE station_code IS NOT NULL;
 
 -- END migration: V22__checkin_presence.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V23__pilot_events.sql
@@ -4189,6 +4234,8 @@ CREATE INDEX idx_pilot_events_occurred_at ON pilot_events (occurred_at);
 CREATE INDEX idx_pilot_events_user_id ON pilot_events (user_id);
 
 -- END migration: V23__pilot_events.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V24__story_chapters.sql
@@ -4240,6 +4287,8 @@ INSERT INTO story_chapters (id, site_code, chapter_number, station_code, title, 
 ON CONFLICT (site_code, chapter_number) DO NOTHING;
 
 -- END migration: V24__story_chapters.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V25__pgvector_rag.sql
@@ -4454,6 +4503,8 @@ INSERT INTO rag_chunks (id, source_id, station_code, era, content, chunk_index) 
 ON CONFLICT (id) DO NOTHING;
 
 -- END migration: V25__pgvector_rag.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V26__squads.sql
@@ -4483,6 +4534,8 @@ CREATE TABLE squad_members (
 CREATE INDEX idx_squad_members_user_id ON squad_members (user_id);
 
 -- END migration: V26__squads.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V27__station_minigames.sql
@@ -4545,6 +4598,8 @@ INSERT INTO station_minigames (id, site_code, station_code, game_type, title, co
 ON CONFLICT (site_code, station_code) DO NOTHING;
 
 -- END migration: V27__station_minigames.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V28__stations_content_refresh.sql
@@ -4600,6 +4655,8 @@ UPDATE station_content_blocks SET
 WHERE id = 'a3000002-0000-4000-8000-000000000006';
 
 -- END migration: V28__stations_content_refresh.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V29__media_transcode_jobs.sql
@@ -4629,6 +4686,8 @@ CREATE INDEX IF NOT EXISTS idx_media_transcode_jobs_user
     ON media_transcode_jobs (user_id, created_at DESC);
 
 -- END migration: V29__media_transcode_jobs.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V30__device_push_tokens.sql
@@ -4649,6 +4708,8 @@ CREATE TABLE IF NOT EXISTS device_push_tokens (
 CREATE INDEX IF NOT EXISTS idx_device_push_tokens_user ON device_push_tokens (user_id);
 
 -- END migration: V30__device_push_tokens.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V31__referral_codes.sql
@@ -4679,6 +4740,8 @@ INSERT INTO referral_codes (id, code, creator_name, headline) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- END migration: V31__referral_codes.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V32__align_story_minigames_mvbp.sql
@@ -4755,6 +4818,8 @@ UPDATE station_minigames SET
 WHERE site_code = 'cu-chi' AND station_code = 'ST06';
 
 -- END migration: V32__align_story_minigames_mvbp.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V33__journey_pass_and_site_code.sql
@@ -4807,6 +4872,8 @@ ALTER TABLE b2c_payment_transactions
     ADD COLUMN IF NOT EXISTS site_code VARCHAR(64);
 
 -- END migration: V33__journey_pass_and_site_code.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V34__pilot_httl_hue_stations.sql
@@ -4991,6 +5058,8 @@ INSERT INTO station_chat_prompts (id, site_code, station_code, persona, chip_lab
 (gen_random_uuid(), 'dai-noi-hue', 'ST06', 'guide', 'Kết tour', 'Sau sáu trạm Đại Nội nên làm gì tiếp theo trong TimeLens?', 1);
 
 -- END migration: V34__pilot_httl_hue_stations.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V35__rag_site_code.sql
@@ -5015,6 +5084,8 @@ CREATE INDEX IF NOT EXISTS idx_rag_sources_site_station ON rag_sources (site_cod
 CREATE INDEX IF NOT EXISTS idx_rag_chunks_site_station ON rag_chunks (site_code, station_code);
 
 -- END migration: V35__rag_site_code.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V36__b2b2c_interest_site.sql
@@ -5028,6 +5099,8 @@ CREATE INDEX IF NOT EXISTS idx_heritage_inq_interest_site
     ON heritage_digitization_inquiries (interest_site_code);
 
 -- END migration: V36__b2b2c_interest_site.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V37__password_reset_otp.sql
@@ -5057,6 +5130,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_challenges_reset_token
     WHERE reset_token_hash IS NOT NULL;
 
 -- END migration: V37__password_reset_otp.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V38__chrono_quest_prompts.sql
@@ -5083,6 +5158,8 @@ WHERE unlock_key = 'dialogue:chi-nam'
   AND quest_id = '33333333-3333-3333-3333-333333333335';
 
 -- END migration: V38__chrono_quest_prompts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V39__restore_vietnamese_quest_text.sql
@@ -5157,6 +5234,8 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333335'
   AND title LIKE '%?%';
 
 -- END migration: V39__restore_vietnamese_quest_text.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V40__cu_chi_quest_discovery_points.sql
@@ -5178,6 +5257,8 @@ WHERE quest_id = '33333333-3333-3333-3333-333333333334'
   AND unlock_key = 'tour:sa-ban';
 
 -- END migration: V40__cu_chi_quest_discovery_points.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V41__quest1_journey_steps.sql
@@ -5294,6 +5375,8 @@ WHERE EXISTS (
 ON CONFLICT (quest_id, unlock_key) DO NOTHING;
 
 -- END migration: V41__quest1_journey_steps.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V42__quest_minigames.sql
@@ -5324,6 +5407,8 @@ ALTER TABLE quest_steps
     ADD COLUMN IF NOT EXISTS minigame_id UUID REFERENCES quest_minigames(id);
 
 -- END migration: V42__quest_minigames.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V43__quest_minigame_seed.sql
@@ -5486,6 +5571,8 @@ WHERE EXISTS (SELECT 1 FROM quests WHERE id = '33333333-3333-3333-3333-333333333
 ON CONFLICT (quest_id, unlock_key) DO NOTHING;
 
 -- END migration: V43__quest_minigame_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V44__phase2_quests_collections.sql
@@ -5808,6 +5895,8 @@ UPDATE quests SET
 WHERE id = '44444444-4444-4444-4444-444444444409';
 
 -- END migration: V44__phase2_quests_collections.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V45__silence_relic_wording.sql
@@ -5821,6 +5910,8 @@ SET description = 'Hai giếng cách nhau khoảng 6 đến 15 mét và được
 WHERE id = 'c1000001-0000-4000-8000-000000000023';
 
 -- END migration: V45__silence_relic_wording.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V46__journey_memory.sql
@@ -5843,6 +5934,8 @@ CREATE TABLE journey_memories (
 CREATE INDEX idx_journey_memories_user_expires ON journey_memories (user_id, expires_at);
 
 -- END migration: V46__journey_memory.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V47__teacher_ai_drafts.sql
@@ -5870,6 +5963,8 @@ CREATE INDEX idx_teacher_ai_drafts_teacher_created ON teacher_ai_drafts (teacher
 CREATE INDEX idx_teacher_ai_drafts_org_status ON teacher_ai_drafts (org_id, status);
 
 -- END migration: V47__teacher_ai_drafts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V48__narrative_investigation_foundation.sql
@@ -5906,6 +6001,8 @@ CREATE TABLE quest_reward_ledger (
 );
 
 -- END migration: V48__narrative_investigation_foundation.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V49__quest_campaigns.sql
@@ -5925,6 +6022,8 @@ CREATE TABLE quest_campaigns (
 CREATE INDEX idx_quest_campaigns_active ON quest_campaigns (enabled, starts_at, ends_at);
 
 -- END migration: V49__quest_campaigns.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V50__narrative_pilot_progress_and_review.sql
@@ -5945,6 +6044,8 @@ SELECT '33333333-3333-3333-3333-333333333390'::uuid, '33333333-3333-3333-3333-33
 WHERE NOT EXISTS (SELECT 1 FROM narrative_investigations WHERE quest_id='33333333-3333-3333-3333-333333333338'::uuid);
 
 -- END migration: V50__narrative_pilot_progress_and_review.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V51__narrative_specialist_review_audit.sql
@@ -5964,6 +6065,8 @@ CREATE INDEX idx_narrative_investigation_reviews_investigation_time
     ON narrative_investigation_reviews (investigation_id, reviewed_at DESC);
 
 -- END migration: V51__narrative_specialist_review_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V52__cu_chi_nap_ham_review_ready_graph.sql
@@ -5983,6 +6086,8 @@ SET version = 2,
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V52__cu_chi_nap_ham_review_ready_graph.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V53__quest_campaign_audit.sql
@@ -5995,6 +6100,8 @@ CREATE TABLE quest_campaign_audit (
 CREATE INDEX idx_quest_campaign_audit_campaign_time ON quest_campaign_audit(campaign_id, occurred_at DESC);
 
 -- END migration: V53__quest_campaign_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V54__assignment_campaign_link.sql
@@ -6004,6 +6111,8 @@ ALTER TABLE assignments ADD COLUMN campaign_id UUID REFERENCES quest_campaigns(i
 CREATE INDEX idx_assignments_campaign ON assignments(campaign_id);
 
 -- END migration: V54__assignment_campaign_link.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V55__campaign_release_gate_and_rollback_reason.sql
@@ -6017,6 +6126,8 @@ ALTER TABLE quest_campaigns ADD COLUMN release_decided_at TIMESTAMP WITH TIME ZO
 ALTER TABLE quest_campaign_audit ADD COLUMN rollback_reason TEXT;
 
 -- END migration: V55__campaign_release_gate_and_rollback_reason.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V56__teacher_ai_draft_campaign_link.sql
@@ -6026,6 +6137,8 @@ ALTER TABLE teacher_ai_drafts ADD COLUMN campaign_id UUID REFERENCES quest_campa
 CREATE INDEX idx_teacher_ai_drafts_campaign ON teacher_ai_drafts(campaign_id);
 
 -- END migration: V56__teacher_ai_draft_campaign_link.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V57__cooperative_leaderboard_access_audit.sql
@@ -6044,6 +6157,8 @@ CREATE TABLE cooperative_leaderboard_access_audit (
 CREATE INDEX idx_coop_lb_access_audit_time ON cooperative_leaderboard_access_audit(organization_id, occurred_at DESC);
 
 -- END migration: V57__cooperative_leaderboard_access_audit.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V58__repair_pgvector_rag_schema.sql
@@ -6070,6 +6185,8 @@ BEGIN
 END $$;
 
 -- END migration: V58__repair_pgvector_rag_schema.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V59__repair_phase2_schema_constraints.sql
@@ -6136,6 +6253,8 @@ BEGIN
 END $$;
 
 -- END migration: V59__repair_phase2_schema_constraints.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V60__cu_chi_vietnamese_only_pilot_citations.sql
@@ -6234,6 +6353,8 @@ $graph$,
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V60__cu_chi_vietnamese_only_pilot_citations.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V61__admin_audit_events.sql
@@ -6280,6 +6401,8 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_deleted_at ON artifacts(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_quests_deleted_at ON quests(deleted_at);
 
 -- END migration: V61__admin_audit_events.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V62__chrono_only_chat_agents.sql
@@ -6332,6 +6455,8 @@ SET persona = 'chrono',
 WHERE persona <> 'chrono';
 
 -- END migration: V62__chrono_only_chat_agents.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V63__verify_seed_accounts.sql
@@ -6346,6 +6471,8 @@ WHERE email IN ('admin@histar.vn', 'demo@histar.vn', 'teacher@histar.vn')
   AND email_verified IS DISTINCT FROM TRUE;
 
 -- END migration: V63__verify_seed_accounts.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V64__repair_admin_audit_schema.sql
@@ -6397,6 +6524,8 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_deleted_at ON artifacts(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_quests_deleted_at ON quests(deleted_at);
 
 -- END migration: V64__repair_admin_audit_schema.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V65__cu_chi_narrative_flow_v4.sql
@@ -6510,6 +6639,8 @@ $graph$
 WHERE quest_id = '33333333-3333-3333-3333-333333333338'::uuid;
 
 -- END migration: V65__cu_chi_narrative_flow_v4.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V66__narrative_observation_progress.sql
@@ -6519,6 +6650,8 @@ ALTER TABLE user_narrative_investigation_progress
     ADD COLUMN IF NOT EXISTS observation_codes_json TEXT NOT NULL DEFAULT '[]';
 
 -- END migration: V66__narrative_observation_progress.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V67__narrative_chat_progress.sql
@@ -6528,6 +6661,8 @@ ALTER TABLE user_narrative_investigation_progress
     ADD COLUMN IF NOT EXISTS chat_node_codes_json TEXT NOT NULL DEFAULT '[]';
 
 -- END migration: V67__narrative_chat_progress.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V68__narrative_investigation_versioning.sql
@@ -6625,6 +6760,8 @@ CREATE INDEX idx_narrative_rollout_idempotency_created
     ON narrative_rollout_idempotency(investigation_id, created_at DESC);
 
 -- END migration: V68__narrative_investigation_versioning.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V69__admin_console_phase_1_2.sql
@@ -6690,6 +6827,8 @@ CREATE UNIQUE INDEX uq_subscriptions_source_payment
     WHERE source_payment_transaction_id IS NOT NULL;
 
 -- END migration: V69__admin_console_phase_1_2.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V70__organization_ops_note.sql
@@ -6709,6 +6848,8 @@ WHERE slug = 'demo-standard-org'
   AND (ops_note IS NULL OR BTRIM(ops_note) = '');
 
 -- END migration: V70__organization_ops_note.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V71__admin_billing_crm_pipeline_seed.sql
@@ -6861,6 +7002,8 @@ INSERT INTO heritage_digitization_inquiries (
 );
 
 -- END migration: V71__admin_billing_crm_pipeline_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V72__admin_analytics_cu_chi_demo_seed.sql
@@ -7124,6 +7267,8 @@ CROSS JOIN (
 WHERE u.idx <= e.max_idx;
 
 -- END migration: V72__admin_analytics_cu_chi_demo_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V73__admin_audit_client_ip_location_seed.sql
@@ -7169,6 +7314,8 @@ JOIN sample s ON s.slot = ((r.rn - 1) % 8)
 WHERE e.id = r.id;
 
 -- END migration: V73__admin_audit_client_ip_location_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V74__profiles_account_status.sql
@@ -7202,6 +7349,8 @@ BEGIN
 END $$;
 
 -- END migration: V74__profiles_account_status.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V75__organization_ops_extensions.sql
@@ -7303,6 +7452,8 @@ ORDER BY o.created_at NULLS LAST, o.name
 LIMIT 2;
 
 -- END migration: V75__organization_ops_extensions.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V76__admin_audit_hash_chain.sql
@@ -7321,6 +7472,8 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_events_occurred_id
     ON admin_audit_events (occurred_at ASC, id ASC);
 
 -- END migration: V76__admin_audit_hash_chain.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V77__location_ar_readiness_seed.sql
@@ -7359,6 +7512,8 @@ WHERE id IN (
 -- Note: 10th location (Dinh Độc Lập / Ben Nha Rong) — not seeded in V8, check before enabling.
 
 -- END migration: V77__location_ar_readiness_seed.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V78__station_latlng_cuuchi_placeholder.sql
@@ -7392,6 +7547,8 @@ UPDATE stations SET lat = 11.14119, lng = 106.46200
 WHERE site_code = 'cu-chi' AND code = 'ST06'; -- Hầm phòng thủ (điểm cuối)
 
 -- END migration: V78__station_latlng_cuuchi_placeholder.sql
+COMMIT;
+BEGIN;
 
 -- ============================================================================
 -- BEGIN migration: V79__seed_platform_accounts.sql
@@ -7426,6 +7583,150 @@ ON CONFLICT (email) DO UPDATE
         email_verified_at  = COALESCE(profiles.email_verified_at, now());
 
 -- END migration: V79__seed_platform_accounts.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V80__cu_chi_explore_archive_points.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V80__cu_chi_explore_archive_points.sql
+-- ============================================================================
+-- src/main/resources/db/migration/V68__cu_chi_explore_archive_points.sql
+-- Đăng ký các điểm giải mã Mật thư, Hồ sơ câu chuyện, Bàn điều tra & Mặt cắt độ sâu cho Địa đạo Củ Chi
+
+INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order) VALUES
+-- 1. Ba Mật thư Chiến khu (Ciphers)
+('d0000001-0000-4000-8000-000000000101', '11111111-1111-1111-1111-111111111111', 'Mật lệnh số 19-HC: Bếp Hoàng Cầm', 32.00, 38.00, 'cipher:hoang-cam', 101),
+('d0000001-0000-4000-8000-000000000102', '11111111-1111-1111-1111-111111111111', 'Mật thư kỹ thuật 68-ĐH: Đào hầm 2 giếng', 35.00, 40.00, 'cipher:two-wells', 102),
+('d0000001-0000-4000-8000-000000000103', '11111111-1111-1111-1111-111111111111', 'Mật lệnh trinh sát 07-DR: Dép râu ngược', 40.00, 45.00, 'cipher:sandals', 103),
+
+-- 2. Sáu Hồ sơ Mảnh chuyện Đất Thép (Story Dossiers)
+('d0000001-0000-4000-8000-000000000104', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-01: Kỳ quan 250km Thành phố ngầm', 36.00, 42.00, 'dossier:architecture', 104),
+('d0000001-0000-4000-8000-000000000105', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-02: Trận địa chông mìn tự tạo', 44.00, 48.00, 'dossier:trap-warfare', 105),
+('d0000001-0000-4000-8000-000000000106', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-03: Đời sống dưới hầm sâu 6m', 38.00, 36.00, 'dossier:underground-life', 106),
+('d0000001-0000-4000-8000-000000000107', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-04: Sở chỉ huy ngầm Mậu Thân 1968', 48.00, 52.00, 'dossier:command-center', 107),
+('d0000001-0000-4000-8000-000000000108', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-05: Tư liệu đối chứng Tunnel Rats', 52.00, 55.00, 'dossier:tunnel-rats', 108),
+('d0000001-0000-4000-8000-000000000109', '11111111-1111-1111-1111-111111111111', 'Hồ sơ HS-06: Đền tưởng niệm Bến Dược', 28.00, 30.00, 'dossier:ben-duoc', 109),
+
+-- 3. Bốn Mảnh chứng cứ & Kết luận Bàn điều tra (Investigation Board)
+('d0000001-0000-4000-8000-000000000110', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-01: Vết cắt vát chữ V nắp hầm', 33.00, 39.00, 'clue:ev-01', 110),
+('d0000001-0000-4000-8000-000000000111', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-02: Ống thông hơi ụ mối', 37.00, 41.00, 'clue:ev-02', 111),
+('d0000001-0000-4000-8000-000000000112', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-03: Báo cáo hành quân Crimp', 41.00, 43.00, 'clue:ev-03', 112),
+('d0000001-0000-4000-8000-000000000113', '11111111-1111-1111-1111-111111111111', 'Chứng cứ EV-04: Bố cục liên hoàn ấp', 45.00, 47.00, 'clue:ev-04', 113),
+('d0000001-0000-4000-8000-000000000114', '11111111-1111-1111-1111-111111111111', 'Kết luận điều tra: Hệ thống ngụy trang Củ Chi', 46.00, 49.00, 'investigation:cu-chi-conclusion', 114),
+
+-- 4. Bốn Tầng mặt cắt độ sâu (Depth Cross-Section) - Đã chuyển thành 0 XP (Chỉ là hành động xem)
+('d0000001-0000-4000-8000-000000000115', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu 0m: Mặt đất ngụy trang', 30.00, 32.00, 'depth:surface', 0),
+('d0000001-0000-4000-8000-000000000116', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -3m: Tầng 1 chiến đấu & sinh hoạt', 30.00, 34.00, 'depth:layer1', 0),
+('d0000001-0000-4000-8000-000000000117', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -6m: Tầng 2 y tế & chỉ huy', 30.00, 36.00, 'depth:layer2', 0),
+('d0000001-0000-4000-8000-000000000118', '11111111-1111-1111-1111-111111111111', 'Khảo sát độ sâu -10m: Tầng 3 đáy sinh tồn', 30.00, 38.00, 'depth:layer3', 0),
+
+-- 5. Bốn Thử thách Trắc nghiệm của Tầng ngầm (Depth Quizzes) - Trả lời đúng mới nhận 15 XP
+('d0000001-0000-4000-8000-000000000119', '11111111-1111-1111-1111-111111111111', 'Thử thách: Mùi tiêu và chó nghiệp vụ', 30.00, 33.00, 'depth_quiz:surface', 15),
+('d0000001-0000-4000-8000-000000000120', '11111111-1111-1111-1111-111111111111', 'Thử thách: Nút chặn chữ Z', 30.00, 35.00, 'depth_quiz:layer1', 15),
+('d0000001-0000-4000-8000-000000000121', '11111111-1111-1111-1111-111111111111', 'Thử thách: Bẫy nước chống khí độc', 30.00, 37.00, 'depth_quiz:layer2', 15),
+('d0000001-0000-4000-8000-000000000122', '11111111-1111-1111-1111-111111111111', 'Thử thách: Kết cấu đất đá ong', 30.00, 39.00, 'depth_quiz:layer3', 15)
+    ON CONFLICT (location_id, unlock_key) DO NOTHING;
+
+-- END migration: V80__cu_chi_explore_archive_points.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V81__reward_integrity.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V81__reward_integrity.sql
+-- ============================================================================
+-- Historical totals are retained as an explicitly unverified opening balance.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS server_generated BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Viewing the Cedar Falls diorama is distinct from finding the 360 tour's sa-ban fragment.
+INSERT INTO discovery_points(id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order)
+VALUES ('d0000001-0000-4000-8000-000000000123', '11111111-1111-1111-1111-111111111111',
+    'Trải nghiệm sa bàn Cedar Falls (không thưởng XP)', 50, 50, 'feature:diorama', 0)
+ON CONFLICT(location_id, unlock_key) DO NOTHING;
+
+-- Existing local databases may already contain Hibernate-created tables. Adopt them
+-- without dropping records; defaults and constraints are installed below as well.
+CREATE TABLE IF NOT EXISTS xp_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    event_key VARCHAR(255) NOT NULL,
+    points INTEGER NOT NULL,
+    awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(user_id, event_key)
+);
+ALTER TABLE xp_ledger ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE xp_ledger ALTER COLUMN awarded_at SET DEFAULT now();
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass
+        AND contype = 'u' AND pg_get_constraintdef(oid) = 'UNIQUE (user_id, event_key)') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_user_event_unique UNIQUE(user_id, event_key);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass AND conname = 'xp_ledger_points_nonnegative') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_points_nonnegative CHECK(points >= 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'xp_ledger'::regclass AND conname = 'xp_ledger_user_fk') THEN
+        ALTER TABLE xp_ledger ADD CONSTRAINT xp_ledger_user_fk FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+    -- A missing opening balance may be reconstructed only if journal entries
+    -- do not already exceed the account total. Never silently rewrite a total.
+    IF EXISTS (SELECT 1 FROM profiles p WHERE NOT EXISTS (
+        SELECT 1 FROM xp_ledger x WHERE x.user_id = p.id AND x.event_key = 'baseline:v1')
+        AND COALESCE((SELECT SUM(x.points) FROM xp_ledger x WHERE x.user_id = p.id), 0)
+            > GREATEST(COALESCE(p.total_points, 0), 0)) THEN
+        RAISE EXCEPTION 'XP journal exceeds account total; reconcile historical data before V69.';
+    END IF;
+END $$;
+
+INSERT INTO xp_ledger(id, user_id, event_key, points, awarded_at)
+SELECT gen_random_uuid(), p.id, 'baseline:v1',
+    GREATEST(COALESCE(p.total_points, 0), 0) -
+        COALESCE((SELECT SUM(x.points) FROM xp_ledger x WHERE x.user_id = p.id), 0), now()
+FROM profiles p
+WHERE NOT EXISTS (SELECT 1 FROM xp_ledger x WHERE x.user_id = p.id AND x.event_key = 'baseline:v1')
+ON CONFLICT(user_id, event_key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS explore_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    location_id UUID NOT NULL,
+    challenge_key VARCHAR(128) NOT NULL,
+    answer INTEGER,
+    passed BOOLEAN NOT NULL,
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE explore_attempts ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE explore_attempts ALTER COLUMN submitted_at SET DEFAULT now();
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_answer_range') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_answer_range CHECK(answer BETWEEN 0 AND 3);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_user_fk') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_user_fk FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'explore_attempts'::regclass AND conname = 'explore_attempt_location_fk') THEN
+        ALTER TABLE explore_attempts ADD CONSTRAINT explore_attempt_location_fk FOREIGN KEY(location_id) REFERENCES locations(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = current_schema()
+        AND tablename = 'explore_attempts' AND indexdef LIKE '% USING btree (user_id, submitted_at)') THEN
+        CREATE INDEX idx_explore_attempts_user_time ON explore_attempts(user_id, submitted_at);
+    END IF;
+END $$;
+
+INSERT INTO badges(id, name, description, icon_url, condition_type, condition_value, location_id) VALUES
+('b0000001-0000-4000-8000-000000000201', 'La Bàn Khởi Nguyên', '50 XP toàn tài khoản hoặc hoàn thành một thử thách tầng.', '/badges/badge-2.png', 'explore', 1, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000202', 'Dấu Chân Đất Thép', 'Hoàn thành bốn thử thách tầng.', '/badges/badge-5.png', 'explore', 2, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000203', 'Bậc Thầy Cơ Yếu', 'Giải ba mật thư.', '/badges/badge-8.png', 'explore', 3, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000204', 'Thám Tử Sử Liệu', 'Bốn chứng cứ và kết luận được server xác nhận.', '/badges/badge-6.png', 'explore', 4, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000205', 'Tri Kỷ Tiền Nhân', 'Có hội thoại AI, 300 XP toàn tài khoản và hai hồ sơ.', '/badges/badge-1.png', 'explore', 5, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000206', 'Người Giữ Kho Báu', 'Mở khóa cổ vật, 500 XP toàn tài khoản và ba mật thư.', '/badges/badge-7.png', 'explore', 6, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000207', 'Tinh Hoa Bác Học', 'Hoàn thành sáu hồ sơ.', '/badges/badge-3.png', 'explore', 7, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000208', 'Sứ Giả Thời Không', 'Có trải nghiệm 360°, sa bàn và 600 XP toàn tài khoản.', '/badges/badge-4.png', 'explore', 8, '11111111-1111-1111-1111-111111111111'),
+('b0000001-0000-4000-8000-000000000209', 'Nhãn Quan Xuyên Thấu', '1.130 XP toàn tài khoản, 360°, sa bàn, AI và mở khóa cổ vật.', '/badges/badge-10.png', 'explore', 9, '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (id) DO NOTHING;
+
+-- END migration: V81__reward_integrity.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -7597,7 +7898,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V79
+-- Flyway baseline after full bootstrap: V81
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -7624,7 +7925,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '79', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '81', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

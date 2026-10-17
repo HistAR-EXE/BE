@@ -52,6 +52,7 @@ public class QuestMinigameService {
 
     @Transactional
     public MinigameAttemptResponse submit(UUID userId, UUID gameId, MinigameAttempt attempt) {
+        profilePointsService.lockAccount(userId);
         QuestMinigame game = require(gameId);
         assertPlayable(userId, gameId);
         JsonNode config = readConfig(game);
@@ -75,7 +76,8 @@ public class QuestMinigameService {
                 UUID locationId = step.getQuest().getLocationId();
                 if (discoveryService.record(userId, step.getUnlockKey(), locationId)) {
                     recorded = true;
-                    discoveryXp += profilePointsService.award(userId, ProfilePointsService.XP_DISCOVERY);
+                    discoveryXp += profilePointsService.awardOnce(userId,
+                            "discovery:" + locationId + ":" + step.getUnlockKey(), ProfilePointsService.XP_DISCOVERY);
                     questCompletionService.tryComplete(userId, locationId, CompletionTrigger.DISCOVERY);
                 }
             }
