@@ -22,7 +22,7 @@ Removed only the 18 explicitly marked `ui-preview-honors` identities and their p
 - Three PostgreSQL SQL harnesses passed, including XP ties, badge-only display ordering, Top 10 cutoff, viewer outside Top 10, suspended accounts, group boundaries and unchanged XP. Both Explore migration scenarios passed with rollback.
 - Live local API: nine groups passed, including Free/Premium parity, owner isolation, access control, private passport/email status, stories, read-only progression, and cleanup with data fingerprints unchanged. No external email sent.
 - FE source admin suite: 42 cases passed. Final FE lint/build passed with zero errors; 18 existing warnings outside Honors and large shared chunk warnings remain.
-- Final Honors UI suite: 35/35 passed on Edge, including automatic PNG, byte-identical email/download, privacy, suspended-profile API integration, Top 10/ties, mobile, keyboard, and stale account responses. Final related Explore suite: 15/15 passed; its fixture marks the introductory product tour complete to isolate the intended controls. Exported PNG was visually inspected after bounding identity text beside the stamp.
+- Final Honors UI suite: 35/35 passed on Edge, including automatic PNG, byte-identical email/download, privacy, owner/API contract checks, Top 10/ties, mobile, keyboard, and stale account responses. Final related Explore suite: 15/15 passed; its fixture marks the introductory product tour complete to isolate the intended controls. Exported PNG was visually inspected after bounding identity text beside the stamp.
 
 ## Production rollout
 
