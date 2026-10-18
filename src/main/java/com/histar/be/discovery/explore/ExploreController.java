@@ -17,6 +17,10 @@ public class ExploreController {
     @GetMapping public ApiResponse<ExploreService.Snapshot> snapshot() {
         return ApiResponse.ok(explore.snapshot(userId()));
     }
+    @GetMapping("/summary") public ApiResponse<ExploreService.Snapshot> summary(jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control", "private, no-store");
+        return ApiResponse.ok(explore.readSnapshot(userId()));
+    }
     @PostMapping("/attempts") public ApiResponse<ExploreService.AttemptResponse> submit(
             @RequestBody @Valid ExploreService.AttemptRequest request) {
         return ApiResponse.ok(explore.submit(userId(), request));

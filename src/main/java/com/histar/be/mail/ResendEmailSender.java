@@ -37,6 +37,20 @@ public class ResendEmailSender implements EmailSender {
         dispatch(request);
     }
 
+    @Override
+    public void sendAttachment(String from, String to, String subject, String html, String filename, byte[] png) {
+        AttachmentMailValidator.validate(from, to, subject, filename, png);
+        var request = new ResendEmailRequest(from, new String[] {to}, subject, html,
+                java.util.List.of(new ResendEmailRequest.Attachment(filename,
+                        java.util.Base64.getEncoder().encodeToString(png))));
+        try {
+            resendWebClient.post().uri("/emails").bodyValue(request).retrieve()
+                    .bodyToMono(Void.class).block(java.time.Duration.ofSeconds(20));
+        } catch (Exception ex) {
+            throw new EmailDeliveryException("Resend attachment delivery failed");
+        }
+    }
+
     /** Strip surrounding quotes — Render env often stores MAIL_FROM with literal " characters. */
     private String resolveFromAddress() {
         String from = mailProperties.getFrom();
