@@ -20,7 +20,7 @@ class HonorsPassportCommunityTest {
  @BeforeEach void setup(){
   var ds=new DriverManagerDataSource("jdbc:h2:mem:"+UUID.randomUUID()+";MODE=PostgreSQL;DB_CLOSE_DELAY=-1","sa","");
   jdbc=new JdbcTemplate(ds);
-  jdbc.execute("CREATE TABLE profiles(id UUID PRIMARY KEY,display_name VARCHAR,email VARCHAR,total_points INT,role VARCHAR,city VARCHAR,org_id UUID,password_hash VARCHAR,provider VARCHAR)");
+  jdbc.execute("CREATE TABLE profiles(id UUID PRIMARY KEY,display_name VARCHAR,email VARCHAR,total_points INT,role VARCHAR,city VARCHAR,org_id UUID,password_hash VARCHAR,provider VARCHAR,account_status VARCHAR DEFAULT 'ACTIVE')");
   jdbc.execute("CREATE TABLE user_badges(user_id UUID,badge_id UUID,earned_at TIMESTAMP WITH TIME ZONE)");
   jdbc.execute("CREATE TABLE user_discoveries(user_id UUID,location_id UUID,discovery_key VARCHAR)");
   jdbc.execute("CREATE TABLE locations(id UUID)");jdbc.execute("CREATE TABLE study_group_members(user_id UUID,group_id UUID)");

@@ -5,6 +5,7 @@ import com.histar.be.artifact.entity.UserArtifactId;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +16,10 @@ public interface UserArtifactRepository extends JpaRepository<UserArtifact, User
     boolean existsByUserIdAndArtifactId(UUID userId, UUID artifactId);
 
     long countByArtifactId(UUID artifactId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM UserArtifact ua WHERE ua.artifactId = :artifactId")
+    int deleteByArtifactId(@Param("artifactId") UUID artifactId);
 
     @Query("""
             SELECT CASE WHEN COUNT(ua) > 0 THEN true ELSE false END

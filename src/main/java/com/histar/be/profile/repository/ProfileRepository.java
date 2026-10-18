@@ -23,13 +23,36 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
               AND (:role = '' OR UPPER(p.role) = :role)
               AND (:tier = '' OR UPPER(COALESCE(p.tier, '')) = :tier)
               AND (:verified IS NULL OR p.emailVerified = :verified)
+              AND (:status = '' OR UPPER(COALESCE(p.accountStatus, 'ACTIVE')) = :status)
             """)
     Page<Profile> findAdminUsers(
             @Param("q") String q,
             @Param("role") String role,
             @Param("tier") String tier,
             @Param("verified") Boolean verified,
+            @Param("status") String status,
             Pageable pageable);
+
+    @Query(
+            """
+            SELECT p FROM Profile p
+            WHERE (:q = '' OR LOWER(p.email) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(COALESCE(p.displayName, '')) LIKE LOWER(CONCAT('%', :q, '%')))
+              AND (:role = '' OR UPPER(p.role) = :role)
+              AND (:tier = '' OR UPPER(COALESCE(p.tier, '')) = :tier)
+              AND (:verified IS NULL OR p.emailVerified = :verified)
+              AND (:status = '' OR UPPER(COALESCE(p.accountStatus, 'ACTIVE')) = :status)
+            ORDER BY p.createdAt DESC
+            """)
+    List<Profile> findAdminUsersForExport(
+            @Param("q") String q,
+            @Param("role") String role,
+            @Param("tier") String tier,
+            @Param("verified") Boolean verified,
+            @Param("status") String status,
+            Pageable pageable);
+
+    List<Profile> findByIdIn(List<UUID> ids);
 
     @Query(
             """

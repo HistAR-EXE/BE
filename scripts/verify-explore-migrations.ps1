@@ -34,8 +34,8 @@ INSERT INTO explore_attempts VALUES(gen_random_uuid(), 'aaaaaaaa-aaaa-4aaa-8aaa-
     '11111111-1111-1111-1111-111111111111', 'depth_quiz:surface', 0, FALSE, now());
 '@
 $migrationDirectory = Join-Path $PSScriptRoot '../src/main/resources/db/migration'
-$archiveSql = Get-Content -LiteralPath (Join-Path $migrationDirectory 'V74__cu_chi_explore_archive_points.sql') -Raw
-$rewardSql = Get-Content -LiteralPath (Join-Path $migrationDirectory 'V75__reward_integrity.sql') -Raw
+$archiveSql = Get-Content -LiteralPath (Join-Path $migrationDirectory 'V80__cu_chi_explore_archive_points.sql') -Raw
+$rewardSql = Get-Content -LiteralPath (Join-Path $migrationDirectory 'V81__reward_integrity.sql') -Raw
 $validationAssertions = @'
 DO $$ BEGIN
     ASSERT (SELECT COUNT(*) FROM discovery_points WHERE unlock_key <> 'feature:diorama') = 22, 'Expected 22 archive points';
@@ -59,7 +59,7 @@ DO $$ BEGIN
     ASSERT (SELECT points FROM xp_ledger WHERE user_id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' AND event_key = 'baseline:v1') = 70, 'Existing events were counted twice';
 END $$;
 '@ } else { '' }
-    # Repeat V75 in the isolated transaction to verify adoption/replay does not duplicate data.
+    # Repeat V81 in the isolated transaction to verify adoption/replay does not duplicate data.
     ($validationSetup + "`n" + $existingSql + "`n" + $archiveSql + "`n" + $rewardSql + "`n" + $rewardSql + "`n" + $preserveAssertions + "`n" + $validationAssertions) |
         docker exec -i histar-postgres psql -U timelens -d timelens -v ON_ERROR_STOP=1
     if ($LASTEXITCODE -ne 0) { throw "PostgreSQL migration verification failed: $scenario" }

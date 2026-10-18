@@ -16,4 +16,6 @@ public record AdminAuditEventResponse(
         Long newRowVersion,
         String reason,
         Map<String, Object> metadata,
-        Instant occurredAt) {}
+        Instant occurredAt,
+        String eventHash,
+        String prevEventHash) {}

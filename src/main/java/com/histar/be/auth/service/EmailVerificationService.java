@@ -81,6 +81,12 @@ public class EmailVerificationService {
         return sendVerificationEmail(userId, false);
     }
 
+    /** Admin-triggered resend — skips self-service cooldown. */
+    @Transactional
+    public String sendAdminVerificationEmail(UUID userId) {
+        return sendVerificationEmail(userId, false);
+    }
+
     @Transactional
     public String sendVerificationEmail(UUID userId, boolean enforceCooldown) {
         Profile profile = profileRepository

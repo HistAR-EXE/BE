@@ -198,4 +198,106 @@ class AdminTrashServiceTest {
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.RESTORE_CONFLICT));
         verify(audit, org.mockito.Mockito.never()).append(any());
     }
+
+    @Test
+    void purgeQuestHardDeletesSoftDeletedQuestAndAudits() {
+        UUID questId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        Quest quest = Quest.builder().id(questId).title("Gone").build();
+        quest.setRowVersion(5L);
+        quest.setDeletedAt(java.time.Instant.now());
+        when(quests.findIncludingDeletedByIdForUpdate(questId)).thenReturn(Optional.of(quest));
+        when(quests.findByUnlockAfterQuestIdAndDeletedAtIsNull(questId)).thenReturn(List.of());
+        when(investigations.findByQuestIdAndEnabledTrue(questId)).thenReturn(Optional.empty());
+        when(campaigns.countByQuestIdAndEnabledTrueAndStartsAtLessThanEqualAndEndsAtGreaterThan(
+                        org.mockito.ArgumentMatchers.eq(questId), any(), any()))
+                .thenReturn(0L);
+        when(assignments.countByQuestIdAndDueAtIsNull(questId)).thenReturn(0L);
+        when(assignments.countByQuestIdAndDueAtGreaterThanEqual(org.mockito.ArgumentMatchers.eq(questId), any()))
+                .thenReturn(0L);
+        when(studyGroups.countByQuestIdAndExpiresAtGreaterThan(org.mockito.ArgumentMatchers.eq(questId), any()))
+                .thenReturn(0L);
+        when(quests.findByUnlockAfterQuestId(questId)).thenReturn(List.of());
+        when(investigations.findByQuestId(questId)).thenReturn(Optional.empty());
+
+        service.purge(questId.toString().isEmpty() ? "QUEST" : "QUEST", questId, actorId,
+                new AdminPurgeRequest(5L, "Xóa vĩnh viễn kiểm thử", "purge-1"));
+
+        verify(questProgress).deleteByQuestId(questId);
+        verify(quests).delete(quest);
+        verify(audit).append(any());
+    }
+
+    @Test
+    void purgeRefusesActiveNotSoftDeleted() {
+        UUID questId = UUID.randomUUID();
+        Quest quest = Quest.builder().id(questId).title("Live").build();
+        quest.setRowVersion(1L);
+        when(quests.findIncludingDeletedByIdForUpdate(questId)).thenReturn(Optional.of(quest));
+
+        assertThatThrownBy(() -> service.purge(
+                        "QUEST",
+                        questId,
+                        UUID.randomUUID(),
+                        new AdminPurgeRequest(1L, "Xóa vĩnh viễn kiểm thử", null)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("thùng rác");
+        verify(quests, org.mockito.Mockito.never()).delete(any());
+    }
+
+    @Test
+    void bulkRestoreCollectsPartialFailures() {
+        UUID okId = UUID.randomUUID();
+        UUID badId = UUID.randomUUID();
+        Quest ok = Quest.builder().id(okId).title("OK").build();
+        ok.setRowVersion(2L);
+        ok.setDeletedAt(java.time.Instant.now());
+        when(quests.findIncludingDeletedById(okId)).thenReturn(Optional.of(ok));
+        when(quests.findIncludingDeletedByIdForUpdate(okId)).thenReturn(Optional.of(ok));
+        when(quests.saveAndFlush(ok)).thenReturn(ok);
+        when(quests.findIncludingDeletedById(badId)).thenReturn(Optional.empty());
+
+        var result = service.bulk(
+                UUID.randomUUID(),
+                new AdminTrashBulkRequest(
+                        "RESTORE",
+                        List.of(
+                                new AdminTrashBulkRequest.Item("QUEST", okId, 2L),
+                                new AdminTrashBulkRequest.Item("QUEST", badId, 1L)),
+                        null));
+
+        assertThat(result.succeeded()).isEqualTo(1);
+        assertThat(result.failedCount()).isEqualTo(1);
+        assertThat(result.failed().get(0).id()).isEqualTo(badId);
+    }
+
+    @Test
+    void emptyRespectsTypeFilter() {
+        UUID questId = UUID.randomUUID();
+        Quest quest = Quest.builder().id(questId).title("Only quest").build();
+        quest.setRowVersion(3L);
+        quest.setDeletedAt(java.time.Instant.now());
+        when(quests.findByDeletedAtIsNotNull()).thenReturn(List.of(quest));
+        when(quests.findIncludingDeletedByIdForUpdate(questId)).thenReturn(Optional.of(quest));
+        when(quests.findByUnlockAfterQuestIdAndDeletedAtIsNull(questId)).thenReturn(List.of());
+        when(investigations.findByQuestIdAndEnabledTrue(questId)).thenReturn(Optional.empty());
+        when(campaigns.countByQuestIdAndEnabledTrueAndStartsAtLessThanEqualAndEndsAtGreaterThan(
+                        org.mockito.ArgumentMatchers.eq(questId), any(), any()))
+                .thenReturn(0L);
+        when(assignments.countByQuestIdAndDueAtIsNull(questId)).thenReturn(0L);
+        when(assignments.countByQuestIdAndDueAtGreaterThanEqual(org.mockito.ArgumentMatchers.eq(questId), any()))
+                .thenReturn(0L);
+        when(studyGroups.countByQuestIdAndExpiresAtGreaterThan(org.mockito.ArgumentMatchers.eq(questId), any()))
+                .thenReturn(0L);
+        when(quests.findByUnlockAfterQuestId(questId)).thenReturn(List.of());
+        when(investigations.findByQuestId(questId)).thenReturn(Optional.empty());
+
+        var result = service.empty(
+                UUID.randomUUID(), new AdminTrashEmptyRequest("Dọn sạch theo loại QUEST", "QUEST"));
+
+        assertThat(result.purged()).isEqualTo(1);
+        verify(discoveryPoints, org.mockito.Mockito.never()).findByDeletedAtIsNotNull();
+        verify(artifacts, org.mockito.Mockito.never()).findByDeletedAtIsNotNull();
+        verify(quests).delete(quest);
+    }
 }

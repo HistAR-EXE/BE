@@ -2,6 +2,7 @@ package com.histar.be.visit.repository;
 
 import com.histar.be.visit.entity.VisitSession;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,6 +11,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface VisitSessionRepository extends JpaRepository<VisitSession, UUID> {
+
+    long countByUserIdInAndStartedAtGreaterThanEqual(Collection<UUID> userIds, Instant from);
+
+    long countByUserIdInAndModeIgnoreCaseAndStartedAtGreaterThanEqual(
+            Collection<UUID> userIds, String mode, Instant from);
 
     Optional<VisitSession> findFirstByUserIdAndLocationIdAndEndedAtIsNullOrderByStartedAtDesc(
             UUID userId, UUID locationId);

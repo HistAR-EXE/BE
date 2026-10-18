@@ -64,4 +64,7 @@ public class HeritageDigitizationInquiry {
 
     @Column(name = "contacted_at")
     private Instant contactedAt;
+
+    @Column(name = "organization_id")
+    private UUID organizationId;
 }

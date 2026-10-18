@@ -162,6 +162,9 @@ histar:
     redis:
       enabled: ${HISTAR_RATE_LIMIT_REDIS_ENABLED:false}
     cooperative-leaderboard-per-minute: ${HISTAR_COOPERATIVE_LEADERBOARD_PER_MINUTE:60}
+    chat-burst-per-minute: ${HISTAR_RATE_LIMIT_CHAT_BURST_PER_MINUTE:10}
+    events-batch-per-minute: ${HISTAR_RATE_LIMIT_EVENTS_BATCH_PER_MINUTE:30}
+    sepay-webhook-per-minute: ${HISTAR_RATE_LIMIT_SEPAY_WEBHOOK_PER_MINUTE:20}
   quests:
     expose-dev-minigame: true
   sales-inbox: ${SALES_INBOX:}

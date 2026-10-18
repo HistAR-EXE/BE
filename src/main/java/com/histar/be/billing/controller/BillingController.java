@@ -29,6 +29,10 @@ import com.histar.be.billing.service.SepayOrgPaymentService;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.profile.dto.ProfileMeResponse;
+import com.histar.be.common.exception.RateLimitedException;
+import com.histar.be.common.ratelimit.RateLimitDecision;
+import com.histar.be.common.ratelimit.SepayWebhookRateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -57,6 +61,7 @@ public class BillingController {
     private final B2b2cInquiryService b2b2cInquiryService;
     private final BillingSettingsService billingSettingsService;
     private final CurrentUserAccessor currentUserAccessor;
+    private final SepayWebhookRateLimiter sepayWebhookRateLimiter;
 
     @PostMapping("/b2c/subscribe")
     public ApiResponse<ProfileMeResponse> subscribeB2c(@RequestBody(required = false) B2cSubscribeRequest request) {
@@ -154,7 +159,13 @@ public class BillingController {
             @RequestHeader(value = "X-SePay-Signature", required = false) String signature,
             @RequestHeader(value = "X-SePay-Timestamp", required = false) String timestamp,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody String rawBody) {
+            @RequestBody String rawBody,
+            HttpServletRequest httpRequest) {
+        String clientIp = resolveClientIp(httpRequest);
+        RateLimitDecision rl = sepayWebhookRateLimiter.tryAcquire(clientIp);
+        if (!rl.allowed()) {
+            throw new RateLimitedException("Rate limit exceeded", rl.retryAfterSeconds());
+        }
         RuntimeException b2cError = runWebhook("B2C", () ->
                 sepayB2cPaymentService.handleWebhook(timestamp, signature, authorization, rawBody));
         RuntimeException orgError = runWebhook("B2B", () ->
@@ -195,6 +206,18 @@ public class BillingController {
                 pricing.discountPercent(),
                 pricing.discountAmountVnd(),
                 pricing.totalVnd()));
+    }
+
+    private static String resolveClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank()) {
+            return ip.split(",")[0].trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isBlank()) {
+            return ip.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     private UUID requireUserId() {

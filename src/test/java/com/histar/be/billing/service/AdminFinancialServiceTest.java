@@ -56,6 +56,21 @@ class AdminFinancialServiceTest {
     }
 
     @Test
+    void returnsNoMonthlyRevenueSeriesWhenEveryRequestedBucketIsZero() {
+        Clock clock = Clock.fixed(Instant.parse("2026-10-15T03:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
+        when(b2cPayments.sumPaidAmountBetween(any(), any())).thenReturn(0L);
+        when(orgPayments.sumPaidAmountBetween(any(), any())).thenReturn(0L);
+        when(b2cSubscriptions.findAllByIsActiveTrueAndEndDateGreaterThanEqual(any())).thenReturn(List.of());
+        when(orgSubscriptions.findAllByIsActiveTrueAndEndDateGreaterThanEqual(any())).thenReturn(List.of());
+        when(orgPayments.sumPaidAmountGroupedByPlanTypeBetween(any(), any())).thenReturn(List.of());
+
+        var result = service(clock).overview(6);
+
+        assertThat(result.revenueTrend()).isEmpty();
+        assertThat(result.revenueMomPercent()).isNull();
+    }
+
+    @Test
     void normalizesEligibleRecurringContractsAndReportsCoverage() {
         Clock clock = Clock.fixed(Instant.parse("2026-10-15T03:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
         when(b2cPayments.sumPaidAmountBetween(any(), any())).thenReturn(0L);

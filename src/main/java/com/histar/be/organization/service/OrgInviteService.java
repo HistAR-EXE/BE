@@ -28,12 +28,24 @@ public class OrgInviteService {
     private final HistarOrgProperties histarOrgProperties;
     private final HistarAppProperties histarAppProperties;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public OrgInviteCodeResponse getInviteCode(UUID orgId) {
         orgAccessService.requireOrgAccess(orgId);
         Organization org = organizationRepository
                 .findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        // Auto-generate invite code on first GET if none exists (new org)
+        if (org.getInviteCode() == null || org.getInviteCode().isBlank()
+                || (org.getInviteCodeExpiresAt() != null && org.getInviteCodeExpiresAt().isBefore(Instant.now()))) {
+            if (!BillingService.ORG_STATUS_TRIAL_EXPIRED.equalsIgnoreCase(org.getStatus())
+                    && !BillingService.ORG_STATUS_EXPIRED.equalsIgnoreCase(org.getStatus())) {
+                String code = generateUniqueCode();
+                Instant expiresAt = Instant.now().plus(histarOrgProperties.getOrg().getInviteTtlDays(), ChronoUnit.DAYS);
+                org.setInviteCode(code);
+                org.setInviteCodeExpiresAt(expiresAt);
+                organizationRepository.save(org);
+            }
+        }
         return new OrgInviteCodeResponse(org.getInviteCode(), org.getInviteCodeExpiresAt(), org.getId(), buildInviteUrl(org.getInviteCode()));
     }
 

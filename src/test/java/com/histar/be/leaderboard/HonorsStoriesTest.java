@@ -24,7 +24,7 @@ class HonorsStoriesTest {
  @BeforeEach void setup() {
   var source = new DriverManagerDataSource("jdbc:h2:mem:"+UUID.randomUUID()+";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
   jdbc = new JdbcTemplate(source);
-  jdbc.execute("CREATE TABLE profiles(id UUID PRIMARY KEY, display_name VARCHAR, avatar_url VARCHAR, email VARCHAR, total_points INT, role VARCHAR, city VARCHAR, org_id UUID, password_hash VARCHAR)");
+  jdbc.execute("CREATE TABLE profiles(id UUID PRIMARY KEY, display_name VARCHAR, avatar_url VARCHAR, email VARCHAR, total_points INT, role VARCHAR, city VARCHAR, org_id UUID, password_hash VARCHAR, account_status VARCHAR DEFAULT 'ACTIVE')");
   jdbc.execute("CREATE TABLE user_badges(user_id UUID,badge_id UUID,earned_at TIMESTAMP WITH TIME ZONE)");
   jdbc.execute("CREATE TABLE badges(id UUID,name VARCHAR,description VARCHAR)");
   jdbc.execute("CREATE TABLE user_discoveries(user_id UUID,location_id UUID,discovery_key VARCHAR,discovered_at TIMESTAMP WITH TIME ZONE)");

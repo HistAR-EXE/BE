@@ -4,8 +4,11 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.config.MinioProperties;
 import com.histar.be.media.service.MediaStorageService;
 import io.minio.MinioClient;
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.SetBucketPolicyArgs;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,7 @@ public class MinioMediaStorageService implements MediaStorageService {
     @Override
     public String uploadImage(byte[] data, String contentType, String objectKey) {
         try {
+            ensureBucket();
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioProperties.getBucket())
                     .object(objectKey)
@@ -29,6 +33,16 @@ public class MinioMediaStorageService implements MediaStorageService {
             return base + "/" + minioProperties.getBucket() + "/" + objectKey;
         } catch (Exception ex) {
             throw new BusinessRuleException("Upload ảnh thất bại: " + ex.getMessage());
+        }
+    }
+
+    private void ensureBucket() throws Exception {
+        String bucket = minioProperties.getBucket();
+        boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+        if (!exists) {
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+            String policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":\"arn:aws:s3:::" + bucket + "/*\"}]}";
+            minioClient.setBucketPolicy(SetBucketPolicyArgs.builder().bucket(bucket).config(policy).build());
         }
     }
 

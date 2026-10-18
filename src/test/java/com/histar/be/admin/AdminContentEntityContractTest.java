@@ -3,6 +3,7 @@ package com.histar.be.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.histar.be.admin.dto.AdminArtifactRequest;
+import com.histar.be.admin.dto.AdminArtifactResponse;
 import com.histar.be.admin.dto.AdminDiscoveryPointRequest;
 import com.histar.be.admin.dto.AdminQuestRequest;
 import com.histar.be.artifact.entity.Artifact;
@@ -35,5 +36,52 @@ class AdminContentEntityContractTest {
                             .map(RecordComponent::getName))
                     .contains("rowVersion");
         }
+    }
+
+    @Test
+    void artifactAdminContractCarriesCompleteContentAndMediaMetadata() {
+        assertThat(Arrays.stream(AdminArtifactRequest.class.getRecordComponents())
+                        .map(RecordComponent::getName))
+                .containsExactly(
+                        "locationId",
+                        "name",
+                        "imageUrl",
+                        "description",
+                        "story",
+                        "unlockKey",
+                        "reliability",
+                        "sortOrder",
+                        "collectionName",
+                        "rarity",
+                        "sourceUrl",
+                        "imageSource",
+                        "imageLicense",
+                        "factVerified",
+                        "unlockMinigameId",
+                        "rowVersion");
+
+        assertThat(Arrays.stream(AdminArtifactResponse.class.getRecordComponents())
+                        .map(RecordComponent::getName))
+                .containsExactly(
+                        "id",
+                        "locationId",
+                        "name",
+                        "imageUrl",
+                        "description",
+                        "story",
+                        "unlockKey",
+                        "reliability",
+                        "sortOrder",
+                        "collectionName",
+                        "rarity",
+                        "sourceUrl",
+                        "imageSource",
+                        "imageLicense",
+                        "factVerified",
+                        "unlockMinigameId",
+                        "rowVersion",
+                        "deletedAt",
+                        "deletedBy",
+                        "deleteReason");
     }
 }

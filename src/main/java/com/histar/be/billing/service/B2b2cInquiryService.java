@@ -300,6 +300,7 @@ public class B2b2cInquiryService {
                 inquiry.getAdminNotes(),
                 inquiry.getContactedAt(),
                 inquiry.getCreatedAt(),
-                inquiry.getInterestSiteCode());
+                inquiry.getInterestSiteCode(),
+                inquiry.getOrganizationId());
     }
 }

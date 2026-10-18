@@ -15,4 +15,5 @@ public record B2b2cInquiryItem(
         String adminNotes,
         Instant contactedAt,
         Instant createdAt,
-        String interestSiteCode) {}
+        String interestSiteCode,
+        UUID organizationId) {}

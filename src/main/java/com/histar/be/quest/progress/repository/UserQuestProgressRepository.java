@@ -2,6 +2,7 @@ package com.histar.be.quest.progress.repository;
 
 import com.histar.be.quest.progress.entity.UserQuestProgress;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,7 +21,14 @@ public interface UserQuestProgressRepository extends JpaRepository<UserQuestProg
 
     long countByUserIdAndStatus(UUID userId, String status);
 
+    long countByUserIdInAndStatusIgnoreCaseAndCompletedAtGreaterThanEqual(
+            Collection<UUID> userIds, String status, Instant from);
+
     long countByQuestIdAndStatusIgnoreCase(UUID questId, String status);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM UserQuestProgress p WHERE p.questId = :questId")
+    int deleteByQuestId(@Param("questId") UUID questId);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""

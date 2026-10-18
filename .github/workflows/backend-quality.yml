@@ -18,3 +18,48 @@ jobs:
       # Make CI independent of that filesystem metadata before invoking Maven.
       - run: chmod +x ./mvnw
       - run: ./mvnw test
+
+  bootstrap-pgvector:
+    name: Bootstrap V82 on PostgreSQL pgvector
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start disposable pgvector database
+        shell: bash
+        run: |
+          docker run --detach --name histar-postgres \
+            --env POSTGRES_USER=timelens \
+            --env POSTGRES_PASSWORD=timelens_secret \
+            --env POSTGRES_DB=postgres \
+            pgvector/pgvector:pg17
+          for i in {1..30}; do
+            if docker exec histar-postgres pg_isready -U timelens -d postgres; then exit 0; fi
+            sleep 2
+          done
+          docker logs histar-postgres
+          exit 1
+
+      - name: Validate bootstrap artifact
+        shell: pwsh
+        run: ./docs/scripts/Test-HistarBootstrapSql.ps1
+
+      - name: Validate bootstrap runner
+        shell: pwsh
+        run: ./docs/scripts/Test-HistarBootstrapRunner.ps1
+
+      - name: Run full bootstrap and seed checks
+        shell: pwsh
+        run: >-
+          ./docs/scripts/bootstrap-local-db.ps1
+          -Database timelens_ci
+          -Container histar-postgres
+          -DbUser timelens
+          -Reset
+
+      - name: Verify pgvector extension and V82 baseline
+        shell: bash
+        run: |
+          docker exec histar-postgres psql -U timelens -d timelens_ci -v ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+          test "$(docker exec histar-postgres psql -U timelens -d timelens_ci -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM flyway_schema_history WHERE version = '82' AND type = 'BASELINE' AND success = TRUE;")" = "1"

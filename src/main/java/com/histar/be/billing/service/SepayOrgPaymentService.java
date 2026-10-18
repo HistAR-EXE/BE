@@ -235,10 +235,16 @@ public class SepayOrgPaymentService {
         if (code == null || code.isBlank()) {
             return;
         }
-        OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCode(code)
-                .orElseGet(() -> orgPaymentTransactionRepository.findByTransferContent(code).orElse(null));
+        OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCodeForUpdate(code)
+                .orElseGet(() -> orgPaymentTransactionRepository.findByTransferContentForUpdate(code).orElse(null));
         if (tx == null) {
             log.info("SePay B2B webhook ignored: no order for code={}", code);
+            return;
+        }
+        if ("REFUND".equalsIgnoreCase(tx.getStatus())
+                || "REFUNDED".equalsIgnoreCase(tx.getStatus())
+                || "VOID".equalsIgnoreCase(tx.getStatus())
+                || "VOIDED".equalsIgnoreCase(tx.getStatus())) {
             return;
         }
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
@@ -277,7 +283,18 @@ public class SepayOrgPaymentService {
         tx.setProviderPayload(toReceivedJson(payload, cumulative));
         tx.setUpdatedAt(Instant.now());
         orgPaymentTransactionRepository.save(tx);
+        finalizePaidOrg(tx);
+    }
 
+    /**
+     * Activate org subscription after a transaction is already marked PAID.
+     * Shared by SePay webhook and admin mark-paid.
+     */
+    @Transactional
+    public void finalizePaidOrg(OrgPaymentTransaction tx) {
+        if (tx.getSubscriptionId() != null) {
+            return;
+        }
         var orgStatus = billingService.subscribeOrg(
                 tx.getRequesterUserId(),
                 new OrgSubscribeRequest(tx.getOrgName(), tx.getPlanType(), tx.getContactEmail(), tx.getOrganizationId()),

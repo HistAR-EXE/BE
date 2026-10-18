@@ -13,11 +13,14 @@ import com.histar.be.admin.audit.AdminAuditService;
 import com.histar.be.common.exception.BaseException;
 import com.histar.be.config.PilotFeatureProperties;
 import com.histar.be.quest.entity.Quest;
+import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.quest.narrative.entity.NarrativeInvestigation;
 import com.histar.be.quest.narrative.entity.NarrativeInvestigationVersion;
 import com.histar.be.quest.narrative.entity.NarrativeRolloutIdempotency;
 import com.histar.be.quest.narrative.entity.NarrativeRolloutState;
 import com.histar.be.quest.repository.QuestRepository;
+import com.histar.be.stations.repository.StationContentBlockRepository;
+import com.histar.be.stations.repository.StationRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +36,9 @@ class NarrativePilotAdminPhase2Test {
     @Mock NarrativeInvestigationVersionRepository versions;
     @Mock NarrativeRolloutIdempotencyRepository idempotency;
     @Mock QuestRepository quests;
+    @Mock LocationRepository locations;
+    @Mock StationRepository stations;
+    @Mock StationContentBlockRepository stationContentBlocks;
     @Mock AdminAuditService audit;
 
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
@@ -164,6 +170,59 @@ class NarrativePilotAdminPhase2Test {
     }
 
     @Test
+    void rollbackRestoresTheRequestedPreviousPublishedVersionAndAuditsReason() {
+        NarrativeInvestigationVersion v2 = version(2, false, "APPROVED", 0);
+        stubLockedParent();
+        parent.setRolloutState(NarrativeRolloutState.ACTIVE);
+        parent.setPublishedVersionId(v2.getId());
+        when(versions.findById(v2.getId())).thenReturn(Optional.of(v2));
+        when(versions.findByInvestigationIdAndVersion(parent.getId(), 1)).thenReturn(Optional.of(v1));
+        when(versions.findByInvestigationIdOrderByVersionDesc(parent.getId())).thenReturn(java.util.List.of(v2, v1));
+        when(idempotency.findByInvestigationIdAndIdempotencyKey(any(), any())).thenReturn(Optional.empty());
+        when(idempotency.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(investigations.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(quests.findById(parent.getQuestId())).thenReturn(Optional.of(Quest.builder().id(parent.getQuestId()).title("Pilot").build()));
+
+        service.rollback(parent.getQuestId(), 1, 0L, UUID.randomUUID(), "Lỗi kỹ thuật", "rollback-key");
+
+        assertThat(parent.getPublishedVersionId()).isEqualTo(v1.getId());
+        assertThat(parent.getRolloutState()).isEqualTo(NarrativeRolloutState.ACTIVE);
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat(command ->
+                "ROLLED_BACK".equals(command.action()) && "Lỗi kỹ thuật".equals(command.reason())));
+    }
+
+    @Test
+    void rollbackRequiresAnExplicitReason() {
+        stubLockedParent();
+
+        assertThatThrownBy(() -> service.rollback(parent.getQuestId(), 1, 0L, UUID.randomUUID(), " ", "rollback-key"))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining("Rollback reason");
+    }
+
+    @Test
+    void readinessFailsWhenQuestDestinationHasNoLocationOrMedia() {
+        NarrativeInvestigationVersion draft = version(2, true, "APPROVED", 0);
+        when(versions.findByInvestigationIdAndVersion(parent.getId(), 2)).thenReturn(Optional.of(draft));
+        when(investigations.findByQuestId(parent.getQuestId())).thenReturn(Optional.of(parent));
+        when(investigations.findById(parent.getId())).thenReturn(Optional.of(parent));
+        when(quests.findById(parent.getQuestId())).thenReturn(Optional.of(Quest.builder()
+                .id(parent.getQuestId()).locationId(UUID.randomUUID()).build()));
+        when(locations.findById(any())).thenReturn(Optional.empty());
+
+        NarrativePilotAdminService destinationAwareService = new NarrativePilotAdminService(
+                investigations, versions, idempotency, quests, mapper,
+                new NarrativeQuestGraphValidator(), featureFlags(true), audit,
+                locations, stations, stationContentBlocks);
+
+        NarrativeReadinessResponse readiness = destinationAwareService.readiness(parent.getQuestId(), 2);
+
+        assertThat(readiness.ready()).isFalse();
+        assertThat(readiness.items()).extracting(NarrativeReadinessItem::code)
+                .contains("DESTINATION_LOCATION", "MEDIA_READY");
+    }
+
+    @Test
     void pauseReasonValidationRequiresPresetAndCustomDetail() {
         assertThatThrownBy(() -> new NarrativePilotRolloutRequest(1, 0L, null, null, null).requiredPauseReason())
                 .isInstanceOf(BaseException.class)
@@ -177,6 +236,12 @@ class NarrativePilotAdminPhase2Test {
 
     private void stubLockedParent() {
         when(investigations.findForUpdateByQuestId(parent.getQuestId())).thenReturn(Optional.of(parent));
+    }
+
+    private PilotFeatureProperties featureFlags(boolean enabled) {
+        PilotFeatureProperties flags = new PilotFeatureProperties();
+        flags.setNarrativeInvestigation(enabled);
+        return flags;
     }
 
     private NarrativeInvestigationVersion version(int number, boolean open, String review, long revision) {

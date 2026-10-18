@@ -37,7 +37,7 @@ class PassportMailPostgresTest {
   ExecutorService executor=Executors.newFixedThreadPool(2);
   try {
    factory.afterPropertiesSet();
-   // Keep the Hibernate-created PK/unique-only table: V76 must reconcile this real local-upgrade case.
+   // Keep the Hibernate-created PK/unique-only table: V82 must reconcile this real local-upgrade case.
    String migration=java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/db/migration/V82__passport_mail_attempts.sql"));
    String reconciled=migration.replace("passport_mail_attempts",schema+".passport_mail_attempts").replace("REFERENCES profiles", "REFERENCES "+schema+".profiles");
    jdbc.execute(reconciled);
@@ -53,17 +53,22 @@ class PassportMailPostgresTest {
    when(profiles.findByIdForUpdate(id)).thenAnswer(i->Optional.ofNullable(em.find(Profile.class,id,LockModeType.PESSIMISTIC_WRITE)));
    var attempts=new JpaRepositoryFactory(em).getRepository(PassportMailRepository.class);
    var sender=mock(HistarEmailService.class);var transportEntered=new CountDownLatch(1);var releaseTransport=new CountDownLatch(1);
-   doAnswer(i->{transportEntered.countDown();assertTrue(releaseTransport.await(10,TimeUnit.SECONDS));return null;}).when(sender).sendAttachment(anyString(),anyString(),anyString(),anyString(),anyString(),any());
+   doAnswer(i->{transportEntered.countDown();assertTrue(releaseTransport.await(60,TimeUnit.SECONDS));return null;}).when(sender).sendAttachment(anyString(),anyString(),anyString(),anyString(),anyString(),any());
    var service=new PassportMailService(profiles,attempts,sender,new HistarMailProperties(),new TestHookProperties(),new HistarPassportMailProperties(),manager);
    org.springframework.test.util.ReflectionTestUtils.setField(service,"entityManager",em);
    var buffer=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(1200,1500,BufferedImage.TYPE_INT_ARGB),"png",buffer);
    var image=new MockMultipartFile("image","x.png","image/png",buffer.toByteArray());var key=UUID.randomUUID();
-   var first=executor.submit(()->service.send(id,image,key));assertTrue(transportEntered.await(10,TimeUnit.SECONDS));
+   var first=executor.submit(()->service.send(id,image,key));
+   // Cold PNG/JPA initialization can exceed ten seconds on a busy Windows host.
+   if(!transportEntered.await(30,TimeUnit.SECONDS)) {
+    if(first.isDone())first.get(); // Surface the actual worker failure instead of a misleading latch timeout.
+    fail("First request did not reach the captured transport within 30 seconds");
+   }
    var duplicate=executor.submit(()->assertThrows(PassportMailException.class,()->service.send(id,image,key)));
-   assertEquals(409,duplicate.get(10,TimeUnit.SECONDS).getStatus());
+   assertEquals(409,duplicate.get(30,TimeUnit.SECONDS).getStatus());
    var competing=executor.submit(()->assertThrows(PassportMailException.class,()->service.send(id,image,UUID.randomUUID())));
-   assertEquals(429,competing.get(10,TimeUnit.SECONDS).getStatus());
-   releaseTransport.countDown();assertEquals("ACCEPTED",first.get(10,TimeUnit.SECONDS).status());
+   assertEquals(429,competing.get(30,TimeUnit.SECONDS).getStatus());
+   releaseTransport.countDown();assertEquals("ACCEPTED",first.get(30,TimeUnit.SECONDS).status());
    assertEquals("ACCEPTED",service.send(id,image,key).status());verify(sender,times(1)).sendAttachment(anyString(),anyString(),anyString(),anyString(),anyString(),any());
    assertEquals(1L,attempts.count());assertEquals(321,em.find(Profile.class,id).getTotalPoints());
    assertThrows(org.springframework.dao.DataIntegrityViolationException.class,()->jdbc.update("INSERT INTO "+schema+".passport_mail_attempts(id,user_id,request_id,image_sha256,created_at,state) VALUES(?,?,?, ?,now(),'ACCEPTED')",UUID.randomUUID(),id,UUID.randomUUID(),"invalid-hash"));

@@ -7,6 +7,7 @@ import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import java.time.ZoneId;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,10 @@ public class TrialEntitlementGuard {
                 .orElse(false);
         if (isStudent) {
             throw new TrialExpiredException(
-                    "Gói thử nghiệm lớp học đã hết hạn. Vui lòng nâng cấp để tiếp tục làm Quest.");
+                    "Gói thử nghiệm lớp học đã hết hạn. Vui lòng nâng cấp để tiếp tục làm Quest.",
+                    org.getPlanEndDate() == null
+                            ? null
+                            : org.getPlanEndDate().atStartOfDay(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant());
         }
     }
 }

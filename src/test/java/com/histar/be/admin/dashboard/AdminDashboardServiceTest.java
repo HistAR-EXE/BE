@@ -38,6 +38,7 @@ class AdminDashboardServiceTest {
     @Test
     void returnsAdditiveOperationalAndFinancialFieldsWithoutPlaceholderZeros() {
         when(investigations.countByRolloutState(NarrativeRolloutState.ACTIVE)).thenReturn(2L);
+        when(narrativeVersions.countByOpenDraftTrue()).thenReturn(5L);
         when(narrativeVersions.countByOpenDraftTrueAndReviewStatus("DRAFT")).thenReturn(3L);
         when(discoveryPoints.countByDeletedAtIsNotNull()).thenReturn(1L);
         when(artifacts.countByDeletedAtIsNotNull()).thenReturn(2L);
@@ -53,6 +54,7 @@ class AdminDashboardServiceTest {
         var result = service.get();
 
         assertThat(result.activePilots()).isEqualTo(2);
+        assertThat(result.draftCount()).isEqualTo(5);
         assertThat(result.draftPendingReview()).isEqualTo(3);
         assertThat(result.reviewPendingCount()).isEqualTo(3);
         assertThat(result.openContentReports()).isEqualTo(4);

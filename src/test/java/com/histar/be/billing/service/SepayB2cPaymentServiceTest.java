@@ -9,10 +9,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.histar.be.auth.service.EmailVerifiedGuard;
+import com.histar.be.billing.dto.SepayWebhookPayload;
 import com.histar.be.billing.entity.B2cPaymentTransaction;
 import com.histar.be.billing.entity.B2cSubscription;
+import com.histar.be.billing.entity.B2cVisitEntitlement;
 import com.histar.be.billing.repository.B2cPaymentTransactionRepository;
 import com.histar.be.billing.repository.B2cSubscriptionRepository;
+import com.histar.be.billing.repository.B2cVisitEntitlementRepository;
 import com.histar.be.mail.HistarEmailService;
 import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
@@ -51,6 +54,9 @@ class SepayB2cPaymentServiceTest {
 
     @Mock
     private B2cSubscriptionRepository b2cSubscriptionRepository;
+
+    @Mock
+    private B2cVisitEntitlementRepository visitEntitlementRepository;
 
     @Mock
     private HistarEmailService histarEmailService;
@@ -101,7 +107,7 @@ class SepayB2cPaymentServiceTest {
                 .updatedAt(Instant.now())
                 .build();
         when(paymentTransactionRepository.findByProviderTransactionId(12345L)).thenReturn(Optional.empty());
-        when(paymentTransactionRepository.findByOrderCode("HSTABC123")).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTABC123")).thenReturn(Optional.of(tx));
 
         String rawBody = """
                 {"id":12345,"gateway":"Vietcombank","transactionDate":"2024-07-02 11:08:33","accountNumber":"0010000000355","subAccount":"","code":"HSTABC123","content":"HSTABC123 chuyen tien","transferType":"in","description":"Thanh toan","transferAmount":49000,"accumulated":100000,"referenceCode":"FT2401"}
@@ -171,7 +177,7 @@ class SepayB2cPaymentServiceTest {
                 .updatedAt(Instant.now())
                 .build();
         when(paymentTransactionRepository.findByProviderTransactionId(77L)).thenReturn(Optional.empty());
-        when(paymentTransactionRepository.findByOrderCode("HSTAPIKEY1")).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTAPIKEY1")).thenReturn(Optional.of(tx));
 
         String rawBody = """
                 {"id":77,"gateway":"MBBank","transactionDate":"2024-07-02 11:08:33","accountNumber":"0815330544","subAccount":"","code":"HSTAPIKEY1","content":"HSTAPIKEY1","transferType":"in","description":"Thanh toan","transferAmount":49000,"accumulated":100000,"referenceCode":"FT77"}
@@ -189,7 +195,7 @@ class SepayB2cPaymentServiceTest {
         UUID subId = UUID.randomUUID();
         B2cPaymentTransaction tx = pendingTx(userId, "HSTLINK001");
         when(paymentTransactionRepository.findByProviderTransactionId(501L)).thenReturn(Optional.empty());
-        when(paymentTransactionRepository.findByOrderCode("HSTLINK001")).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTLINK001")).thenReturn(Optional.of(tx));
         when(billingService.subscribeB2cReturningSubscription(userId, "SEPAY"))
                 .thenReturn(B2cSubscription.builder()
                         .id(subId)
@@ -211,7 +217,7 @@ class SepayB2cPaymentServiceTest {
         UUID userId = UUID.randomUUID();
         B2cPaymentTransaction tx = pendingTx(userId, "HSTUNDER01");
         when(paymentTransactionRepository.findByProviderTransactionId(502L)).thenReturn(Optional.empty());
-        when(paymentTransactionRepository.findByOrderCode("HSTUNDER01")).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTUNDER01")).thenReturn(Optional.of(tx));
 
         sepayB2cPaymentService.handleWebhook(null, null, "Apikey sk-test-key", payloadBody(502L, "HSTUNDER01", 10000));
 
@@ -245,12 +251,68 @@ class SepayB2cPaymentServiceTest {
         tx.setStatus("UNDERPAID");
         tx.setProviderPayload("{\"id\":1,\"receivedAmount\":10000}");
         when(paymentTransactionRepository.findByProviderTransactionId(601L)).thenReturn(Optional.empty());
-        when(paymentTransactionRepository.findByOrderCode("HSTTOPUP01")).thenReturn(Optional.of(tx));
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTTOPUP01")).thenReturn(Optional.of(tx));
 
         sepayB2cPaymentService.handleWebhook(null, null, "Apikey sk-test-key", payloadBody(601L, "HSTTOPUP01", 39000));
 
         assertThat(tx.getStatus()).isEqualTo("PAID");
         verify(billingService).subscribeB2cReturningSubscription(userId, "SEPAY");
+    }
+
+    @Test
+    void handleWebhook_doesNotReopenRefundedPayment() {
+        UUID userId = UUID.randomUUID();
+        B2cPaymentTransaction tx = pendingTx(userId, "HSTREFUND1");
+        tx.setStatus("REFUNDED");
+        when(paymentTransactionRepository.findByProviderTransactionId(602L)).thenReturn(Optional.empty());
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTREFUND1")).thenReturn(Optional.of(tx));
+
+        sepayB2cPaymentService.handleVerifiedWebhook(new SepayWebhookPayload(
+                602L, "MBBank", null, null, null, "HSTREFUND1", "HSTREFUND1",
+                "in", null, 49_000L, null, "FT602"));
+
+        assertThat(tx.getStatus()).isEqualTo("REFUNDED");
+        verify(paymentTransactionRepository, never()).save(tx);
+        verify(billingService, never()).subscribeB2cReturningSubscription(any(), any());
+    }
+
+    @Test
+    void handleVerifiedWebhookLocksPaymentBeforeFinalization() {
+        UUID userId = UUID.randomUUID();
+        B2cPaymentTransaction tx = pendingTx(userId, "HSTLOCK001");
+        when(paymentTransactionRepository.findByProviderTransactionId(603L)).thenReturn(Optional.empty());
+        when(paymentTransactionRepository.findByOrderCodeForUpdate("HSTLOCK001")).thenReturn(Optional.of(tx));
+
+        sepayB2cPaymentService.handleVerifiedWebhook(new SepayWebhookPayload(
+                603L, "MBBank", null, null, null, "HSTLOCK001", "HSTLOCK001",
+                "in", null, 49_000L, null, "FT603"));
+
+        assertThat(tx.getStatus()).isEqualTo("PAID");
+        verify(paymentTransactionRepository).findByOrderCodeForUpdate("HSTLOCK001");
+        verify(billingService).subscribeB2cReturningSubscription(userId, "SEPAY");
+    }
+
+    @Test
+    void finalizePaidB2cDoesNotGrantSubscriptionTwice() {
+        UUID userId = UUID.randomUUID();
+        B2cPaymentTransaction tx = paidTx(userId, "HSTIDEMPOTENT1");
+        tx.setSubscriptionId(UUID.randomUUID());
+
+        sepayB2cPaymentService.finalizePaidB2c(tx, false);
+
+        verify(billingService, never()).subscribeB2cReturningSubscription(any(), any());
+    }
+
+    @Test
+    void finalizePaidJourneyPassDoesNotGrantEntitlementTwice() {
+        B2cPaymentTransaction tx = paidTx(UUID.randomUUID(), "HSTIDEMPOTENT2");
+        tx.setPlanType(SepayB2cPaymentService.PLAN_JOURNEY_PASS);
+        when(visitEntitlementRepository.findByOrderCode(tx.getOrderCode()))
+                .thenReturn(java.util.List.of(B2cVisitEntitlement.builder().id(UUID.randomUUID()).build()));
+
+        sepayB2cPaymentService.finalizePaidB2c(tx, false);
+
+        verify(visitEntitlementRepository, never()).save(any());
     }
 
     @Test

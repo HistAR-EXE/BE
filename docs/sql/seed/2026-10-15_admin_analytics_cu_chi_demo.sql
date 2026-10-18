@@ -4,11 +4,12 @@
 
 BEGIN;
 
+-- Session-scoped TEMP (no ON COMMIT DROP): bootstrap/psql autocommit safe.
 CREATE TEMP TABLE seed_analytics_users (
     idx int PRIMARY KEY,
     user_id uuid NOT NULL,
     email text NOT NULL
-) ON COMMIT DROP;
+);
 
 INSERT INTO seed_analytics_users (idx, user_id, email)
 SELECT

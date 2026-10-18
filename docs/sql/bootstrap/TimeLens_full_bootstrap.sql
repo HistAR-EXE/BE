@@ -1,5 +1,5 @@
 -- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V75.
+-- Generated from schema, seed manifest, and Flyway migrations through V82.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -7015,11 +7015,13 @@ BEGIN;
 
 -- Applied inside Flyway transaction.
 
+-- Session-scoped TEMP (no ON COMMIT DROP): bootstrap runs via psql autocommit;
+-- ON COMMIT DROP would drop the table before the next statement.
 CREATE TEMP TABLE seed_analytics_users (
     idx int PRIMARY KEY,
     user_id uuid NOT NULL,
     email text NOT NULL
-) ON COMMIT DROP;
+);
 
 INSERT INTO seed_analytics_users (idx, user_id, email)
 SELECT
@@ -7316,8 +7318,277 @@ COMMIT;
 BEGIN;
 
 -- ============================================================================
--- BEGIN migration: V74__cu_chi_explore_archive_points.sql
--- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V74__cu_chi_explore_archive_points.sql
+-- BEGIN migration: V74__profiles_account_status.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V74__profiles_account_status.sql
+-- ============================================================================
+-- Admin IAM P0: suspend / unsuspend accounts
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS account_status VARCHAR(20);
+
+UPDATE profiles
+SET account_status = 'ACTIVE'
+WHERE account_status IS NULL OR BTRIM(account_status) = '';
+
+ALTER TABLE profiles
+    ALTER COLUMN account_status SET DEFAULT 'ACTIVE';
+
+ALTER TABLE profiles
+    ALTER COLUMN account_status SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'chk_profiles_account_status'
+    ) THEN
+        ALTER TABLE profiles
+            ADD CONSTRAINT chk_profiles_account_status
+            CHECK (UPPER(account_status) IN ('ACTIVE', 'SUSPENDED'));
+    END IF;
+END $$;
+
+-- END migration: V74__profiles_account_status.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V75__organization_ops_extensions.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V75__organization_ops_extensions.sql
+-- ============================================================================
+-- Admin Organizations P0: contracts, AR cards, certificates, CRM link
+
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS last_crm_synced_at TIMESTAMPTZ;
+
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS crm_linked_inquiry_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE heritage_digitization_inquiries
+    ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+
+CREATE INDEX IF NOT EXISTS idx_heritage_digitization_inquiries_org
+    ON heritage_digitization_inquiries (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_contracts (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    contract_code VARCHAR(64) NOT NULL,
+    license_seats INT,
+    plan_type VARCHAR(32),
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    starts_on DATE,
+    ends_on DATE,
+    document_url TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID REFERENCES profiles(id),
+    CONSTRAINT uq_org_contracts_org_code UNIQUE (organization_id, contract_code),
+    CONSTRAINT chk_org_contracts_status CHECK (UPPER(status) IN ('DRAFT', 'ACTIVE', 'EXPIRED', 'CANCELLED'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_organization_contracts_org
+    ON organization_contracts (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_ar_cards (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    card_code VARCHAR(64) NOT NULL UNIQUE,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    issued_by UUID REFERENCES profiles(id),
+    revoked_at TIMESTAMPTZ,
+    CONSTRAINT chk_org_ar_cards_status CHECK (UPPER(status) IN ('ACTIVE', 'REVOKED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_org_ar_cards_active_member
+    ON organization_ar_cards (organization_id, user_id)
+    WHERE UPPER(status) = 'ACTIVE';
+
+CREATE INDEX IF NOT EXISTS idx_organization_ar_cards_org
+    ON organization_ar_cards (organization_id);
+
+CREATE TABLE IF NOT EXISTS organization_certificates (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    certificate_code VARCHAR(64) NOT NULL UNIQUE,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    issued_by UUID REFERENCES profiles(id),
+    metadata_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_organization_certificates_org
+    ON organization_certificates (organization_id);
+
+-- Optional demo contracts for first two orgs (idempotent by code)
+INSERT INTO organization_contracts (
+    id, organization_id, title, contract_code, license_seats, plan_type, status,
+    starts_on, ends_on, notes, created_at, updated_at
+)
+SELECT
+    gen_random_uuid(),
+    o.id,
+    'Hợp đồng trải nghiệm AR HistAR',
+    'CTR-DEMO-' || UPPER(SUBSTRING(REPLACE(o.id::text, '-', ''), 1, 6)),
+    COALESCE(o.max_verified_accounts, 30),
+    COALESCE(o.plan_type, o.plan, 'STANDARD'),
+    'ACTIVE',
+    CURRENT_DATE - 30,
+    CURRENT_DATE + 335,
+    'Seed hợp đồng demo (V75)',
+    NOW(),
+    NOW()
+FROM organizations o
+WHERE NOT EXISTS (
+    SELECT 1 FROM organization_contracts c
+    WHERE c.organization_id = o.id AND c.contract_code LIKE 'CTR-DEMO-%'
+)
+ORDER BY o.created_at NULLS LAST, o.name
+LIMIT 2;
+
+-- END migration: V75__organization_ops_extensions.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V76__admin_audit_hash_chain.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V76__admin_audit_hash_chain.sql
+-- ============================================================================
+-- Admin audit SHA-256 hash chain (prev + event hash).
+-- Row hashes are backfilled by AdminAuditHashBackfill on startup so Instant formatting matches Java verify.
+
+ALTER TABLE admin_audit_events
+    ADD COLUMN IF NOT EXISTS event_hash VARCHAR(64);
+
+ALTER TABLE admin_audit_events
+    ADD COLUMN IF NOT EXISTS prev_event_hash VARCHAR(64);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_events_occurred_id
+    ON admin_audit_events (occurred_at ASC, id ASC);
+
+-- END migration: V76__admin_audit_hash_chain.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V77__location_ar_readiness_seed.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V77__location_ar_readiness_seed.sql
+-- ============================================================================
+-- V77: Seed is_ar_available for all 10 heritage locations.
+-- Column was added via Hibernate DDL; this migration sets the authoritative values.
+-- Admin can toggle individual sites via PATCH /api/admin/locations/{id} (W1.2).
+--
+-- READY (has panoramas + stations + quest content):
+--   Củ Chi (11111111-...) — full content, panoramas, minigames
+--   Hoàng Thành Thăng Long (204) — content seeded in narrative pilots
+--
+-- NOT READY (content pending — see Wave 3 of GO_TO_MARKET_PLAN):
+--   All others — enable via admin console when content is complete.
+
+UPDATE locations
+SET is_ar_available = TRUE
+WHERE id IN (
+    '11111111-1111-1111-1111-111111111111',  -- Địa Đạo Củ Chi
+    '22222222-2222-2222-2222-222222222204'   -- Hoàng Thành Thăng Long
+);
+
+UPDATE locations
+SET is_ar_available = FALSE
+WHERE id IN (
+    '22222222-2222-2222-2222-222222222209',  -- Đền Hùng Vương
+    '22222222-2222-2222-2222-222222222207',  -- Văn Miếu Quốc Tử Giám
+    '22222222-2222-2222-2222-222222222203',  -- Cố Đô Hoa Lư
+    '22222222-2222-2222-2222-222222222206',  -- Thành Nhà Hồ
+    '22222222-2222-2222-2222-222222222202',  -- Chùa Thiên Mụ
+    '22222222-2222-2222-2222-222222222208',  -- Đại Nội Huế
+    '22222222-2222-2222-2222-222222222205'   -- Phố Cổ Hội An
+)
+  AND (is_ar_available IS NULL OR is_ar_available = FALSE);
+-- Note: 10th location (Dinh Độc Lập / Ben Nha Rong) — not seeded in V8, check before enabling.
+
+-- END migration: V77__location_ar_readiness_seed.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V78__station_latlng_cuuchi_placeholder.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V78__station_latlng_cuuchi_placeholder.sql
+-- ============================================================================
+-- V78: Placeholder GPS coordinates for Củ Chi pilot stations ST01–ST06.
+--
+-- ⚠️  PLACEHOLDER — cần đo thực địa và thay bằng tọa độ chính xác.
+-- Các tọa độ này nằm trong khuôn viên khu di tích Địa đạo Củ Chi (Ben Duoc)
+-- và được bố trí dọc tuyến tham quan ~200m.
+-- Sau khi field test: cập nhật lại bằng migration V79 hoặc UPDATE thủ công qua admin.
+--
+-- Ref GPS trung tâm khu Ben Duoc: 11.1416°N, 106.4616°E
+
+UPDATE stations SET lat = 11.14155, lng = 106.46135
+WHERE site_code = 'cu-chi' AND code = 'ST01'; -- Phòng họp (khu đón tiếp)
+
+UPDATE stations SET lat = 11.14148, lng = 106.46148
+WHERE site_code = 'cu-chi' AND code = 'ST02'; -- Kho ngầm
+
+UPDATE stations SET lat = 11.14140, lng = 106.46162
+WHERE site_code = 'cu-chi' AND code = 'ST03'; -- Giếng hầm & thông gió
+
+UPDATE stations SET lat = 11.14133, lng = 106.46175
+WHERE site_code = 'cu-chi' AND code = 'ST04'; -- Quân y
+
+UPDATE stations SET lat = 11.14126, lng = 106.46188
+WHERE site_code = 'cu-chi' AND code = 'ST05'; -- Xưởng vũ khí
+
+UPDATE stations SET lat = 11.14119, lng = 106.46200
+WHERE site_code = 'cu-chi' AND code = 'ST06'; -- Hầm phòng thủ (điểm cuối)
+
+-- END migration: V78__station_latlng_cuuchi_placeholder.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V79__seed_platform_accounts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V79__seed_platform_accounts.sql
+-- ============================================================================
+-- Seed platform accounts (admin, demo, teacher) via Flyway so they survive DB resets.
+-- Uses pgcrypto crypt() with bcrypt (bf, cost 10) to hash Demo@2026.
+-- Idempotent: ON CONFLICT DO UPDATE ensures re-runnable.
+-- These accounts are dev/demo only — rotate passwords on production.
+
+-- Ensure pgcrypto extension is available (needed for crypt + gen_salt)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+INSERT INTO profiles (email, password_hash, provider, role, tier, display_name, level, total_points, city, created_at, email_verified, email_verified_at)
+VALUES
+    ('admin@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'ADMIN', 'FREE', 'Platform Admin',
+     1, 0, 'TP.HCM', now(), true, now()),
+    ('demo@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'ADMIN', 'FREE', 'Demo Admin',
+     10, 999, 'TP.HCM', now(), true, now()),
+    ('teacher@histar.vn',
+     crypt('Demo@2026', gen_salt('bf', 10)),
+     'local', 'TEACHER', 'FREE', 'Giáo viên Demo',
+     1, 0, 'TP.HCM', now(), true, now())
+ON CONFLICT (email) DO UPDATE
+    SET password_hash      = crypt('Demo@2026', gen_salt('bf', 10)),
+        role               = EXCLUDED.role,
+        email_verified     = TRUE,
+        email_verified_at  = COALESCE(profiles.email_verified_at, now());
+
+-- END migration: V79__seed_platform_accounts.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V80__cu_chi_explore_archive_points.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V80__cu_chi_explore_archive_points.sql
 -- ============================================================================
 -- src/main/resources/db/migration/V68__cu_chi_explore_archive_points.sql
 -- Đăng ký các điểm giải mã Mật thư, Hồ sơ câu chuyện, Bàn điều tra & Mặt cắt độ sâu cho Địa đạo Củ Chi
@@ -7356,13 +7627,13 @@ INSERT INTO discovery_points (id, location_id, name, map_x_pct, map_y_pct, unloc
 ('d0000001-0000-4000-8000-000000000122', '11111111-1111-1111-1111-111111111111', 'Thử thách: Kết cấu đất đá ong', 30.00, 39.00, 'depth_quiz:layer3', 15)
     ON CONFLICT (location_id, unlock_key) DO NOTHING;
 
--- END migration: V74__cu_chi_explore_archive_points.sql
+-- END migration: V80__cu_chi_explore_archive_points.sql
 COMMIT;
 BEGIN;
 
 -- ============================================================================
--- BEGIN migration: V75__reward_integrity.sql
--- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V75__reward_integrity.sql
+-- BEGIN migration: V81__reward_integrity.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V81__reward_integrity.sql
 -- ============================================================================
 -- Historical totals are retained as an explicitly unverified opening balance.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS server_generated BOOLEAN NOT NULL DEFAULT FALSE;
@@ -7454,7 +7725,84 @@ INSERT INTO badges(id, name, description, icon_url, condition_type, condition_va
 ('b0000001-0000-4000-8000-000000000209', 'Nhãn Quan Xuyên Thấu', '1.130 XP toàn tài khoản, 360°, sa bàn, AI và mở khóa cổ vật.', '/badges/badge-10.png', 'explore', 9, '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 
--- END migration: V75__reward_integrity.sql
+-- END migration: V81__reward_integrity.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V82__passport_mail_attempts.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V82__passport_mail_attempts.sql
+-- ============================================================================
+-- Reconcile both a new database and a table created earlier by Hibernate ddl-auto=update.
+-- Fail on incompatible/orphaned existing data; never silently remove user history.
+CREATE TABLE IF NOT EXISTS passport_mail_attempts (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    request_id UUID NOT NULL,
+    image_sha256 VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    state VARCHAR(16) NOT NULL
+);
+
+ALTER TABLE passport_mail_attempts
+    ALTER COLUMN user_id SET NOT NULL,
+    ALTER COLUMN request_id SET NOT NULL,
+    ALTER COLUMN image_sha256 SET NOT NULL,
+    ALTER COLUMN created_at SET NOT NULL,
+    ALTER COLUMN state SET NOT NULL;
+
+DO $passport_mail$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'fk_passport_mail_profile'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT fk_passport_mail_profile
+            FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'ck_passport_mail_image_hash'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT ck_passport_mail_image_hash
+            CHECK (image_sha256 ~ '^[0-9a-f]{64}$');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'ck_passport_mail_state'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT ck_passport_mail_state
+            CHECK (state IN ('CREATED','ACCEPTED','UNKNOWN'));
+    END IF;
+
+    -- Hibernate may already have generated the same unique constraint under a different name.
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND contype IN ('u','p')
+          AND conkey = ARRAY[
+              (SELECT attnum FROM pg_attribute WHERE attrelid = 'passport_mail_attempts'::regclass AND attname = 'user_id'),
+              (SELECT attnum FROM pg_attribute WHERE attrelid = 'passport_mail_attempts'::regclass AND attname = 'request_id')
+          ]::smallint[]
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT uq_passport_mail_user_request UNIQUE (user_id, request_id);
+    END IF;
+END;
+$passport_mail$;
+
+CREATE INDEX IF NOT EXISTS idx_passport_mail_user_created
+    ON passport_mail_attempts(user_id, created_at DESC);
+
+-- END migration: V82__passport_mail_attempts.sql
 COMMIT;
 
 -- ============================================================================
@@ -7627,7 +7975,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V75
+-- Flyway baseline after full bootstrap: V82
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -7654,7 +8002,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '75', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '82', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

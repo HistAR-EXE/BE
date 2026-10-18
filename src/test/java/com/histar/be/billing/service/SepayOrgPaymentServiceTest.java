@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.histar.be.auth.service.EmailVerifiedGuard;
 import com.histar.be.billing.dto.OrgBillingStatus;
 import com.histar.be.billing.dto.OrgCreatePaymentRequest;
+import com.histar.be.billing.dto.SepayWebhookPayload;
 import com.histar.be.billing.entity.OrgPaymentTransaction;
 import com.histar.be.billing.entity.OrgBillingSubscription;
 import com.histar.be.billing.repository.OrgBillingSubscriptionRepository;
@@ -114,7 +116,7 @@ class SepayOrgPaymentServiceTest {
                 .updatedAt(Instant.now())
                 .build();
         when(orgPaymentTransactionRepository.findByProviderTransactionId(223344L)).thenReturn(Optional.empty());
-        when(orgPaymentTransactionRepository.findByOrderCode("ORGABC123")).thenReturn(Optional.of(tx));
+        when(orgPaymentTransactionRepository.findByOrderCodeForUpdate("ORGABC123")).thenReturn(Optional.of(tx));
         when(orgPaymentTransactionRepository.save(any(OrgPaymentTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         UUID orgId = UUID.randomUUID();
@@ -163,6 +165,64 @@ class SepayOrgPaymentServiceTest {
         assertThat(subscription.getQuantity()).isEqualTo(25);
         verify(orgPaymentTransactionRepository, atLeastOnce()).save(tx);
         verify(billingService).subscribeOrg(any(), any(), any());
+    }
+
+    @Test
+    void handleWebhook_doesNotReopenVoidedPayment() {
+        OrgPaymentTransaction tx = OrgPaymentTransaction.builder()
+                .id(UUID.randomUUID()).requesterUserId(UUID.randomUUID()).orderCode("ORGVOID001")
+                .transferContent("ORGVOID001").amountVnd(1_000_000L).status("VOIDED")
+                .createdAt(Instant.now()).updatedAt(Instant.now()).build();
+        when(orgPaymentTransactionRepository.findByProviderTransactionId(223345L)).thenReturn(Optional.empty());
+        when(orgPaymentTransactionRepository.findByOrderCodeForUpdate("ORGVOID001")).thenReturn(Optional.of(tx));
+
+        sepayOrgPaymentService.handleVerifiedWebhook(new SepayWebhookPayload(
+                223345L, "MBBank", null, null, null, "ORGVOID001", "ORGVOID001",
+                "in", null, 1_000_000L, null, "FT223345"));
+
+        assertThat(tx.getStatus()).isEqualTo("VOIDED");
+        verify(orgPaymentTransactionRepository, never()).save(tx);
+        verify(billingService, never()).subscribeOrg(any(), any(), any());
+    }
+
+    @Test
+    void handleVerifiedWebhookLocksPaymentBeforeFinalization() {
+        UUID userId = UUID.randomUUID();
+        UUID orgId = UUID.randomUUID();
+        OrgPaymentTransaction tx = OrgPaymentTransaction.builder()
+                .id(UUID.randomUUID()).requesterUserId(userId).orgName("THPT Test")
+                .contactEmail("teacher@school.vn").planType("STANDARD").provider("SEPAY")
+                .orderCode("ORGLOCK001").transferContent("ORGLOCK001").amountVnd(1_000_000L)
+                .licenseCount(1).status("PENDING").createdAt(Instant.now()).updatedAt(Instant.now()).build();
+        when(orgPaymentTransactionRepository.findByProviderTransactionId(223346L)).thenReturn(Optional.empty());
+        when(orgPaymentTransactionRepository.findByOrderCodeForUpdate("ORGLOCK001")).thenReturn(Optional.of(tx));
+        when(billingService.subscribeOrg(any(), any(), any())).thenReturn(new OrgBillingStatus(
+                orgId, "THPT Test", "STANDARD", LocalDate.now().plusYears(1), true,
+                0, 30_000, LocalDate.now().plusMonths(1), 1, 400, false, 0, 40, false, 365));
+        OrgBillingSubscription subscription = OrgBillingSubscription.builder()
+                .id(UUID.randomUUID()).organizationId(orgId).isActive(true).build();
+        when(orgBillingSubscriptionRepository.findAllByOrganizationIdOrderByCreatedAtDesc(orgId))
+                .thenReturn(java.util.List.of(subscription));
+
+        sepayOrgPaymentService.handleVerifiedWebhook(new SepayWebhookPayload(
+                223346L, "MBBank", null, null, null, "ORGLOCK001", "ORGLOCK001",
+                "in", null, 1_000_000L, null, "FT223346"));
+
+        assertThat(tx.getStatus()).isEqualTo("PAID");
+        verify(orgPaymentTransactionRepository).findByOrderCodeForUpdate("ORGLOCK001");
+        verify(billingService).subscribeOrg(any(), any(), any());
+    }
+
+    @Test
+    void finalizePaidOrgDoesNotGrantSubscriptionTwice() {
+        OrgPaymentTransaction tx = OrgPaymentTransaction.builder()
+                .id(UUID.randomUUID()).requesterUserId(UUID.randomUUID()).subscriptionId(UUID.randomUUID())
+                .orgName("THPT Test").contactEmail("teacher@school.vn").planType("STANDARD")
+                .amountVnd(1_000_000L).status("PAID").build();
+
+        sepayOrgPaymentService.finalizePaidOrg(tx);
+
+        verify(billingService, never()).subscribeOrg(any(), any(), any());
     }
 
     @Test

@@ -64,5 +64,12 @@ public class Organization {
     @Column(name = "ops_note", columnDefinition = "TEXT")
     private String opsNote;
 
+    @Column(name = "last_crm_synced_at")
+    private Instant lastCrmSyncedAt;
+
+    @Column(name = "crm_linked_inquiry_count")
+    @Builder.Default
+    private Integer crmLinkedInquiryCount = 0;
+
     private Instant createdAt;
 }

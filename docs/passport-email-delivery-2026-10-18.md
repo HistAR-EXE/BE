@@ -1,5 +1,7 @@
 # Hộ chiếu di sản qua email — 18/10/2026
 
+> Cập nhật tích hợp 19/10: migration hộ chiếu hiện là **V82**, sau các migration mới của nhóm. Các số V76 bên dưới ghi lại lượt kiểm chứng trước tích hợp. Khi triển khai production, áp dụng chuỗi migration chuẩn đến V82 trước khi khởi động bản BE mới; xem `honors-migration-integration-2026-10-19.md`.
+
 ## Phần đã triển khai
 
 Hộp thoại giữ thiết kế hộ chiếu hiện tại, xuất ảnh đầy đủ 1200×1500 và có đúng hai thao tác đầu ra: **Nhận qua email** và **Tải ảnh về máy**. Hai thao tác dùng cùng blob đã xem trước; đổi lựa chọn riêng tư hủy ảnh cũ. Phần gửi có trạng thái chờ, tiếp nhận, lỗi, cooldown và số lượt còn lại. Tải xuống vẫn dùng được khi email đang gửi hoặc không khả dụng. Bỏ địa chỉ email tự suy diễn từ UUID, ẩn cả avatar khi ẩn danh.

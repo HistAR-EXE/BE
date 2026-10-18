@@ -290,6 +290,245 @@ public class AdminTrashService {
                 artifact.getRowVersion(), null, request.idempotencyKey(), Map.of("name", safe(artifact.getName()))));
     }
 
+    @Transactional
+    public void purge(String resourceType, UUID id, UUID actorId, AdminPurgeRequest request) {
+        String reason = normalizePurgeReason(request.reason());
+        String type = normalizeResourceType(resourceType);
+        switch (type) {
+            case "QUEST" -> purgeQuest(id, actorId, request.rowVersion(), reason, request.idempotencyKey());
+            case "DISCOVERY_POINT" ->
+                    purgeDiscoveryPoint(id, actorId, request.rowVersion(), reason, request.idempotencyKey());
+            case "ARTIFACT" -> purgeArtifact(id, actorId, request.rowVersion(), reason, request.idempotencyKey());
+            default -> throw new BusinessRuleException("Loại nội dung không hỗ trợ purge: " + resourceType);
+        }
+    }
+
+    @Transactional
+    public AdminTrashBulkResult bulk(UUID actorId, AdminTrashBulkRequest request) {
+        String action = request.action().trim().toUpperCase(Locale.ROOT);
+        if ("PURGE".equals(action)) {
+            normalizePurgeReason(request.reason());
+        }
+        if (request.items().size() > 50) {
+            throw new BusinessRuleException("Tối đa 50 mục mỗi lần bulk");
+        }
+        int succeeded = 0;
+        List<AdminTrashBulkResult.Failure> failed = new ArrayList<>();
+        for (AdminTrashBulkRequest.Item item : request.items()) {
+            try {
+                if ("RESTORE".equals(action)) {
+                    restoreOne(item.resourceType(), item.id(), actorId, new AdminRestoreRequest(item.rowVersion(), null));
+                } else {
+                    purge(
+                            item.resourceType(),
+                            item.id(),
+                            actorId,
+                            new AdminPurgeRequest(item.rowVersion(), request.reason(), null));
+                }
+                succeeded++;
+            } catch (RuntimeException exception) {
+                failed.add(new AdminTrashBulkResult.Failure(
+                        item.resourceType(), item.id(), messageOf(exception)));
+            }
+        }
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "TRASH",
+                actorId,
+                "RESTORE".equals(action) ? "TRASH_BULK_RESTORED" : "TRASH_BULK_PURGED",
+                null,
+                null,
+                "RESTORE".equals(action) ? null : normalizePurgeReason(request.reason()),
+                null,
+                Map.of(
+                        "action", action,
+                        "succeeded", succeeded,
+                        "failed", failed.size())));
+        return new AdminTrashBulkResult(succeeded, failed.size(), List.copyOf(failed));
+    }
+
+    @Transactional
+    public AdminTrashEmptyResult empty(UUID actorId, AdminTrashEmptyRequest request) {
+        String reason = normalizePurgeReason(request.reason());
+        String typeFilter = request.type() == null || request.type().isBlank()
+                ? null
+                : normalizeResourceType(request.type());
+        List<AdminTrashItem> targets = new ArrayList<>();
+        if (typeFilter == null || "DISCOVERY_POINT".equals(typeFilter)) {
+            discoveryPoints.findByDeletedAtIsNotNull().forEach(item -> targets.add(toTrashItem(item)));
+        }
+        if (typeFilter == null || "ARTIFACT".equals(typeFilter)) {
+            artifacts.findByDeletedAtIsNotNull().forEach(item -> targets.add(toTrashItem(item)));
+        }
+        if (typeFilter == null || "QUEST".equals(typeFilter)) {
+            quests.findByDeletedAtIsNotNull().forEach(item -> targets.add(toTrashItem(item)));
+        }
+        int purged = 0;
+        List<AdminTrashEmptyResult.Failure> failed = new ArrayList<>();
+        for (AdminTrashItem item : targets) {
+            try {
+                purge(
+                        item.resourceType(),
+                        item.id(),
+                        actorId,
+                        new AdminPurgeRequest(item.rowVersion(), reason, null));
+                purged++;
+            } catch (RuntimeException exception) {
+                failed.add(new AdminTrashEmptyResult.Failure(
+                        item.resourceType(), item.id(), messageOf(exception)));
+            }
+        }
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "TRASH",
+                actorId,
+                "TRASH_EMPTIED",
+                null,
+                null,
+                reason,
+                null,
+                Map.of(
+                        "type", typeFilter == null ? "ALL" : typeFilter,
+                        "purged", purged,
+                        "failed", failed.size())));
+        return new AdminTrashEmptyResult(purged, failed.size(), List.copyOf(failed));
+    }
+
+    private void restoreOne(String resourceType, UUID id, UUID actorId, AdminRestoreRequest request) {
+        switch (normalizeResourceType(resourceType)) {
+            case "QUEST" -> restoreQuest(id, actorId, request);
+            case "DISCOVERY_POINT" -> restoreDiscoveryPoint(id, actorId, request);
+            case "ARTIFACT" -> restoreArtifact(id, actorId, request);
+            default -> throw new BusinessRuleException("Loại nội dung không hỗ trợ restore: " + resourceType);
+        }
+    }
+
+    private void purgeQuest(UUID id, UUID actorId, Long rowVersion, String reason, String idempotencyKey) {
+        Quest quest = quests.findIncludingDeletedByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Quest not found: " + id));
+        requireSoftDeleted(quest.getDeletedAt());
+        requireVersion(quest.getRowVersion(), rowVersion);
+        if (!quests.findByUnlockAfterQuestIdAndDeletedAtIsNull(id).isEmpty()) {
+            throw new BusinessRuleException("Quest còn quest active phụ thuộc; không thể xóa vĩnh viễn");
+        }
+        Instant now = Instant.now();
+        if (investigations.findByQuestIdAndEnabledTrue(id).isPresent()) {
+            throw new BusinessRuleException("Quest còn pilot active");
+        }
+        if (campaigns.countByQuestIdAndEnabledTrueAndStartsAtLessThanEqualAndEndsAtGreaterThan(id, now, now) > 0) {
+            throw new BusinessRuleException("Quest còn campaign đang hoạt động");
+        }
+        if (assignments.countByQuestIdAndDueAtIsNull(id)
+                        + assignments.countByQuestIdAndDueAtGreaterThanEqual(id, now)
+                > 0) {
+            throw new BusinessRuleException("Quest còn assignment chưa hết hạn");
+        }
+        if (studyGroups.countByQuestIdAndExpiresAtGreaterThan(id, now) > 0) {
+            throw new BusinessRuleException("Quest còn study group chưa hết hạn");
+        }
+        Long oldVersion = quest.getRowVersion();
+        String title = safe(quest.getTitle());
+        try {
+            questProgress.deleteByQuestId(id);
+            for (Quest child : quests.findByUnlockAfterQuestId(id)) {
+                child.setUnlockAfterQuestId(null);
+                quests.save(child);
+            }
+            investigations.findByQuestId(id).ifPresent(investigations::delete);
+            quests.delete(quest);
+            quests.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessRuleException("Không thể xóa vĩnh viễn quest vì còn ràng buộc dữ liệu");
+        }
+        audit.append(new AdminAuditCommand(
+                actorId, "QUEST", id, "PURGED", oldVersion, null, reason, idempotencyKey, Map.of("title", title)));
+    }
+
+    private void purgeDiscoveryPoint(UUID id, UUID actorId, Long rowVersion, String reason, String idempotencyKey) {
+        DiscoveryPoint point = discoveryPoints.findIncludingDeletedById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Discovery point not found: " + id));
+        requireSoftDeleted(point.getDeletedAt());
+        requireVersion(point.getRowVersion(), rowVersion);
+        long questReferences = quests.findByLocationId(point.getLocationId()).stream()
+                .filter(quest -> containsKey(quest.getStepDiscoveryKeys(), point.getUnlockKey())
+                        || containsKey(quest.getUnlockDiscoveryKeys(), point.getUnlockKey()))
+                .count();
+        if (questReferences > 0) {
+            throw new BusinessRuleException("Discovery point đang được quest active tham chiếu");
+        }
+        Long oldVersion = point.getRowVersion();
+        String name = safe(point.getName());
+        try {
+            userDiscoveries.deleteByLocationIdAndDiscoveryKey(point.getLocationId(), point.getUnlockKey());
+            bindings.deleteByLocationIdAndUnlockKey(point.getLocationId(), point.getUnlockKey());
+            artifactLinks.deleteByLocationIdAndDiscoveryUnlockKey(point.getLocationId(), point.getUnlockKey());
+            unlockRequirements.deleteByLocationIdAndRequiredDiscoveryKey(
+                    point.getLocationId(), point.getUnlockKey());
+            discoveryPoints.delete(point);
+            discoveryPoints.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessRuleException("Không thể xóa vĩnh viễn discovery point vì còn ràng buộc dữ liệu");
+        }
+        audit.append(new AdminAuditCommand(
+                actorId,
+                "DISCOVERY_POINT",
+                id,
+                "PURGED",
+                oldVersion,
+                null,
+                reason,
+                idempotencyKey,
+                Map.of("name", name)));
+    }
+
+    private void purgeArtifact(UUID id, UUID actorId, Long rowVersion, String reason, String idempotencyKey) {
+        Artifact artifact = artifacts.findIncludingDeletedById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Artifact not found: " + id));
+        requireSoftDeleted(artifact.getDeletedAt());
+        requireVersion(artifact.getRowVersion(), rowVersion);
+        Long oldVersion = artifact.getRowVersion();
+        String name = safe(artifact.getName());
+        try {
+            userArtifacts.deleteByArtifactId(id);
+            bindings.deleteByArtifactId(id);
+            artifactLinks.deleteByLocationIdAndArtifactUnlockKey(artifact.getLocationId(), artifact.getUnlockKey());
+            unlockRequirements.deleteByLocationIdAndArtifactUnlockKey(
+                    artifact.getLocationId(), artifact.getUnlockKey());
+            artifacts.delete(artifact);
+            artifacts.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessRuleException("Không thể xóa vĩnh viễn artifact vì còn ràng buộc dữ liệu");
+        }
+        audit.append(new AdminAuditCommand(
+                actorId, "ARTIFACT", id, "PURGED", oldVersion, null, reason, idempotencyKey, Map.of("name", name)));
+    }
+
+    private void requireSoftDeleted(Instant deletedAt) {
+        if (deletedAt == null) {
+            throw new BusinessRuleException("Chỉ xóa vĩnh viễn được mục đang ở thùng rác");
+        }
+    }
+
+    private String normalizePurgeReason(String reason) {
+        String value = reason == null ? "" : reason.trim();
+        if (value.length() < 10) {
+            throw new BusinessRuleException("Lý do xóa vĩnh viễn cần ít nhất 10 ký tự");
+        }
+        return value;
+    }
+
+    private String normalizeResourceType(String resourceType) {
+        if (resourceType == null || resourceType.isBlank()) {
+            throw new BusinessRuleException("Thiếu loại nội dung");
+        }
+        return resourceType.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String messageOf(RuntimeException exception) {
+        String message = exception.getMessage();
+        return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
+    }
+
     private String normalizeReason(AdminDeleteRequest request) {
         String preset = request.reasonPreset() == null ? "" : request.reasonPreset().trim();
         if (!java.util.Set.of("Sai nguồn", "Lỗi kỹ thuật", "Trùng nội dung", "Yêu cầu pháp lý", "Khác").contains(preset)) {

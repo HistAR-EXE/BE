@@ -1,5 +1,6 @@
 package com.histar.be.organization.dto;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record OrganizationAnalyticsResponse(
@@ -9,4 +10,6 @@ public record OrganizationAnalyticsResponse(
         long memberCount,
         double completionRatePct,
         double fullTourRatePct,
-        String note) {}
+        String note,
+        Instant lastCrmSyncedAt,
+        Integer crmLinkedInquiryCount) {}

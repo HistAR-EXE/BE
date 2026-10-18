@@ -207,10 +207,13 @@ public class SepayB2cPaymentService {
             log.info("SePay B2C webhook ignored: no order code in payload id={}", payload.id());
             return;
         }
-        B2cPaymentTransaction tx = paymentTransactionRepository.findByOrderCode(code)
-                .orElseGet(() -> paymentTransactionRepository.findByTransferContent(code).orElse(null));
+        B2cPaymentTransaction tx = paymentTransactionRepository.findByOrderCodeForUpdate(code)
+                .orElseGet(() -> paymentTransactionRepository.findByTransferContentForUpdate(code).orElse(null));
         if (tx == null) {
             log.info("SePay B2C webhook ignored: no order for code={}", code);
+            return;
+        }
+        if (isRefundOrVoid(tx.getStatus())) {
             return;
         }
         if ("PAID".equalsIgnoreCase(tx.getStatus())) {
@@ -248,11 +251,26 @@ public class SepayB2cPaymentService {
         tx.setProviderPayload(toJson(payload, cumulative));
         tx.setUpdatedAt(Instant.now());
         paymentTransactionRepository.save(tx);
+        finalizePaidB2c(tx, true);
+    }
+
+    /**
+     * Grant B2C entitlement after a transaction is already marked PAID.
+     * Shared by SePay webhook and admin mark-paid.
+     */
+    @Transactional
+    public void finalizePaidB2c(B2cPaymentTransaction tx, boolean sendReceipt) {
+        if (tx.getSubscriptionId() != null
+                && !PLAN_JOURNEY_PASS.equalsIgnoreCase(tx.getPlanType())) {
+            return;
+        }
         String plan = tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType();
         if (PLAN_JOURNEY_PASS.equalsIgnoreCase(plan)) {
             grantJourneyPass(tx);
-            log.info("SePay B2C webhook matched order={} status=PAID plan=JOURNEY_PASS site={}", tx.getOrderCode(), tx.getSiteCode());
-            sendJourneyPassReceipt(tx);
+            log.info("SePay B2C order={} status=PAID plan=JOURNEY_PASS site={}", tx.getOrderCode(), tx.getSiteCode());
+            if (sendReceipt) {
+                sendJourneyPassReceipt(tx);
+            }
             return;
         }
         B2cSubscription subscription = billingService.subscribeB2cReturningSubscription(tx.getUserId(), "SEPAY");
@@ -261,11 +279,16 @@ public class SepayB2cPaymentService {
             tx.setUpdatedAt(Instant.now());
             paymentTransactionRepository.save(tx);
         }
-        log.info("SePay B2C webhook matched order={} status=PAID", tx.getOrderCode());
-        sendReceiptEmail(tx, subscription);
+        log.info("SePay B2C order={} status=PAID", tx.getOrderCode());
+        if (sendReceipt) {
+            sendReceiptEmail(tx, subscription);
+        }
     }
 
     private void grantJourneyPass(B2cPaymentTransaction tx) {
+        if (!visitEntitlementRepository.findByOrderCode(tx.getOrderCode()).isEmpty()) {
+            return;
+        }
         Instant now = Instant.now();
         visitEntitlementRepository.save(B2cVisitEntitlement.builder()
                 .userId(tx.getUserId())
@@ -530,6 +553,13 @@ public class SepayB2cPaymentService {
         } catch (JsonProcessingException e) {
             return 0;
         }
+    }
+
+    private static boolean isRefundOrVoid(String status) {
+        return "REFUND".equalsIgnoreCase(status)
+                || "REFUNDED".equalsIgnoreCase(status)
+                || "VOID".equalsIgnoreCase(status)
+                || "VOIDED".equalsIgnoreCase(status);
     }
 
     private String toJson(SepayWebhookPayload payload, long receivedAmount) {

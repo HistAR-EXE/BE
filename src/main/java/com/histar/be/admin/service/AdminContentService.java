@@ -156,9 +156,17 @@ public class AdminContentService {
                 .name(request.name())
                 .imageUrl(request.imageUrl())
                 .description(request.description())
+                .story(request.story())
                 .unlockKey(request.unlockKey())
                 .reliability(request.reliability())
                 .sortOrder(request.sortOrder() != null ? request.sortOrder() : 0)
+                .collectionName(request.collectionName())
+                .rarity(request.rarity())
+                .sourceUrl(request.sourceUrl())
+                .imageSource(request.imageSource())
+                .imageLicense(request.imageLicense())
+                .factVerified(Boolean.TRUE.equals(request.factVerified()))
+                .unlockMinigameId(request.unlockMinigameId())
                 .build());
         audit.append(new AdminAuditCommand(actorId(), "ARTIFACT", saved.getId(), "CREATED", null,
                 saved.getRowVersion(), null, null, Map.of("name", saved.getName())));
@@ -177,11 +185,21 @@ public class AdminContentService {
         artifact.setName(request.name());
         artifact.setImageUrl(request.imageUrl());
         artifact.setDescription(request.description());
+        artifact.setStory(request.story());
         artifact.setUnlockKey(request.unlockKey());
         artifact.setReliability(request.reliability());
         if (request.sortOrder() != null) {
             artifact.setSortOrder(request.sortOrder());
         }
+        artifact.setCollectionName(request.collectionName());
+        artifact.setRarity(request.rarity());
+        artifact.setSourceUrl(request.sourceUrl());
+        artifact.setImageSource(request.imageSource());
+        artifact.setImageLicense(request.imageLicense());
+        if (request.factVerified() != null) {
+            artifact.setFactVerified(request.factVerified());
+        }
+        artifact.setUnlockMinigameId(request.unlockMinigameId());
         Artifact saved = artifactRepository.saveAndFlush(artifact);
         audit.append(new AdminAuditCommand(actorId(), "ARTIFACT", id, "UPDATED", oldVersion,
                 saved.getRowVersion(), null, null, Map.of("name", saved.getName())));

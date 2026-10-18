@@ -3,7 +3,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
-const source = fs.readFileSync(path.join(__dirname, '../src/main/java/com/histar/be/leaderboard/repository/LeaderboardReadRepository.java'), 'utf8')
+const source = fs.readFileSync(path.join(__dirname, '../src/main/java/com/histar/be/leaderboard/repository/LeaderboardReadRepository.java'), 'utf8').replaceAll('\\\\', '\\')
 const match = source.match(/String sql = """([\s\S]*?)""" \+ filter \+ """([\s\S]*?)""";/)
 if (!match) throw new Error('Repository SQL layout changed: update this harness before running')
 const viewer = 'f2000000-0000-4000-8000-00000000000d'
@@ -12,7 +12,7 @@ const sampleEmails = Array.from({ length: 8 }, (_, i) => [`'user${i + 1}@histar.
 const query = (match[1] + match[2]).replaceAll(':limit', '3').replaceAll(':viewer', `'${viewer}'::uuid`)
   .replaceAll(':legacySeedHash', `'${sampleHash}'`).replaceAll(':legacySeedEmails', sampleEmails)
 const sql = `BEGIN;
-CREATE TEMP TABLE profiles(id uuid primary key, display_name text, avatar_url text, email text, total_points integer, role text, city text, org_id uuid, password_hash text) ON COMMIT DROP;
+CREATE TEMP TABLE profiles(id uuid primary key, display_name text, avatar_url text, email text, total_points integer, role text, city text, org_id uuid, password_hash text,account_status text DEFAULT 'ACTIVE') ON COMMIT DROP;
 CREATE TEMP TABLE user_badges(user_id uuid, badge_id uuid) ON COMMIT DROP;
 CREATE TEMP TABLE study_group_members(user_id uuid, group_id uuid) ON COMMIT DROP;
 INSERT INTO profiles(id, display_name, email, total_points, role)
@@ -22,6 +22,12 @@ INSERT INTO profiles(id, email, total_points, role) VALUES
 ('a1000000-0000-4000-8000-000000000001','seed-analytics-001@histar.vn',99998,'USER');
 INSERT INTO profiles(id,email,total_points,role,password_hash) VALUES(gen_random_uuid(),'user1@histar.vn',99997,'USER','${sampleHash}');
 INSERT INTO user_badges VALUES('${viewer}',gen_random_uuid());
+-- Moderation uses normalized SUSPENDED only; legacy unknown/blank/null remain active.
+UPDATE profiles SET account_status=CASE right(id::text,1) WHEN '1' THEN ' active ' WHEN '2' THEN NULL WHEN '3' THEN '' WHEN '4' THEN 'legacy-unknown' ELSE 'ACTIVE' END;
+INSERT INTO profiles(id,email,total_points,role,account_status) VALUES
+('f9000000-0000-4000-8000-000000000001','blocked1@test.invalid',9999,'USER','SUSPENDED'),
+('f9000000-0000-4000-8000-000000000002','blocked2@test.invalid',9999,'USER',' suspended '),
+('f9000000-0000-4000-8000-000000000003','blocked3@test.invalid',9999,'USER',chr(9)||'SuSpEnDeD'||chr(13));
 CREATE TEMP TABLE qa_honors_before AS SELECT sum(total_points) total FROM profiles;
 CREATE TEMP TABLE qa_honors_actual AS ${query};
 DO $qa$ BEGIN

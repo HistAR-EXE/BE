@@ -1,5 +1,6 @@
 package com.histar.be.security;
 
+import com.histar.be.profile.entity.AccountStatus;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.service.ProfileService;
@@ -21,9 +22,11 @@ public class CustomUserDetailsService implements UserDetailsService {
         Profile profile = profileService
                 .findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Not found: " + email));
+        boolean suspended = AccountStatus.fromStored(profile.getAccountStatus()).isSuspended();
         return User.builder()
                 .username(profile.getEmail())
                 .password(profile.getPasswordHash() == null ? "" : profile.getPasswordHash())
+                .disabled(suspended)
                 .authorities(UserRole.fromStored(profile.getRole()).authority())
                 .build();
     }

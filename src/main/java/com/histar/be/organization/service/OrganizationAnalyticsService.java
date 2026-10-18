@@ -50,7 +50,9 @@ public class OrganizationAnalyticsService {
                     0L,
                     0.0,
                     0.0,
-                    opsNote);
+                    opsNote,
+                    org.getLastCrmSyncedAt(),
+                    org.getCrmLinkedInquiryCount() == null ? 0 : org.getCrmLinkedInquiryCount());
         }
 
         long withAnyCompleted = memberIds.stream()
@@ -73,7 +75,9 @@ public class OrganizationAnalyticsService {
                 memberCount,
                 completionRatePct,
                 fullTourRatePct,
-                opsNote);
+                opsNote,
+                org.getLastCrmSyncedAt(),
+                org.getCrmLinkedInquiryCount() == null ? 0 : org.getCrmLinkedInquiryCount());
     }
 
     public List<OrgRosterMemberResponse> roster(UUID orgId) {

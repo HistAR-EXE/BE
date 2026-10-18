@@ -89,6 +89,11 @@ public class GroupService {
     public GroupSummaryResponse createGroupOnce(UUID userId, CreateGroupRequest request) {
         multiplayerAccessService.assertMultiplayerAccess(userId);
         Profile profile = profileRepository.findById(userId).orElseThrow(() -> new AuthException("Unauthorized"));
+        long userGroupCount = studyGroupMemberRepository.countByUserId(userId);
+        if (userGroupCount >= histarOrgProperties.getGroup().getMaxGroupsPerUser()) {
+            throw new BusinessRuleException(
+                    "Bạn đã tham gia tối đa " + histarOrgProperties.getGroup().getMaxGroupsPerUser() + " nhóm");
+        }
         String code = generateUniqueCode(6);
         Instant now = Instant.now();
         StudyGroup group = StudyGroup.builder()

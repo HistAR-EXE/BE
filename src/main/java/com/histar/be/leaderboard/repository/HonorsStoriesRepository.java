@@ -51,6 +51,8 @@ public class HonorsStoriesRepository {
    WITH eligible AS (
     SELECT p.id, COALESCE(NULLIF(TRIM(p.display_name),''),'Nhà thám hiểm') display_name,p.avatar_url
     FROM profiles p WHERE p.total_points>0 AND COALESCE(p.role,'USER')<>'ADMIN'
+                -- AccountStatus.fromStored: trim ASCII controls/spaces, ignore case; unknown values remain active.
+                AND UPPER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(p.account_status,''), '^[\\x01-\\x20]+', ''), '[\\x01-\\x20]+$', '')) <> 'SUSPENDED'
      AND NOT (CAST(p.id AS VARCHAR) LIKE 'a1000000-0000-4000-8000-%' AND p.email LIKE 'seed-analytics-%@histar.vn')
      AND NOT (COALESCE(p.password_hash,'')=:legacySeedHash AND p.email IN (:legacySeedEmails))
    """+filter+"""

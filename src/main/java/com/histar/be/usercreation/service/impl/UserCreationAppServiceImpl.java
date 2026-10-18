@@ -78,14 +78,25 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
         String objectKey = "creations/" + userId + "/" + UUID.randomUUID() + "." + extension;
         String outputUrl = mediaStorageService.uploadImage(bytes, contentType, objectKey);
 
-        UserCreation saved = userCreationRepository.save(UserCreation.builder()
-                .userId(userId)
-                .frameId(frameId)
-                .outputUrl(outputUrl)
-                .variant(normalizedVariant)
-                .createdAt(Instant.now())
-                .build());
-        return UserCreationResponse.from(saved);
+        try {
+            UserCreation saved = userCreationRepository.save(UserCreation.builder()
+                    .userId(userId)
+                    .frameId(frameId)
+                    .outputUrl(outputUrl)
+                    .variant(normalizedVariant)
+                    .createdAt(Instant.now())
+                    .build());
+            return UserCreationResponse.from(saved);
+        } catch (RuntimeException ex) {
+            // The object is uploaded before the DB row. Avoid leaving orphaned
+            // media when persistence fails and preserve the original failure.
+            try {
+                mediaStorageService.deleteObject(outputUrl);
+            } catch (RuntimeException cleanupFailure) {
+                ex.addSuppressed(cleanupFailure);
+            }
+            throw ex;
+        }
     }
 
     @Override

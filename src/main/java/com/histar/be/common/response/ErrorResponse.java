@@ -2,6 +2,7 @@ package com.histar.be.common.response;
 
 import com.histar.be.common.exception.ErrorCode;
 import java.time.Instant;
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,6 +18,7 @@ public class ErrorResponse {
     private final String upgradeUrl;
     private final String type;
     private final String upgradePackage;
+    private final Map<String, Object> details;
     private final Instant timestamp;
 
     public static ErrorResponse of(ErrorCode errorCode, String message) {

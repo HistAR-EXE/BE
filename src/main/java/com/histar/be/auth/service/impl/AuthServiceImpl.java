@@ -16,6 +16,7 @@ import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.ConflictException;
 import com.histar.be.config.HistarMailProperties;
 import com.histar.be.organization.entity.OrgSubscription;
+import com.histar.be.profile.entity.AccountStatus;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
@@ -106,12 +107,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        Profile profile = profileService.findByEmail(request.email()).orElse(null);
+        if (profile != null) {
+            rejectIfSuspended(profile);
+        }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-        Profile profile = profileService
+        Profile authenticated = profileService
                 .findByEmail(request.email())
                 .orElseThrow(() -> new IllegalStateException("User not found after authentication"));
-        return issueTokens(profile);
+        return issueTokens(authenticated);
     }
 
     @Override
@@ -178,7 +183,20 @@ public class AuthServiceImpl implements AuthService {
         Profile profile = profileService.findById(stored.getUserId());
         stored.setRevoked(true);
         refreshTokenRepository.save(stored);
+        if (AccountStatus.fromStored(profile.getAccountStatus()).isSuspended()) {
+            stored.setRevoked(true);
+            refreshTokenRepository.save(stored);
+            throw new AuthException("Tài khoản đã bị khóa tạm thời. Liên hệ quản trị viên.");
+        }
+        stored.setRevoked(true);
+        refreshTokenRepository.save(stored);
         return issueTokens(profile);
+    }
+
+    private static void rejectIfSuspended(Profile profile) {
+        if (AccountStatus.fromStored(profile.getAccountStatus()).isSuspended()) {
+            throw new AuthException("Tài khoản đã bị khóa tạm thời. Liên hệ quản trị viên.");
+        }
     }
 
     @Override
