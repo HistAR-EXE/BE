@@ -87,7 +87,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenStepsTotalDiffersFromStoredSteps() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
 
         SeedConsistencyException ex =
@@ -99,7 +99,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenMinigameStepReferencesMissingGame() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
         UUID missingGameId = UUID.randomUUID();
         questStepRepository.save(QuestStep.builder()
@@ -120,7 +120,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenMinigameUsesUnsupportedEngine() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
         UUID gameId = UUID.randomUUID();
         QuestMinigame game = new QuestMinigame();
@@ -147,7 +147,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenPortalStepHasNoEra() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
         questStepRepository.save(QuestStep.builder()
                 .quest(quest)
@@ -166,7 +166,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenDialogueHasNoPromptOrBackendKey() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
         questStepRepository.save(QuestStep.builder()
                 .quest(quest)
@@ -210,7 +210,7 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenQuestStepHasNoBackendUnlockKey() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
-        quest.setStepsTotal(3);
+        quest.setStepsTotal(quest.getStepsTotal() + 1);
         questRepository.save(quest);
         questStepRepository.save(QuestStep.builder()
                 .quest(quest)
@@ -229,13 +229,76 @@ class SeedConsistencyTest {
     @Test
     void validateAll_failsWhenOnsiteQuestHasNoCheckinStep() {
         Quest quest = questRepository.findByLocationId(locationId).get(0);
+        questStepRepository.findByQuestId(quest.getId()).stream()
+                .filter(step -> "checkin".equals(step.getActionType()))
+                .forEach(questStepRepository::delete);
         quest.setRequireOnsiteCheckin(true);
+        quest.setStepsTotal(2);
         questRepository.save(quest);
 
         SeedConsistencyException ex =
                 assertThrows(SeedConsistencyException.class, () -> validator.validateAll());
 
         assertTrue(ex.getMessage().contains("check-in"));
+    }
+
+    @Test
+    void validateAll_failsWhenOnlineQuestHasOnsiteStep() {
+        Quest quest = questRepository.findByLocationId(locationId).get(0);
+        quest.setTrack("ONLINE");
+        quest.setRequireOnsiteCheckin(false);
+        questRepository.save(quest);
+
+        SeedConsistencyException ex =
+                assertThrows(SeedConsistencyException.class, () -> validator.validateAll());
+
+        assertTrue(ex.getMessage().contains("on-site step"));
+    }
+
+    @Test
+    void validateAll_failsWhenPremiumStepIsRequired() {
+        Quest quest = questRepository.findByLocationId(locationId).get(0);
+        QuestStep step = questStepRepository.findByQuestId(quest.getId()).get(0);
+        step.setPremium(true);
+        step.setRequired(true);
+        questStepRepository.save(step);
+
+        SeedConsistencyException ex =
+                assertThrows(SeedConsistencyException.class, () -> validator.validateAll());
+
+        assertTrue(ex.getMessage().contains("must be optional"));
+    }
+
+    @Test
+    void validateAll_failsWhenQuestHasNoRequiredStep() {
+        Quest quest = questRepository.findByLocationId(locationId).get(0);
+        questStepRepository.findByQuestId(quest.getId()).forEach(step -> {
+            step.setRequired(false);
+            questStepRepository.save(step);
+        });
+
+        SeedConsistencyException ex =
+                assertThrows(SeedConsistencyException.class, () -> validator.validateAll());
+
+        assertTrue(ex.getMessage().contains("no required step"));
+    }
+
+    @Test
+    void validateAll_failsWhenUnlockChainCrossesTracks() {
+        Quest onsite = questRepository.findByLocationId(locationId).get(0);
+        Quest online = questRepository.save(Quest.builder()
+                .locationId(locationId)
+                .title("Online after onsite")
+                .pointsReward(10)
+                .track("ONLINE")
+                .unlockAfterQuestId(onsite.getId())
+                .build());
+
+        SeedConsistencyException ex =
+                assertThrows(SeedConsistencyException.class, () -> validator.validateAll());
+
+        assertTrue(ex.getMessage().contains(online.getId().toString()));
+        assertTrue(ex.getMessage().contains("another track"));
     }
 
     @Test

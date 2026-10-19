@@ -25,7 +25,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 81
+$ExpectedMinFlywayVersion = 85
 
 function Assert-SafeIdentifier([string]$Value, [string]$Label) {
     if ($Value -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
@@ -166,7 +166,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V81) ---
+# --- Smoke checks for recent Flyway chain (V70–V85) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -230,6 +230,34 @@ if ([int]$rewardIntegrityReady -ne 2) {
     throw "Bootstrap baselined at V$lastVersion but V81 reward integrity tables are incomplete ($rewardIntegrityReady/2)."
 }
 
+# V82: demo accounts for the three business segments are present and verified.
+$demoSegmentAccounts = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM profiles WHERE email IN ('premium@histar.vn','org-standard@histar.vn','org-micro@histar.vn') AND email_verified = TRUE;") -join '').Trim()
+if ([int]$demoSegmentAccounts -lt 3) {
+    throw "Bootstrap baselined at V$lastVersion but V82 demo segment accounts are incomplete ($demoSegmentAccounts/3)."
+}
+
+# V83: quest track and step metadata required by Quest v2 exists.
+$questTrackColumns = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'quests' AND column_name IN ('track','sort_order','difficulty','estimated_minutes')) OR (table_name = 'quest_steps' AND column_name IN ('is_required','is_premium')));") -join '').Trim()
+if ([int]$questTrackColumns -ne 6) {
+    throw "Bootstrap baselined at V$lastVersion but V83 Quest v2 columns are incomplete ($questTrackColumns/6)."
+}
+
+# V84: Củ Chi has the seeded onsite quest-track content.
+$cuChiQuestTrackContent = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM quest_steps WHERE quest_id = '33333333-3333-3333-3333-333333333340' AND unlock_key LIKE 'station:%';") -join '').Trim()
+if ([int]$cuChiQuestTrackContent -lt 6) {
+    throw "Bootstrap baselined at V$lastVersion but V84 Củ Chi onsite quest steps are incomplete ($cuChiQuestTrackContent/6)."
+}
+
+# V85: Quest v2 media and mini-game configurations are applied.
+$questMediaMinigameReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM quest_minigames WHERE id = 'a1000001-0000-4000-8000-000000000004' AND config::text LIKE '%/images/minigames/dem-lo-1.jpg%';") -join '').Trim()
+if ([int]$questMediaMinigameReady -ne 1) {
+    throw "Bootstrap baselined at V$lastVersion but V85 Quest media/mini-game content is missing."
+}
+
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."
 Write-Host "V71 billing CRM seed inquiries: $crmSeeded."
@@ -240,6 +268,10 @@ Write-Host "V78 Củ Chi station coordinates: $stationCoordinates/6."
 Write-Host "V79 verified platform accounts: $platformAccounts/3."
 Write-Host "V80 Explore archive points: $exploreArchiveReady/22."
 Write-Host 'V81 reward integrity tables: xp_ledger and explore_attempts.'
+Write-Host "V82 verified demo segment accounts: $demoSegmentAccounts/3."
+Write-Host "V83 Quest v2 metadata columns: $questTrackColumns/6."
+Write-Host "V84 Củ Chi onsite quest steps: $cuChiQuestTrackContent/6."
+Write-Host 'V85 Quest media and mini-game content: ready.'
 Write-Host 'Hard-refresh Admin Organizations / Billing CRM / Analytics / Audit after bootstrap.'
 if (-not $SkipDashboardRevenueSeed) {
     Write-Host 'Admin dashboard revenue demo seed applied (B2C/B2B 6-month chart + sample audit).'

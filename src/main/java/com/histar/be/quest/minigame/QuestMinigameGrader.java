@@ -3,17 +3,29 @@ package com.histar.be.quest.minigame;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 public final class QuestMinigameGrader {
 
+    /** Số lần thả sai tối đa của Xếp tầng trước khi lượt chơi kết thúc (0 sao). */
+    static final int XEP_TANG_MAX_MISTAKES = 8;
+    /** Số lần chạm hụt vượt quá số điểm cần tìm của Săn cổ vật trước khi lượt chơi kết thúc. */
+    static final int SAN_CO_VAT_EXTRA_MISSES = 3;
+
     private QuestMinigameGrader() {}
 
-    public record Grade(int stars, boolean passed, boolean resolved, String learnFact, String learnUrl) {}
+    /**
+     * {@code resolved = false} nghĩa là lượt chơi chưa xong: không lưu kết quả, chỉ trả {@code hint}
+     * để FE phản hồi ngay (nóng/lạnh, hướng đào, thẻ đặt sai…). Gợi ý không lộ đáp án.
+     */
+    public record Grade(int stars, boolean passed, boolean resolved, String learnFact, String learnUrl, Map<String, Object> hint) {}
 
     public static ObjectNode publicLevel(String engine, ObjectNode level) {
         ObjectNode view = level.deepCopy();
@@ -85,9 +97,67 @@ public final class QuestMinigameGrader {
         boolean resolved = switch (engine) {
             case "soi_nap" -> soiResolved(level, attempt);
             case "dao_gap" -> daoResolved(level, attempt, stars);
+            case "xep_tang" -> xepResolved(level, attempt, stars);
+            case "duong_khoi" -> duongResolved(attempt, stars);
+            case "san_co_vat" -> sanResolved(level, attempt, stars);
             default -> true;
         };
-        return new Grade(stars, stars >= 1, resolved, fact, url);
+        Map<String, Object> hint = resolved ? Map.of() : hint(engine, level, attempt);
+        return new Grade(stars, stars >= 1, resolved, fact, url, hint);
+    }
+
+    static Map<String, Object> hint(String engine, JsonNode level, MinigameAttempt attempt) {
+        Map<String, Object> hint = new LinkedHashMap<>();
+        switch (engine) {
+            case "soi_nap" -> {
+                List<MinigameAttempt.Tap> taps = attempt.taps() == null ? List.of() : attempt.taps();
+                hint.put("exposures", taps.size());
+                if (!taps.isEmpty()) {
+                    MinigameAttempt.Tap last = taps.get(taps.size() - 1);
+                    double radius = level.path("radius").asDouble(8);
+                    double d = distance(last.x(), last.y(), level.path("targetX").asDouble(), level.path("targetY").asDouble());
+                    hint.put("warmth", d <= radius * 2 ? "HOT" : d <= radius * 4 ? "WARM" : "COLD");
+                }
+            }
+            case "dao_gap" -> {
+                List<Double> angles = attempt.angles() == null ? List.of() : attempt.angles();
+                hint.put("tries", angles.size());
+                if (!angles.isEmpty()) {
+                    double last = angles.get(angles.size() - 1);
+                    double target = level.path("targetAngle").asDouble();
+                    double tolerance = level.path("tolerance").asDouble(8);
+                    hint.put("direction", target > last ? "HIGHER" : "LOWER");
+                    hint.put("near", Math.abs(target - last) <= tolerance * 3);
+                }
+            }
+            case "xep_tang" -> {
+                Map<String, String> answer = xepAnswer(level);
+                Map<String, String> last = lastDrops(attempt);
+                List<String> wrong = new ArrayList<>();
+                for (Map.Entry<String, String> entry : last.entrySet()) {
+                    String expected = answer.get(entry.getKey());
+                    if (expected != null && !expected.equals(entry.getValue())) {
+                        wrong.add(entry.getKey());
+                    }
+                }
+                hint.put("wrong", wrong);
+                hint.put("mistakes", xepMistakes(answer, attempt));
+                hint.put("mistakesLeft", Math.max(0, XEP_TANG_MAX_MISTAKES - xepMistakes(answer, attempt)));
+            }
+            case "duong_khoi" -> hint.put("wrongCells", duongWrongCells(level, attempt));
+            case "san_co_vat" -> {
+                SanProgress progress = sanProgress(level, attempt);
+                hint.put("found", progress.found());
+                hint.put("total", progress.total());
+                hint.put("misses", progress.misses());
+                hint.put("lastHit", progress.lastHit());
+                hint.put("missesLeft", Math.max(0, progress.total() + SAN_CO_VAT_EXTRA_MISSES - progress.misses()));
+            }
+            default -> {
+                // Không có gợi ý.
+            }
+        }
+        return hint;
     }
 
     private static boolean soiResolved(JsonNode level, MinigameAttempt attempt) {
@@ -123,23 +193,72 @@ public final class QuestMinigameGrader {
         return attempt.angles() != null && attempt.angles().size() >= 6;
     }
 
-    static int gradeXepTang(JsonNode level, MinigameAttempt attempt) {
+    private static boolean xepResolved(JsonNode level, MinigameAttempt attempt, int stars) {
+        if (stars > 0 || attempt.drops() == null || attempt.drops().isEmpty()) {
+            return true;
+        }
+        return xepMistakes(xepAnswer(level), attempt) >= XEP_TANG_MAX_MISTAKES;
+    }
+
+    private static boolean duongResolved(MinigameAttempt attempt, int stars) {
+        return stars > 0 || attempt.drops() == null || attempt.drops().isEmpty();
+    }
+
+    private static boolean sanResolved(JsonNode level, MinigameAttempt attempt, int stars) {
+        if (level.has("answerCount") || stars > 0 || attempt.taps() == null) {
+            return true;
+        }
+        SanProgress progress = sanProgress(level, attempt);
+        if (progress.total() == 0 || progress.found() >= progress.total()) {
+            return true;
+        }
+        if (progress.misses() >= progress.total() + SAN_CO_VAT_EXTRA_MISSES) {
+            return true;
+        }
+        int limit = level.path("timeLimitMs").asInt(20_000);
+        return attempt.durationMs() != null && attempt.durationMs() > limit * 2;
+    }
+
+    private static Map<String, String> xepAnswer(JsonNode level) {
         Map<String, String> answer = new HashMap<>();
         level.path("items").forEach(item -> answer.put(item.path("id").asText(), item.path("floorId").asText()));
-        if (answer.isEmpty() || attempt.drops() == null) {
+        return answer;
+    }
+
+    private static Map<String, String> lastDrops(MinigameAttempt attempt) {
+        Map<String, String> last = new LinkedHashMap<>();
+        if (attempt.drops() == null) {
+            return last;
+        }
+        for (MinigameAttempt.Drop drop : attempt.drops()) {
+            if (drop.itemId() != null) {
+                last.put(drop.itemId(), drop.floorId());
+            }
+        }
+        return last;
+    }
+
+    private static int xepMistakes(Map<String, String> answer, MinigameAttempt attempt) {
+        if (attempt.drops() == null) {
             return 0;
         }
-        Map<String, String> last = new HashMap<>();
         int wrong = 0;
         for (MinigameAttempt.Drop drop : attempt.drops()) {
             String expected = answer.get(drop.itemId());
             if (expected == null || !expected.equals(drop.floorId())) {
                 wrong++;
             }
-            if (drop.itemId() != null) {
-                last.put(drop.itemId(), drop.floorId());
-            }
         }
+        return wrong;
+    }
+
+    static int gradeXepTang(JsonNode level, MinigameAttempt attempt) {
+        Map<String, String> answer = xepAnswer(level);
+        if (answer.isEmpty() || attempt.drops() == null) {
+            return 0;
+        }
+        Map<String, String> last = lastDrops(attempt);
+        int wrong = xepMistakes(answer, attempt);
         for (Map.Entry<String, String> entry : answer.entrySet()) {
             if (!entry.getValue().equals(last.get(entry.getKey()))) {
                 return 0;
@@ -211,6 +330,39 @@ public final class QuestMinigameGrader {
         return 0;
     }
 
+    record SanProgress(int found, int total, int misses, boolean lastHit) {}
+
+    private static SanProgress sanProgress(JsonNode level, MinigameAttempt attempt) {
+        double radius = level.path("radius").asDouble(8);
+        int hotspotCount = level.path("hotspots").size();
+        Set<Integer> found = new HashSet<>();
+        int misses = 0;
+        boolean lastHit = false;
+        if (attempt.taps() == null) {
+            return new SanProgress(0, hotspotCount, 0, false);
+        }
+        for (MinigameAttempt.Tap tap : attempt.taps()) {
+            int hitIndex = -1;
+            for (int i = 0; i < hotspotCount; i++) {
+                if (found.contains(i)) {
+                    continue;
+                }
+                JsonNode spot = level.path("hotspots").get(i);
+                if (distance(tap.x(), tap.y(), spot.path("x").asDouble(), spot.path("y").asDouble()) <= radius) {
+                    hitIndex = i;
+                    break;
+                }
+            }
+            lastHit = hitIndex >= 0;
+            if (lastHit) {
+                found.add(hitIndex);
+            } else {
+                misses++;
+            }
+        }
+        return new SanProgress(found.size(), hotspotCount, misses, lastHit);
+    }
+
     static int gradeSanCoVat(JsonNode level, MinigameAttempt attempt) {
         if (level.has("answerCount")) {
             if (attempt.count() == null) {
@@ -228,35 +380,16 @@ public final class QuestMinigameGrader {
             }
             return 0;
         }
-        double radius = level.path("radius").asDouble(8);
         int limit = level.path("timeLimitMs").asInt(20_000);
-        Set<Integer> found = new HashSet<>();
         int hotspotCount = level.path("hotspots").size();
         if (hotspotCount == 0 || attempt.taps() == null) {
             return 0;
         }
-        int misses = 0;
-        for (MinigameAttempt.Tap tap : attempt.taps()) {
-            int hitIndex = -1;
-            for (int i = 0; i < hotspotCount; i++) {
-                if (found.contains(i)) {
-                    continue;
-                }
-                JsonNode spot = level.path("hotspots").get(i);
-                if (distance(tap.x(), tap.y(), spot.path("x").asDouble(), spot.path("y").asDouble()) <= radius) {
-                    hitIndex = i;
-                    break;
-                }
-            }
-            if (hitIndex >= 0) {
-                found.add(hitIndex);
-            } else {
-                misses++;
-            }
-        }
-        if (found.size() < hotspotCount) {
+        SanProgress progress = sanProgress(level, attempt);
+        if (progress.found() < hotspotCount) {
             return 0;
         }
+        int misses = progress.misses();
         int duration = attempt.durationMs() == null ? limit + 1 : attempt.durationMs();
         if (misses == 0 && duration <= limit) {
             return 3;
@@ -267,24 +400,58 @@ public final class QuestMinigameGrader {
         return 1;
     }
 
+    /**
+     * Mỗi ô có "rotation" là một đoạn rãnh cần xoay đúng. Ô thẳng xoay 0 và 2 (hoặc 1 và 3) giống nhau.
+     * Ô không có "rotation" (bếp, hầm khói, miệng thoát, đá) không chấm.
+     * Có "parMs" thì thời gian quyết định số sao; không có thì đúng là 3 sao.
+     */
     static int gradeDuongKhoi(JsonNode level, MinigameAttempt attempt) {
-        Map<String, String> answer = new HashMap<>();
-        level.path("cells").forEach(cell -> answer.put(cell.path("id").asText(), cell.path("rotation").asText()));
-        if (answer.isEmpty() || attempt.drops() == null) {
+        boolean hasAnswer = false;
+        for (JsonNode cell : level.path("cells")) {
+            if (cell.has("rotation")) {
+                hasAnswer = true;
+                break;
+            }
+        }
+        if (!hasAnswer || attempt.drops() == null) {
             return 0;
         }
-        Map<String, String> last = new HashMap<>();
-        for (MinigameAttempt.Drop drop : attempt.drops()) {
-            if (drop.itemId() != null) {
-                last.put(drop.itemId(), drop.floorId());
+        if (duongWrongCells(level, attempt) > 0) {
+            return 0;
+        }
+        int par = level.path("parMs").asInt(0);
+        if (par <= 0 || attempt.durationMs() == null || attempt.durationMs() <= par) {
+            return 3;
+        }
+        return attempt.durationMs() <= par * 2 ? 2 : 1;
+    }
+
+    private static int duongWrongCells(JsonNode level, MinigameAttempt attempt) {
+        Map<String, String> last = lastDrops(attempt);
+        int wrong = 0;
+        for (JsonNode cell : level.path("cells")) {
+            if (!cell.has("rotation")) {
+                continue;
+            }
+            int expected = cell.path("rotation").asInt();
+            Integer actual = parseRotation(last.get(cell.path("id").asText()));
+            int period = "straight".equals(cell.path("kind").asText()) ? 2 : 4;
+            if (actual == null || Math.floorMod(actual, period) != Math.floorMod(expected, period)) {
+                wrong++;
             }
         }
-        for (Map.Entry<String, String> entry : answer.entrySet()) {
-            if (!entry.getValue().equals(last.get(entry.getKey()))) {
-                return 0;
-            }
+        return wrong;
+    }
+
+    private static Integer parseRotation(String value) {
+        if (value == null) {
+            return null;
         }
-        return 3;
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     static int gradeImLang(JsonNode level, MinigameAttempt attempt) {

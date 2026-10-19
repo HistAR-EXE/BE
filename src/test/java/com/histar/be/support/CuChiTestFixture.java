@@ -26,6 +26,7 @@ public class CuChiTestFixture {
 
     public static final String KEY_A = "scene:golden-path-a";
     public static final String KEY_B = "scene:golden-path-b";
+    public static final String CHECKIN_KEY = "checkin:golden-path";
     public static final String ARTIFACT_KEY = "artifact:golden-linked";
 
     private final LocationRepository locationRepository;
@@ -72,8 +73,11 @@ public class CuChiTestFixture {
                 .story("Secret")
                 .pointsReward(150)
                 .stepDiscoveryKeys(KEY_A + "," + KEY_B)
-                .stepsTotal(2)
+                .stepsTotal(3)
                 .requiredOrder(1)
+                // Nhiệm vụ v2: "khám phá rồi check-in" là nhiệm vụ Tại di tích có bước check-in trong quest_steps.
+                .track("ONSITE")
+                .requireOnsiteCheckin(true)
                 .build());
 
         questStepRepository.save(QuestStep.builder()
@@ -89,6 +93,13 @@ public class CuChiTestFixture {
                 .unlockKey(KEY_B)
                 .title("Discover Phòng họp")
                 .actionType("tour")
+                .build());
+        questStepRepository.save(QuestStep.builder()
+                .quest(quest)
+                .stepOrder(3)
+                .unlockKey(CHECKIN_KEY)
+                .title("Check-in tại di tích")
+                .actionType("checkin")
                 .build());
 
         badgeRepository.save(Badge.builder()

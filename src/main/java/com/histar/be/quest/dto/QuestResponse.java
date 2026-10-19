@@ -1,6 +1,7 @@
 package com.histar.be.quest.dto;
 
 import com.histar.be.quest.entity.Quest;
+import com.histar.be.quest.rules.QuestRules;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +22,13 @@ public record QuestResponse(
         List<QuestStepResponse> steps,
         UUID unlockAfterQuestId,
         String unlockDiscoveryKeys,
-        QuestRewardSummary rewardSummary
+        QuestRewardSummary rewardSummary,
+        /** ONLINE · ONSITE (v2). */
+        String track,
+        Integer sortOrder,
+        /** EASY · MEDIUM · HARD (v2). */
+        String difficulty,
+        Integer estimatedMinutes
 ) {
 
     public static QuestResponse from(Quest quest) {
@@ -48,7 +55,11 @@ public record QuestResponse(
                 stepResponses,
                 quest.getUnlockAfterQuestId(),
                 quest.getUnlockDiscoveryKeys(),
-                QuestRewardSummary.from(quest)
+                QuestRewardSummary.from(quest),
+                QuestRules.normalizeTrack(quest.getTrack()),
+                quest.getSortOrder(),
+                quest.getDifficulty(),
+                quest.getEstimatedMinutes()
         );
     }
 }

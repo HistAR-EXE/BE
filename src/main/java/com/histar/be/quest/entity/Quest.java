@@ -76,6 +76,24 @@ public class Quest {
     @Builder.Default
     private Boolean requireOnsiteCheckin = false;
 
+    // ----- NHIỆM VỤ V2 -----
+    /** ONLINE (làm từ xa) hoặc ONSITE (phải có mặt tại di tích). */
+    @Column(name = "track", nullable = false, length = 16)
+    @Builder.Default
+    private String track = "ONLINE";
+
+    /** Thứ tự hiển thị trong cùng di tích + nhóm. */
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private Integer sortOrder = 100;
+
+    /** EASY / MEDIUM / HARD. */
+    @Column(name = "difficulty", length = 16)
+    private String difficulty;
+
+    @Column(name = "estimated_minutes")
+    private Integer estimatedMinutes;
+
     // ----- THÊM MỚI QUAN HỆ VỚI QUEST_STEPS -----
     @OneToMany(mappedBy = "quest", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("stepOrder ASC")

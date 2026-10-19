@@ -20,6 +20,8 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
 
     boolean existsByUserIdAndLocationId(UUID userId, UUID locationId);
 
+    List<Checkin> findByUserIdAndLocationId(UUID userId, UUID locationId);
+
     List<Checkin> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     /** Live board: check-ins of a set of users since {@code since}. */

@@ -1,6 +1,9 @@
 package com.histar.be.minigame.service;
 
+import com.histar.be.checkin.repository.CheckinRepository;
+import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.minigame.dto.MinigameProgressItem;
 import com.histar.be.minigame.dto.MinigameResponse;
 import com.histar.be.minigame.dto.MinigameSubmitResponse;
@@ -10,6 +13,7 @@ import com.histar.be.minigame.repository.StationMinigameRepository;
 import com.histar.be.minigame.repository.StationMinigameScoreRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -22,8 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MinigameService {
 
+    /** Mini game của trạm còn khoá vì người chơi chưa check-in (quét QR) tại chính trạm đó. */
+    public static final String LOCK_CHECKIN = "CHECKIN";
+
     private final StationMinigameRepository minigameRepository;
     private final StationMinigameScoreRepository scoreRepository;
+    private final CheckinRepository checkinRepository;
+    private final LocationRepository locationRepository;
 
     public List<MinigameResponse> listForStation(String siteCode, String stationCode, UUID userId) {
         List<StationMinigame> games =
@@ -36,8 +45,30 @@ public class MinigameService {
                                 StationMinigameScore::getScore,
                                 Math::max));
         return games.stream()
-                .map(g -> MinigameResponse.from(g, bestByGame.get(g.getId())))
+                .map(g -> {
+                    boolean unlocked = checkedIn(userId, g.getSiteCode(), g.getStationCode());
+                    return MinigameResponse.from(g, bestByGame.get(g.getId()), unlocked, unlocked ? null : LOCK_CHECKIN);
+                })
                 .toList();
+    }
+
+    /**
+     * Đã quét QR tại trạm này chưa. Điểm đã lưu cũng mở khoá: người chơi từng check-in rồi chơi xong
+     * vẫn xem lại được, kể cả khi dữ liệu check-in cũ bị dọn.
+     */
+    public boolean checkedIn(UUID userId, String siteCode, String stationCode) {
+        if (userId == null || stationCode == null || stationCode.isBlank()) {
+            return false;
+        }
+        UUID locationId = locationRepository
+                .findBySiteCodeIgnoreCase(siteCode == null ? "" : siteCode.trim().toLowerCase(Locale.ROOT))
+                .map(loc -> loc.getId())
+                .orElse(null);
+        if (locationId == null) {
+            return false;
+        }
+        return checkinRepository.existsByUserIdAndLocationIdAndStationCodeIgnoreCase(
+                userId, locationId, stationCode.trim());
     }
 
     public StationMinigame requireGame(UUID minigameId) {
@@ -46,7 +77,11 @@ public class MinigameService {
 
     @Transactional
     public MinigameSubmitResponse submit(UUID userId, UUID minigameId, int score) {
-        requireGame(minigameId);
+        StationMinigame game = requireGame(minigameId);
+        if (!checkedIn(userId, game.getSiteCode(), game.getStationCode())) {
+            throw new BusinessRuleException(
+                    "Mini game trạm " + game.getStationCode() + " chỉ mở sau khi check-in tại trạm");
+        }
         Instant now = Instant.now();
         var existing = scoreRepository.findByUserIdAndMinigameId(userId, minigameId);
         boolean newBest = false;

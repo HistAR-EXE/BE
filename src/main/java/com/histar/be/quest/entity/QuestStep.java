@@ -70,4 +70,14 @@ public class QuestStep {
 
     @Column(name = "minigame_id")
     private UUID minigameId;
+
+    /** Bước bắt buộc để hoàn thành nhiệm vụ (v2). */
+    @Column(name = "is_required", nullable = false)
+    @Builder.Default
+    private Boolean required = true;
+
+    /** Bước cần Premium — luôn là bước tùy chọn (v2). */
+    @Column(name = "is_premium", nullable = false)
+    @Builder.Default
+    private Boolean premium = false;
 }

@@ -17,7 +17,11 @@ public record QuestStepResponse(
         String chatPrompt,
         Integer portalEra,
         String previewImage,
-        UUID minigameId
+        UUID minigameId,
+        /** Bước bắt buộc để hoàn thành nhiệm vụ (v2). */
+        boolean required,
+        /** Bước cần Premium — luôn là tùy chọn (v2). */
+        boolean premium
 ) {
     public static QuestStepResponse from(QuestStep entity) {
         return new QuestStepResponse(
@@ -34,7 +38,9 @@ public record QuestStepResponse(
                 entity.getChatPrompt(),
                 entity.getPortalEra(),
                 entity.getPreviewImage(),
-                entity.getMinigameId()
+                entity.getMinigameId(),
+                !Boolean.TRUE.equals(entity.getPremium()) && !Boolean.FALSE.equals(entity.getRequired()),
+                Boolean.TRUE.equals(entity.getPremium())
         );
     }
 }

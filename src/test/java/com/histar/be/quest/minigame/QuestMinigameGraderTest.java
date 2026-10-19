@@ -2,6 +2,7 @@ package com.histar.be.quest.minigame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -127,6 +128,107 @@ class QuestMinigameGraderTest {
         assertEquals(3, QuestMinigameGrader.gradePhongVan(level, transcript("khoi bay, nguy trang, dia dao")));
         assertEquals(2, QuestMinigameGrader.gradePhongVan(level, transcript("KHOI va nguy trang")));
         assertEquals(0, QuestMinigameGrader.gradePhongVan(level, transcript("")));
+    }
+
+    @Test
+    void soiNapPendingHintsWarmthWithoutTarget() {
+        ObjectNode level = mapper.createObjectNode();
+        level.put("targetX", 50);
+        level.put("targetY", 50);
+        level.put("radius", 10);
+        QuestMinigameGrader.Grade far = QuestMinigameGrader.grade("soi_nap", mapper.createObjectNode(), level, taps(tap(0, 0, 500)));
+        assertFalse(far.resolved());
+        assertEquals("COLD", far.hint().get("warmth"));
+        assertEquals(1, far.hint().get("exposures"));
+        assertFalse(far.hint().containsKey("targetX"));
+        QuestMinigameGrader.Grade near = QuestMinigameGrader.grade("soi_nap", mapper.createObjectNode(), level,
+                taps(tap(0, 0, 500), tap(65, 50, 900)));
+        assertFalse(near.resolved());
+        assertEquals("HOT", near.hint().get("warmth"));
+        QuestMinigameGrader.Grade hit = QuestMinigameGrader.grade("soi_nap", mapper.createObjectNode(), level,
+                taps(tap(0, 0, 500), tap(52, 50, 900)));
+        assertTrue(hit.resolved());
+        assertEquals(2, hit.stars());
+        assertTrue(hit.hint().isEmpty());
+    }
+
+    @Test
+    void daoGapPendingHintsDirection() {
+        ObjectNode level = mapper.createObjectNode();
+        level.put("targetAngle", 20);
+        level.put("tolerance", 8);
+        QuestMinigameGrader.Grade low = QuestMinigameGrader.grade("dao_gap", mapper.createObjectNode(), level, angles(-40));
+        assertFalse(low.resolved());
+        assertEquals("HIGHER", low.hint().get("direction"));
+        assertEquals(false, low.hint().get("near"));
+        QuestMinigameGrader.Grade high = QuestMinigameGrader.grade("dao_gap", mapper.createObjectNode(), level, angles(-40, 35));
+        assertEquals("LOWER", high.hint().get("direction"));
+        assertEquals(true, high.hint().get("near"));
+        assertEquals(2, high.hint().get("tries"));
+    }
+
+    @Test
+    void xepTangKeepsPlayingUntilEveryCardIsRight() throws Exception {
+        ObjectNode level = (ObjectNode) mapper.readTree("""
+                {"id":"fn","items":[{"id":"a","floorId":"t1"},{"id":"b","floorId":"t2"}]}
+                """);
+        QuestMinigameGrader.Grade wrong = QuestMinigameGrader.grade("xep_tang", mapper.createObjectNode(), level,
+                new MinigameAttempt("fn", List.of(new MinigameAttempt.Drop("a", "t2"), new MinigameAttempt.Drop("b", "t2")), null, null, null));
+        assertFalse(wrong.resolved());
+        assertEquals(List.of("a"), wrong.hint().get("wrong"));
+        assertEquals(1, wrong.hint().get("mistakes"));
+        QuestMinigameGrader.Grade fixed = QuestMinigameGrader.grade("xep_tang", mapper.createObjectNode(), level,
+                new MinigameAttempt("fn", List.of(
+                        new MinigameAttempt.Drop("a", "t2"),
+                        new MinigameAttempt.Drop("b", "t2"),
+                        new MinigameAttempt.Drop("a", "t1")), null, null, null));
+        assertTrue(fixed.resolved());
+        assertEquals(2, fixed.stars());
+        java.util.List<MinigameAttempt.Drop> many = new java.util.ArrayList<>();
+        for (int i = 0; i < QuestMinigameGrader.XEP_TANG_MAX_MISTAKES; i++) {
+            many.add(new MinigameAttempt.Drop("a", "t3"));
+        }
+        many.add(new MinigameAttempt.Drop("b", "t2"));
+        QuestMinigameGrader.Grade givenUp = QuestMinigameGrader.grade("xep_tang", mapper.createObjectNode(), level,
+                new MinigameAttempt("fn", many, null, null, null));
+        assertTrue(givenUp.resolved());
+        assertEquals(0, givenUp.stars());
+    }
+
+    @Test
+    void duongKhoiTreatsStraightHalfTurnsAlikeAndScoresTime() throws Exception {
+        ObjectNode level = (ObjectNode) mapper.readTree("""
+                {"parMs":10000,"cells":[
+                  {"id":"a","kind":"straight","rotation":1},
+                  {"id":"b","kind":"elbow","rotation":2},
+                  {"id":"s","kind":"stove"}]}
+                """);
+        List<MinigameAttempt.Drop> solved = List.of(new MinigameAttempt.Drop("a", "3"), new MinigameAttempt.Drop("b", "2"));
+        assertEquals(3, QuestMinigameGrader.gradeDuongKhoi(level, new MinigameAttempt("dk", solved, null, null, 5000)));
+        assertEquals(2, QuestMinigameGrader.gradeDuongKhoi(level, new MinigameAttempt("dk", solved, null, null, 15000)));
+        assertEquals(1, QuestMinigameGrader.gradeDuongKhoi(level, new MinigameAttempt("dk", solved, null, null, 25000)));
+        QuestMinigameGrader.Grade wrong = QuestMinigameGrader.grade("duong_khoi", mapper.createObjectNode(), level,
+                new MinigameAttempt("dk", List.of(new MinigameAttempt.Drop("a", "0"), new MinigameAttempt.Drop("b", "0")), null, null, 4000));
+        assertFalse(wrong.resolved());
+        assertEquals(2, wrong.hint().get("wrongCells"));
+    }
+
+    @Test
+    void sanCoVatHotspotsReportProgressUntilAllFound() throws Exception {
+        ObjectNode level = (ObjectNode) mapper.readTree("""
+                {"timeLimitMs":10000,"radius":8,"hotspots":[{"x":10,"y":10},{"x":80,"y":80}]}
+                """);
+        QuestMinigameGrader.Grade one = QuestMinigameGrader.grade("san_co_vat", mapper.createObjectNode(), level, taps(1000, tap(10, 10, 0)));
+        assertFalse(one.resolved());
+        assertEquals(1, one.hint().get("found"));
+        assertEquals(true, one.hint().get("lastHit"));
+        QuestMinigameGrader.Grade miss = QuestMinigameGrader.grade("san_co_vat", mapper.createObjectNode(), level,
+                taps(1500, tap(10, 10, 0), tap(50, 50, 0)));
+        assertEquals(false, miss.hint().get("lastHit"));
+        QuestMinigameGrader.Grade done = QuestMinigameGrader.grade("san_co_vat", mapper.createObjectNode(), level,
+                taps(2000, tap(10, 10, 0), tap(50, 50, 0), tap(80, 80, 0)));
+        assertTrue(done.resolved());
+        assertEquals(2, done.stars());
     }
 
     private static MinigameAttempt taps(MinigameAttempt.Tap... taps) {

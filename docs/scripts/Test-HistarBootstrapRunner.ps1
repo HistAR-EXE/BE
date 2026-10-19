@@ -21,7 +21,7 @@ $runner = Get-Content -Raw -Encoding UTF8 $runnerPath
 foreach ($requiredText in @(
     '[switch]$Reset',
     'TimeLens_full_bootstrap.sql',
-    '$ExpectedMinFlywayVersion = 81',
+    '$ExpectedMinFlywayVersion = 85',
     'Refusing to overwrite an existing database without -Reset',
     'Bootstrap completed successfully',
     'docker cp',
@@ -39,7 +39,11 @@ foreach ($requiredMigration in @(
     'V78__station_latlng_cuuchi_placeholder.sql',
     'V79__seed_platform_accounts.sql',
     'V80__cu_chi_explore_archive_points.sql',
-    'V81__reward_integrity.sql'
+    'V81__reward_integrity.sql',
+    'V82__seed_demo_segment_accounts.sql',
+    'V83__quest_tracks_v2_schema.sql',
+    'V84__quest_tracks_v2_content.sql',
+    'V85__quest_media_and_minigames_v2.sql'
 )) {
     if (-not (Test-Path (Join-Path $PSScriptRoot "..\..\src\main\resources\db\migration\$requiredMigration"))) {
         throw "Bootstrap runner smoke check is missing: $requiredMigration"

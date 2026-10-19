@@ -18,6 +18,8 @@ import com.histar.be.quest.minigame.QuestMinigame;
 import com.histar.be.quest.minigame.QuestMinigameRepository;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.repository.QuestStepRepository;
+import com.histar.be.quest.rules.QuestRules;
+import com.histar.be.quest.rules.QuestStepDefs;
 import com.histar.be.quest.service.impl.QuestStepProgressServiceImpl;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,16 +75,36 @@ public class SeedConsistencyValidator {
             List<QuestStep> steps = questStepRepository.findByQuestId(quest.getId());
             validateQuestStepActions(quest, steps);
             if (Boolean.TRUE.equals(quest.getRequireOnsiteCheckin())
-                    && steps.stream().noneMatch(step -> "checkin".equals(step.getActionType()))) {
+                    && steps.stream().noneMatch(step -> "checkin".equals(step.getActionType())
+                            || "station".equals(step.getActionType()))) {
                 throw new SeedConsistencyException("Onsite quest " + quest.getId() + " is missing a check-in step");
             }
+            validateQuestTrack(quest, steps);
+        }
+    }
+
+    /** Nhiệm vụ v2: nhóm ONLINE không đòi có mặt; nhiệm vụ nào cũng có ít nhất một bước bắt buộc. */
+    private void validateQuestTrack(Quest quest, List<QuestStep> steps) {
+        String track = QuestRules.normalizeTrack(quest.getTrack());
+        if (QuestRules.TRACK_ONLINE.equals(track)
+                && steps.stream().anyMatch(step -> QuestRules.isOnsiteAction(step.getActionType(), step.getUnlockKey()))) {
+            throw new SeedConsistencyException("Online quest " + quest.getId()
+                    + " has an on-site step (station/checkin); move it to an ONSITE quest");
+        }
+        if (steps.stream().noneMatch(step -> QuestStepDefs.from(step).required())) {
+            throw new SeedConsistencyException("Quest " + quest.getId() + " has no required step");
         }
     }
 
     private void validateQuestDependencies(Quest quest) {
-        if (quest.getUnlockAfterQuestId() != null && !questRepository.existsById(quest.getUnlockAfterQuestId())) {
-            throw new SeedConsistencyException("Quest " + quest.getId()
-                    + " depends on missing quest: " + quest.getUnlockAfterQuestId());
+        if (quest.getUnlockAfterQuestId() != null) {
+            Quest previous = questRepository.findById(quest.getUnlockAfterQuestId()).orElseThrow(() ->
+                    new SeedConsistencyException("Quest " + quest.getId()
+                            + " depends on missing quest: " + quest.getUnlockAfterQuestId()));
+            if (!QuestRules.normalizeTrack(previous.getTrack()).equals(QuestRules.normalizeTrack(quest.getTrack()))) {
+                throw new SeedConsistencyException("Quest " + quest.getId()
+                        + " unlocks after a quest in another track: " + previous.getId());
+            }
         }
         if (quest.getUnlockDiscoveryKeys() == null || quest.getUnlockDiscoveryKeys().isBlank()) {
             return;
@@ -106,6 +128,9 @@ public class SeedConsistencyValidator {
                 throw new SeedConsistencyException("Quest " + quest.getId() + " has duplicate unlock_key: " + unlockKey);
             }
             String actionType = step.getActionType() == null ? "" : step.getActionType().trim();
+            if (Boolean.TRUE.equals(step.getPremium()) && !Boolean.FALSE.equals(step.getRequired())) {
+                throw new SeedConsistencyException("Premium step " + step.getId() + " must be optional");
+            }
             if ("dialogue".equals(actionType)
                     && (step.getChatPrompt() == null || step.getChatPrompt().isBlank())
                     && !hasBackendUnlockKey(quest.getLocationId(), unlockKey)) {
@@ -157,7 +182,8 @@ public class SeedConsistencyValidator {
     }
 
     private static boolean isDerivedUnlockKey(String unlockKey) {
-        return unlockKey.startsWith("era:") || unlockKey.startsWith("checkin:");
+        // station:<CODE> được kiểm bằng bảng stations/checkins, không cần discovery_points.
+        return unlockKey.startsWith("era:") || unlockKey.startsWith("checkin:") || unlockKey.startsWith("station:");
     }
 
     private void validateQuestSteps() {

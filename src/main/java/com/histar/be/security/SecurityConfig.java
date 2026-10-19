@@ -63,6 +63,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/panoramas/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v2/quests", "/api/v2/quests/*")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/sites/*/stations", "/api/sites/*/stations/*", "/api/sites/*/story", "/api/sites/*/pack", "/api/sites/*/pack/faq_offline.json", "/api/sites/*/stations/*/chat-prompts", "/api/sites/*/stations/*/games", "/api/sites/*/media-manifest")
                         .permitAll()
                         .requestMatchers("/ws/squad/**")

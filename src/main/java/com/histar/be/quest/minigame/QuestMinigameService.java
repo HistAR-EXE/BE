@@ -16,6 +16,7 @@ import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestUnlockGate;
 import com.histar.be.quest.service.QuestVisibility;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,7 @@ public class QuestMinigameService {
                 .map(UserGameResult::getBestStars)
                 .orElse(0);
         if (!grade.resolved()) {
-            return new MinigameAttemptResponse(0, false, "", "", false, 0, 0, true);
+            return new MinigameAttemptResponse(0, false, "", "", false, 0, 0, true, grade.hint());
         }
         resultRepository.upsert(UUID.randomUUID(), userId, gameId, grade.stars(), attempt.levelId());
         UserGameResult saved = resultRepository.findByUserIdAndGameId(userId, gameId).orElseThrow();
@@ -93,7 +94,8 @@ public class QuestMinigameService {
                 recorded,
                 discoveryXp,
                 saved.getAttempts(),
-                false);
+                false,
+                Map.of());
     }
 
     private void assertPlayable(UUID userId, UUID gameId) {

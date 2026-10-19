@@ -8,6 +8,8 @@ import com.histar.be.common.gamification.QuestStatus;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.quest.dto.QuestProgressResponse;
 import com.histar.be.quest.dto.QuestResponse;
+import com.histar.be.quest.dto.QuestStartOutcome;
+import com.histar.be.gamification.dto.QuestCompletedDto;
 import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
@@ -21,6 +23,7 @@ import com.histar.be.quest.progress.entity.UserQuestProgress;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.visit.repository.VisitSessionRepository;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +70,12 @@ public class QuestProgressServiceImpl implements QuestProgressService {
     @Override
     @Transactional
     public QuestProgressResponse startQuest(UUID userId, UUID questId) {
+        return startQuestWithOutcome(userId, questId).progress();
+    }
+
+    @Override
+    @Transactional
+    public QuestStartOutcome startQuestWithOutcome(UUID userId, UUID questId) {
         trialEntitlementGuard.assertStudentCanWrite(userId);
         Quest quest = questService.findById(questId);
         if (!questVisibility.visible(quest)) {
@@ -92,8 +101,9 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                 progress.setStepsTotal(counts.stepsTotal());
                 userQuestProgressRepository.save(progress);
             }
-            questCompletionService.tryComplete(userId, quest.getLocationId(), CompletionTrigger.START_QUEST);
-            return toProgress(userId, quest);
+            List<QuestCompletedDto> completed =
+                    questCompletionService.tryComplete(userId, quest.getLocationId(), CompletionTrigger.START_QUEST);
+            return new QuestStartOutcome(toProgress(userId, quest), completed);
         }
         if (!QuestStatus.NOT_STARTED.equals(progress.getStatus())) {
             throw new BusinessRuleException("Không thể bắt đầu quest từ trạng thái hiện tại");
@@ -115,8 +125,9 @@ public class QuestProgressServiceImpl implements QuestProgressService {
                 .orElse(null);
         analyticsEventService.recordQuestStarted(userId, quest.getLocationId(), questId, sessionId);
 
-        questCompletionService.tryComplete(userId, quest.getLocationId(), CompletionTrigger.START_QUEST);
-        return toProgress(userId, quest);
+        List<QuestCompletedDto> completed =
+                questCompletionService.tryComplete(userId, quest.getLocationId(), CompletionTrigger.START_QUEST);
+        return new QuestStartOutcome(toProgress(userId, quest), completed);
     }
 
     @Override
@@ -129,8 +140,13 @@ public class QuestProgressServiceImpl implements QuestProgressService {
         return toProgress(userId, quest);
     }
 
+    /** Lọc nhiệm vụ ẩn và sắp xếp ổn định theo sort_order rồi tiêu đề. */
     private List<Quest> visible(List<Quest> quests) {
-        return quests.stream().filter(questVisibility::visible).toList();
+        return quests.stream()
+                .filter(questVisibility::visible)
+                .sorted(Comparator.comparing((Quest q) -> q.getSortOrder() == null ? 100 : q.getSortOrder())
+                        .thenComparing(q -> q.getTitle() == null ? "" : q.getTitle()))
+                .toList();
     }
 
     private QuestProgressResponse toProgress(UUID userId, Quest quest) {

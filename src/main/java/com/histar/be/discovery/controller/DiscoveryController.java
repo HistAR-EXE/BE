@@ -31,6 +31,7 @@ public class DiscoveryController {
     private final TrialEntitlementGuard trialEntitlementGuard;
     private final com.histar.be.discovery.service.DiscoveryRewardService discoveryRewards;
     private final com.histar.be.discovery.service.VerifiedDialogueService verifiedDialogue;
+    private final com.histar.be.discovery.service.DirectDiscoveryPolicy directDiscoveryPolicy;
 
     @PostMapping("/me/discoveries/dialogue")
     public ApiResponse<RecordDiscoveryResponse> dialogue(
@@ -69,8 +70,7 @@ public class DiscoveryController {
         trialEntitlementGuard.assertStudentCanWrite(userId);
         String key = request.unlockKey();
         // This endpoint records viewing only. Challenges and server events have dedicated validators.
-        if (!(key.startsWith("scene:") || key.startsWith("photo:") || key.startsWith("hotspot:")
-                || key.startsWith("era:") || key.startsWith("depth:") || key.startsWith("tour:"))) {
+        if (!directDiscoveryPolicy.allows(request.locationId(), key)) {
             throw new com.histar.be.common.exception.BusinessRuleException(
                     "Hoạt động này cần được xác nhận qua luồng thử thách tương ứng.");
         }
