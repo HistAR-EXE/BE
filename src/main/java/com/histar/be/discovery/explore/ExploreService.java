@@ -12,6 +12,8 @@ import com.histar.be.organization.service.TrialEntitlementGuard;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.service.ProfileMeService;
 import com.histar.be.profile.service.ProfilePointsService;
+import com.histar.be.profile.entity.Profile;
+import com.histar.be.profile.repository.ProfileRepository;
 import jakarta.validation.constraints.*;
 import java.time.Instant;
 import java.util.*;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service @RequiredArgsConstructor
 public class ExploreService {
     private final ProfilePointsService points;
+    private final ProfileRepository profileRepository;
     private final ProfileMeService profiles;
     private final DiscoveryService discoveries;
     private final UserDiscoveryRepository userDiscoveries;
@@ -56,6 +59,18 @@ public class ExploreService {
     public Snapshot snapshot(UUID userId) {
         var profile = points.lockAccount(userId);
         badgeAwards.evaluateAndAward(userId);
+        return buildSnapshot(userId, profile);
+    }
+
+    /** Honors views display existing evidence without awarding badges or locking accounts for writes. */
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public Snapshot readSnapshot(UUID userId) {
+        var profile = profileRepository.findById(userId).orElseThrow(
+                () -> new com.histar.be.common.exception.AuthException("Vui lòng đăng nhập lại."));
+        return buildSnapshot(userId, profile);
+    }
+
+    private Snapshot buildSnapshot(UUID userId, Profile profile) {
         var earned = new HashMap<UUID, Instant>();
         badges.findByUserId(userId).forEach(b -> earned.put(b.getBadgeId(), b.getEarnedAt()));
         var progress = ExploreBadgeRules.evaluate(contexts.context(userId,

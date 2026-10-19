@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V85.
+-- Generated from schema, seed manifest, and Flyway migrations through V87.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -8674,6 +8674,100 @@ WHERE synopsis LIKE '%(nếu trên tuyến)%';
 
 -- END migration: V85__quest_media_and_minigames_v2.sql
 COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V86__cu_chi_quest_333_cover.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V86__cu_chi_quest_333_cover.sql
+-- ============================================================================
+-- Ảnh bìa nhiệm vụ 333 "Hành trình dưới lòng đất" là tệp duy nhất của Củ Chi còn nằm trên R2
+-- (/media/heritage/...), nên thẻ nhiệm vụ hiện ô xám khi R2 chưa sẵn. Đổi sang ảnh trong FE/public
+-- cho đồng bộ với 7 nhiệm vụ còn lại (V85). Ảnh này không trùng ảnh bước nào của nhiệm vụ.
+-- Chạy lại an toàn.
+
+UPDATE quests
+SET cover_image = '/images/cu-chi/loi-xuong-ham.jpg'
+WHERE id = '33333333-3333-3333-3333-333333333333'::uuid;
+
+-- END migration: V86__cu_chi_quest_333_cover.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V87__passport_mail_attempts.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V87__passport_mail_attempts.sql
+-- ============================================================================
+-- Reconcile both a new database and a table created earlier by Hibernate ddl-auto=update.
+-- Fail on incompatible/orphaned existing data; never silently remove user history.
+CREATE TABLE IF NOT EXISTS passport_mail_attempts (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    request_id UUID NOT NULL,
+    image_sha256 VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    state VARCHAR(16) NOT NULL
+);
+
+ALTER TABLE passport_mail_attempts
+    ALTER COLUMN user_id SET NOT NULL,
+    ALTER COLUMN request_id SET NOT NULL,
+    ALTER COLUMN image_sha256 SET NOT NULL,
+    ALTER COLUMN created_at SET NOT NULL,
+    ALTER COLUMN state SET NOT NULL;
+
+DO $passport_mail$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'fk_passport_mail_profile'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT fk_passport_mail_profile
+            FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'ck_passport_mail_image_hash'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT ck_passport_mail_image_hash
+            CHECK (image_sha256 ~ '^[0-9a-f]{64}$');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND conname = 'ck_passport_mail_state'
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT ck_passport_mail_state
+            CHECK (state IN ('CREATED','ACCEPTED','UNKNOWN'));
+    END IF;
+
+    -- Hibernate may already have generated the same unique constraint under a different name.
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'passport_mail_attempts'::regclass
+          AND contype IN ('u','p')
+          AND conkey = ARRAY[
+              (SELECT attnum FROM pg_attribute WHERE attrelid = 'passport_mail_attempts'::regclass AND attname = 'user_id'),
+              (SELECT attnum FROM pg_attribute WHERE attrelid = 'passport_mail_attempts'::regclass AND attname = 'request_id')
+          ]::smallint[]
+    ) THEN
+        ALTER TABLE passport_mail_attempts
+            ADD CONSTRAINT uq_passport_mail_user_request UNIQUE (user_id, request_id);
+    END IF;
+END;
+$passport_mail$;
+
+CREATE INDEX IF NOT EXISTS idx_passport_mail_user_created
+    ON passport_mail_attempts(user_id, created_at DESC);
+
+-- END migration: V87__passport_mail_attempts.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -8845,7 +8939,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V85
+-- Flyway baseline after full bootstrap: V87
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -8872,7 +8966,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '85', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '87', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

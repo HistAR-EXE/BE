@@ -53,6 +53,14 @@ public class HistarEmailService {
         }
     }
 
+    public void sendAttachment(String from, String to, String subject, String html, String filename, byte[] png) {
+        if (!mailProperties.isEnabled() || testHookProperties.isEnabled()) {
+            throw new EmailDeliveryException("Attachment delivery is unavailable");
+        }
+        AttachmentMailValidator.validate(from, to, subject, filename, png);
+        emailSender.sendAttachment(from, to, subject, html, filename, png);
+    }
+
     private String resolveProviderLabel() {
         String provider = mailProperties.getProvider();
         return provider != null && !provider.isBlank() ? provider.trim().toLowerCase() : "smtp";

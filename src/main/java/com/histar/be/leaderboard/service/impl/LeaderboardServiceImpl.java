@@ -1,197 +1,90 @@
 package com.histar.be.leaderboard.service.impl;
 
-import com.histar.be.billing.service.UsageQuotaService;
+import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.gamification.LevelCalculator;
+import com.histar.be.config.GamificationProperties;
 import com.histar.be.config.ViralProperties;
 import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.leaderboard.dto.LeaderboardEntryResponse;
 import com.histar.be.leaderboard.dto.LeaderboardResponse;
+import com.histar.be.leaderboard.repository.LeaderboardReadRepository;
+import com.histar.be.leaderboard.repository.LeaderboardReadRepository.RankedRow;
 import com.histar.be.leaderboard.service.LeaderboardService;
-import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
-@RequiredArgsConstructor
+@Service @RequiredArgsConstructor
 public class LeaderboardServiceImpl implements LeaderboardService {
-
-    private static final int FREE_ALL_SCOPE_MAX_ENTRIES = 10;
-
-    private final ProfileRepository profileRepository;
-    private final StudyGroupMemberRepository studyGroupMemberRepository;
-    private final ViralProperties viralProperties;
-    private final UsageQuotaService usageQuotaService;
-    private final Map<String, CachedLeaderboard> cache = new ConcurrentHashMap<>();
+    private final ProfileRepository profiles;
+    private final StudyGroupMemberRepository members;
+    private final ViralProperties properties;
+    private final GamificationProperties gamification;
+    private final LeaderboardReadRepository ranking;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public LeaderboardResponse getLeaderboard(String scope, String city, UUID currentUserId, UUID groupId) {
-        if (groupId != null) {
-            return getGroupLeaderboard(groupId, currentUserId);
-        }
-        String normalizedScope = scope == null ? "all" : scope.toLowerCase();
-        if ("school".equals(normalizedScope)) {
-            return getSchoolLeaderboard(currentUserId);
-        }
-        if (!normalizedScope.equals("all") && !normalizedScope.equals("city") && !normalizedScope.equals("week")) {
-            throw new BusinessRuleException("scope phải là all, city, week hoặc school");
-        }
-        if (normalizedScope.equals("city") && (city == null || city.isBlank())) {
-            throw new BusinessRuleException("scope=city cần tham số city");
-        }
-
-        boolean freeAllScopePreview = isFreeAllScopePreview(normalizedScope, currentUserId);
-        if (freeAllScopePreview) {
-            throw new BusinessRuleException("Bảng xếp hạng toàn cục yêu cầu gói Premium");
-        }
-
-        String cacheKey = normalizedScope + "|" + (city == null ? "" : city);
-        CachedLeaderboard cached = cache.get(cacheKey);
-        long now = System.currentTimeMillis();
-        if (cached != null && now - cached.cachedAtMs() < viralProperties.getLeaderboardCacheSeconds() * 1000L) {
-            return finalizeResponse(cached.response(), currentUserId, freeAllScopePreview);
-        }
-
-        List<Profile> profiles = loadProfiles(normalizedScope, city);
-        List<LeaderboardEntryResponse> entries = new ArrayList<>();
-        int rank = 1;
-        for (Profile profile : profiles) {
-            if (profile.getTotalPoints() == null) {
-                continue;
-            }
-            entries.add(new LeaderboardEntryResponse(
-                    rank++,
-                    profile.getId(),
-                    profile.getDisplayName() == null ? "Explorer" : profile.getDisplayName(),
-                    profile.getAvatarUrl(),
-                    profile.getTotalPoints(),
-                    false));
-        }
-
-        LeaderboardResponse response = new LeaderboardResponse(normalizedScope, city, entries, false);
-        cache.put(cacheKey, new CachedLeaderboard(response, now));
-        return finalizeResponse(response, currentUserId, freeAllScopePreview);
+        var access = resolveAccess(scope, city, currentUserId, groupId);
+        var profile = access.profile();
+        String normalized = access.scope();
+        String cityFilter = access.city();
+        UUID orgId = access.orgId();
+        int limit = 10;
+        List<RankedRow> rows = ranking.read(currentUserId, cityFilter, orgId, groupId, limit);
+        RankedRow me = rows.stream().filter(row -> row.userId().equals(currentUserId)).findFirst().orElse(null);
+        var entries = rows.stream().filter(row -> row.ordinal() <= limit).map(row -> entry(row, currentUserId)).toList();
+        var nearby = me == null ? List.<LeaderboardEntryResponse>of() : rows.stream()
+                .filter(row -> Math.abs(row.ordinal() - me.ordinal()) <= 2).map(row -> entry(row, currentUserId)).toList();
+        int points = Math.max(0, profile.getTotalPoints() == null ? 0 : profile.getTotalPoints());
+        String name = profile.getDisplayName() == null || profile.getDisplayName().isBlank() ? "Nhà thám hiểm" : profile.getDisplayName();
+        var viewer = me != null ? entry(me, currentUserId) : new LeaderboardEntryResponse(null, currentUserId,
+                name, profile.getAvatarUrl(), points, true, level(points), ranking.badgeCount(currentUserId));
+        long count = rows.isEmpty() ? 0 : rows.get(0).participants();
+        RankedRow cutoff = rows.stream().filter(row -> row.ordinal() == limit).findFirst().orElse(null);
+        Integer cutoffXp = cutoff == null ? null : cutoff.points();
+        long omitted = cutoff == null ? 0 : Math.max(0, cutoff.xpPeers() - rows.stream()
+                .filter(row -> row.ordinal() <= limit && row.points() == cutoff.points()).count());
+        return new LeaderboardResponse(normalized, cityFilter, entries, false, viewer, nearby, count, Instant.now(), limit, cutoffXp, omitted);
     }
 
-    private LeaderboardResponse getGroupLeaderboard(UUID groupId, UUID currentUserId) {
-        List<UUID> memberIds = studyGroupMemberRepository.findByGroupId(groupId).stream()
-                .map(m -> m.getUserId())
-                .toList();
-        if (memberIds.isEmpty()) {
-            return new LeaderboardResponse("group", null, List.of(), false);
+    public record ScopeAccess(String scope, String city, UUID orgId, com.histar.be.profile.entity.Profile profile) {}
+
+    /** Shared authorization only: optional stories never invoke the ranking query. */
+    public ScopeAccess resolveAccess(String scope, String city, UUID currentUserId, UUID groupId) {
+        if (currentUserId == null) throw new AuthException("Vui lòng đăng nhập để xem bảng vinh danh.");
+        String normalized = groupId != null ? "group" : scope == null ? "all" : scope.trim().toLowerCase(Locale.ROOT);
+        if (!List.of("all", "city", "school", "group").contains(normalized)) {
+            throw new BusinessRuleException("Bảng vinh danh chỉ ghi nhận thành tích toàn hành trình; phạm vi hợp lệ: all, city, school.");
         }
-        List<Profile> profiles = profileRepository.findAllById(memberIds).stream()
-                .filter(p -> p.getTotalPoints() != null)
-                .sorted((a, b) -> Integer.compare(b.getTotalPoints(), a.getTotalPoints()))
-                .limit(viralProperties.getLeaderboardLimit())
-                .toList();
-        List<LeaderboardEntryResponse> entries = new ArrayList<>();
-        int rank = 1;
-        for (Profile profile : profiles) {
-            entries.add(new LeaderboardEntryResponse(
-                    rank++,
-                    profile.getId(),
-                    profile.getDisplayName() == null ? "Explorer" : profile.getDisplayName(),
-                    profile.getAvatarUrl(),
-                    profile.getTotalPoints(),
-                    false));
+        if ("group".equals(normalized) && (groupId == null || members.findByGroupIdAndUserId(groupId, currentUserId).isEmpty())) {
+            throw new AccessDeniedException("Chỉ thành viên được xem bảng vinh danh của nhóm.");
         }
-        return applyCurrentUserHighlight(
-                new LeaderboardResponse("group", null, entries, false), currentUserId);
+        var profile = profiles.findById(currentUserId)
+                .orElseThrow(() -> new AuthException("Vui lòng đăng nhập lại để xem bảng vinh danh."));
+        UUID orgId = "school".equals(normalized) ? profile.getOrgId() : null;
+        if ("school".equals(normalized) && orgId == null) throw new BusinessRuleException("Tài khoản chưa thuộc trường nào.");
+        String cityFilter = "city".equals(normalized) && city != null ? city.trim() : null;
+        if ("city".equals(normalized) && (cityFilter == null || cityFilter.isBlank() || cityFilter.length() > 100)) {
+            throw new BusinessRuleException("Vui lòng chọn tên tỉnh/thành hợp lệ.");
+        }
+        return new ScopeAccess(normalized, cityFilter, orgId, profile);
     }
 
-    private LeaderboardResponse getSchoolLeaderboard(UUID currentUserId) {
-        if (currentUserId == null) {
-            throw new BusinessRuleException("Cần đăng nhập để xem bảng xếp hạng trường");
-        }
-        UUID orgId = profileRepository.findById(currentUserId)
-                .map(Profile::getOrgId)
-                .orElse(null);
-        if (orgId == null) {
-            throw new BusinessRuleException("Tài khoản chưa thuộc trường nào");
-        }
-        List<Profile> profiles = profileRepository.findLeaderboardByOrgId(
-                orgId, PageRequest.of(0, viralProperties.getLeaderboardLimit()));
-        return applyCurrentUserHighlight(new LeaderboardResponse("school", null, toEntries(profiles), false), currentUserId);
+    private LeaderboardEntryResponse entry(RankedRow row, UUID viewer) {
+        return new LeaderboardEntryResponse(row.rank(), row.userId(), row.displayName(), row.avatarUrl(),
+                row.points(), row.userId().equals(viewer), level(row.points()), row.badgeCount());
     }
 
-    private static List<LeaderboardEntryResponse> toEntries(List<Profile> profiles) {
-        List<LeaderboardEntryResponse> entries = new ArrayList<>();
-        int rank = 1;
-        for (Profile profile : profiles) {
-            entries.add(new LeaderboardEntryResponse(
-                    rank++, profile.getId(), profile.getDisplayName() == null ? "Explorer" : profile.getDisplayName(),
-                    profile.getAvatarUrl(), profile.getTotalPoints(), false));
-        }
-        return entries;
+    private int level(int points) {
+        return LevelCalculator.info(points, gamification.parseLevelThresholds(), gamification.parseLevelNames()).level();
     }
-
-    private boolean isFreeAllScopePreview(String normalizedScope, UUID currentUserId) {
-        if (!"all".equals(normalizedScope) || currentUserId == null) {
-            return false;
-        }
-        if (usageQuotaService.hasPremiumEntitlement(currentUserId)) {
-            return false;
-        }
-        return !hasArchivedOrgReadAccess(currentUserId);
-    }
-
-    private LeaderboardResponse finalizeResponse(
-            LeaderboardResponse source, UUID currentUserId, boolean freeAllScopePreview) {
-        if (freeAllScopePreview) {
-            List<LeaderboardEntryResponse> truncated = source.entries().stream()
-                    .limit(FREE_ALL_SCOPE_MAX_ENTRIES)
-                    .toList();
-            return new LeaderboardResponse(source.scope(), source.city(), truncated, true);
-        }
-        return applyCurrentUserHighlight(source, currentUserId);
-    }
-
-    private List<Profile> loadProfiles(String scope, String city) {
-        int limit = viralProperties.getLeaderboardLimit();
-        PageRequest page = PageRequest.of(0, limit);
-        Instant weekStart = "week".equals(scope) ? Instant.now().minus(7, ChronoUnit.DAYS) : null;
-        String cityParam = switch (scope) {
-            case "city" -> city;
-            case "week" -> (city != null && !city.isBlank() ? city : null);
-            default -> null;
-        };
-        return "week".equals(scope)
-                ? profileRepository.findLeaderboardSince(cityParam, weekStart, page)
-                : profileRepository.findLeaderboard(cityParam, page);
-    }
-
-    private boolean hasArchivedOrgReadAccess(UUID currentUserId) {
-        return profileRepository.findById(currentUserId)
-                .map(profile -> profile.getOrgId() != null)
-                .orElse(false);
-    }
-
-    private LeaderboardResponse applyCurrentUserHighlight(LeaderboardResponse source, UUID currentUserId) {
-        if (currentUserId == null || source.viewerRankLocked()) {
-            return source;
-        }
-        List<LeaderboardEntryResponse> entries = source.entries().stream()
-                .map(e -> new LeaderboardEntryResponse(
-                        e.rank(),
-                        e.userId(),
-                        e.displayName(),
-                        e.avatarUrl(),
-                        e.totalPoints(),
-                        currentUserId.equals(e.userId())))
-                .toList();
-        return new LeaderboardResponse(source.scope(), source.city(), entries, false);
-    }
-
-    private record CachedLeaderboard(LeaderboardResponse response, long cachedAtMs) {}
 }

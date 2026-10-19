@@ -35,10 +35,16 @@ $migrations = Get-ChildItem (Join-Path $beRoot 'src\main\resources\db\migration'
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
 
 $lastVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
-if ($lastVersion -ne '85') {
-    throw "Bootstrap smoke check expects the latest migration to be V85, found V$lastVersion."
+if ($lastVersion -ne '87') {
+    throw "Bootstrap smoke check expects the latest migration to be V87, found V$lastVersion."
 }
 Assert-Contains $bootstrap "'$lastVersion',"
+Assert-Contains $bootstrap 'CREATE TABLE IF NOT EXISTS passport_mail_attempts ('
+Assert-Contains $bootstrap 'fk_passport_mail_profile'
+Assert-Contains $bootstrap 'ck_passport_mail_image_hash'
+Assert-Contains $bootstrap 'ck_passport_mail_state'
+Assert-Contains $bootstrap 'uq_passport_mail_user_request'
+Assert-Contains $bootstrap 'idx_passport_mail_user_created'
 
 foreach ($migration in $migrations) {
     Assert-Contains $bootstrap "BEGIN migration: $($migration.Name)"
@@ -55,7 +61,9 @@ foreach ($requiredMigration in @(
     'V82__seed_demo_segment_accounts.sql',
     'V83__quest_tracks_v2_schema.sql',
     'V84__quest_tracks_v2_content.sql',
-    'V85__quest_media_and_minigames_v2.sql'
+    'V85__quest_media_and_minigames_v2.sql',
+    'V86__cu_chi_quest_333_cover.sql',
+    'V87__passport_mail_attempts.sql'
 )) {
     Assert-Contains $bootstrap "BEGIN migration: $requiredMigration"
 }

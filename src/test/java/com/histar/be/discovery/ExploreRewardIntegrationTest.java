@@ -66,6 +66,16 @@ class ExploreRewardIntegrationTest {
         return explore.submit(who, new ExploreService.AttemptRequest(ExploreChallengeCatalog.LOCATION, key, answer));
     }
 
+    @Test void honorsSummaryMustNotAwardEligibleBadgesOrWriteXp() {
+        UUID viewer = account(50);
+        long beforeBadges = jdbc.queryForObject("select count(*) from user_badges where user_id = ?", Long.class, viewer);
+        long beforeLedger = ledger.count();
+        var summary = explore.readSnapshot(viewer);
+        assertEquals(50, summary.profile().totalPoints());
+        assertEquals(beforeBadges, jdbc.queryForObject("select count(*) from user_badges where user_id = ?", Long.class, viewer));
+        assertEquals(beforeLedger, ledger.count());
+    }
+
     @Test void gradeRetryAndReplayPersistOnlyOneReward() {
         assertFalse(submit(user, "depth_quiz:surface", 0).passed());
         assertEquals(0, explore.snapshot(user).profile().totalPoints());

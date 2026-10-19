@@ -25,7 +25,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 85
+$ExpectedMinFlywayVersion = 87
 
 function Assert-SafeIdentifier([string]$Value, [string]$Label) {
     if ($Value -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
@@ -166,7 +166,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V85) ---
+# --- Smoke checks for recent Flyway chain (V70–V87) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -258,6 +258,20 @@ if ([int]$questMediaMinigameReady -ne 1) {
     throw "Bootstrap baselined at V$lastVersion but V85 Quest media/mini-game content is missing."
 }
 
+# V86: the Củ Chi quest cover uses the local FE asset.
+$cuChiQuestCoverReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM quests WHERE id = '33333333-3333-3333-3333-333333333333' AND cover_image = '/images/cu-chi/loi-xuong-ham.jpg';") -join '').Trim()
+if ([int]$cuChiQuestCoverReady -ne 1) {
+    throw "Bootstrap baselined at V$lastVersion but V86 Củ Chi quest cover is missing."
+}
+
+# V87: passport attempts require the enforced owner/hash/state/idempotency constraints and quota index.
+$passportMailReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT (SELECT COUNT(*) FROM pg_constraint WHERE conrelid = to_regclass('public.passport_mail_attempts') AND conname IN ('fk_passport_mail_profile','ck_passport_mail_image_hash','ck_passport_mail_state','uq_passport_mail_user_request')) + CASE WHEN to_regclass('public.idx_passport_mail_user_created') IS NOT NULL THEN 1 ELSE 0 END;") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $passportMailReady -ne '5') {
+    throw "Bootstrap baselined at V$lastVersion but V87 passport mail attempts constraints/index are incomplete ($passportMailReady/5)."
+}
+
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."
 Write-Host "V71 billing CRM seed inquiries: $crmSeeded."
@@ -272,6 +286,8 @@ Write-Host "V82 verified demo segment accounts: $demoSegmentAccounts/3."
 Write-Host "V83 Quest v2 metadata columns: $questTrackColumns/6."
 Write-Host "V84 Củ Chi onsite quest steps: $cuChiQuestTrackContent/6."
 Write-Host 'V85 Quest media and mini-game content: ready.'
+Write-Host 'V86 Củ Chi quest cover: ready.'
+Write-Host 'V87 passport mail attempts table and constraints: ready.'
 Write-Host 'Hard-refresh Admin Organizations / Billing CRM / Analytics / Audit after bootstrap.'
 if (-not $SkipDashboardRevenueSeed) {
     Write-Host 'Admin dashboard revenue demo seed applied (B2C/B2B 6-month chart + sample audit).'

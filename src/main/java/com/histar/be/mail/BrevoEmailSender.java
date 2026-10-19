@@ -37,6 +37,21 @@ public class BrevoEmailSender implements EmailSender {
         sendHtml(to, subject, "<p>" + escapeHtml(text) + "</p>");
     }
 
+    @Override
+    public void sendAttachment(String from, String to, String subject, String html, String filename, byte[] png) {
+        AttachmentMailValidator.validate(from, to, subject, filename, png);
+        var request = new BrevoEmailRequest(parseSender(from),
+                List.of(new BrevoEmailRequest.Recipient(to)), subject, html,
+                List.of(new BrevoEmailRequest.Attachment(filename,
+                        java.util.Base64.getEncoder().encodeToString(png))));
+        try {
+            brevoWebClient.post().uri("/smtp/email").bodyValue(request).retrieve()
+                    .bodyToMono(Void.class).block(java.time.Duration.ofSeconds(20));
+        } catch (Exception ex) {
+            throw new EmailDeliveryException("Brevo attachment delivery failed");
+        }
+    }
+
     private BrevoEmailRequest.Sender parseSender(String fromConfig) {
         if (fromConfig == null || fromConfig.isBlank()) {
             throw new IllegalArgumentException("MAIL_FROM cannot be empty");
