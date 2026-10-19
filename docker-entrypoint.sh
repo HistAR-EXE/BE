@@ -61,8 +61,8 @@ JAVA_OPTS="${JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:M
 echo "[INFO] JAVA_OPTS=${JAVA_OPTS}"
 
 # shellcheck disable=SC2086
-exec java ${JAVA_OPTS} -jar \
+exec java ${JAVA_OPTS} \
   -Dserver.address=0.0.0.0 \
   -Dserver.port="${PORT:-8080}" \
   -Dspring.profiles.active="${SPRING_PROFILES_ACTIVE:-prod}" \
-  app.jar
+  -jar app.jar

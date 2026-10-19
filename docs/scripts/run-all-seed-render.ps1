@@ -5,7 +5,7 @@
 #
 # Safe default flow:
 #   1. Validate the external connection.
-#   2. Apply pending Flyway migrations (through the latest V__ file).
+#   2. Apply pending Flyway migrations (through the latest V__ file; currently V87).
 #   3. Apply the ordered seed manifest.
 #   4. Verify the latest Flyway version is successful.
 #
@@ -30,6 +30,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $beRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $beRoot
+$ExpectedMinimumFlywayVersion = 87
 
 if (-not $ConfirmProduction) {
     throw 'This script writes to an external database. Re-run with -ConfirmProduction after verifying the Render External Database URL and taking a backup.'
@@ -77,6 +78,7 @@ if (-not $DatabaseUrl) {
     throw "No Render database connection found. Set DATABASE_URL or PGHOST/PGPORT/PGDATABASE in $EnvFile."
 }
 
+$DatabaseUrl = $DatabaseUrl -replace '^postgres://', 'postgresql://'
 if ($DatabaseUrl -notmatch '^postgres(?:ql)?://') {
     throw 'DATABASE_URL must be a PostgreSQL URL beginning with postgresql://.'
 }
@@ -88,6 +90,11 @@ if ($connectionUri.Host -in @('localhost', '127.0.0.1', '::1', 'histar-postgres'
 
 if (-not $AllowNonRenderHost -and $connectionUri.Host -notmatch '(^|\.)render\.com$') {
     throw "Host '$($connectionUri.Host)' is not a Render PostgreSQL host. Use the Render External Database URL or pass -AllowNonRenderHost explicitly for an approved external Postgres."
+}
+
+if ($connectionUri.Host -match '(^|\.)render\.com$' -and $DatabaseUrl -notmatch '(?i)(^|[?&])sslmode=require(&|$)') {
+    $separator = if ($DatabaseUrl.Contains('?')) { '&' } else { '?' }
+    $DatabaseUrl = "$DatabaseUrl${separator}sslmode=require"
 }
 
 if (-not $DatabaseUser) {
@@ -117,7 +124,17 @@ $migrations = @(Get-ChildItem -LiteralPath $migrationDir -Filter 'V*__*.sql' |
 if ($migrations.Count -eq 0) {
     throw "No Flyway migrations found in $migrationDir"
 }
+$duplicateVersions = @($migrations |
+    Group-Object { [regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value } |
+    Where-Object Count -gt 1)
+if ($duplicateVersions.Count -gt 0) {
+    $duplicates = ($duplicateVersions | ForEach-Object { "V$($_.Name): $($_.Group.Name -join ', ')" }) -join '; '
+    throw "Duplicate Flyway migration versions found: $duplicates"
+}
 $latestVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
+if ([int]$latestVersion -lt $ExpectedMinimumFlywayVersion) {
+    throw "Expected migrations through at least V$ExpectedMinimumFlywayVersion, but the repository only contains V$latestVersion."
+}
 
 if (-not (Test-Path -LiteralPath (Join-Path $beRoot 'mvnw.cmd'))) {
     throw 'BE/mvnw.cmd was not found.'

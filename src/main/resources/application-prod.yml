@@ -25,9 +25,14 @@ spring:
     placeholder-replacement: false
     locations: classpath:db/migration
   data:
+    redis:
+      repositories:
+        enabled: false
     jpa:
       repositories:
-        bootstrap-mode: deferred
+        # Render Free has limited CPU; initialize repositories on first use so
+        # the web server can bind to $PORT before the full repository graph loads.
+        bootstrap-mode: lazy
   jpa:
     hibernate:
       ddl-auto: validate
