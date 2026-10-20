@@ -16,9 +16,10 @@ spring:
     hikari:
       maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:2}
       minimum-idle: 1
-  # Schema is applied from laptop (scripts/flyway-migrate-render.ps1). Skip on boot to save free-tier time.
+  # Apply versioned migrations before Hibernate validates newly deployed entities.
+  # Override only when migrations have already been applied by a deployment job.
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: true
     baseline-version: 13
     encoding: UTF-8

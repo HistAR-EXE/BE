@@ -27,7 +27,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 88
+$ExpectedMinFlywayVersion = 90
 
 $migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
@@ -293,6 +293,13 @@ $vietnameseContentReady = (@(& docker exec $Container psql -U $DbUser -d $Databa
 if ($LASTEXITCODE -ne 0 -or $vietnameseContentReady -ne '1') {
     throw "Bootstrap baselined at V$lastVersion but V88 Vietnamese content repair is missing."
 }
+
+# V89/V90: authenticated per-artifact AR email reservations.
+$arMailReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='ar_card_mail_attempts' AND column_name='artifact_id';") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $arMailReady -ne '1') {
+    throw "Bootstrap baselined at V$lastVersion but selected-artifact AR mail schema is missing."
+}
+Write-Host 'V89/V90 AR mail attempts and selected artifact: ready.'
 
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."

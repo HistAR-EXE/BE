@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class PassportMailNoStoreFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
         String path=request.getRequestURI().substring(request.getContextPath().length());
-        if(path.equals("/api/leaderboard/passport/email") || path.startsWith("/api/leaderboard/passport/email/"))response.setHeader("Cache-Control","private, no-store");
+        if(path.equals("/api/ar/cards/email") || path.startsWith("/api/ar/cards/email/") || path.equals("/api/leaderboard/passport/email") || path.startsWith("/api/leaderboard/passport/email/"))response.setHeader("Cache-Control","private, no-store");
         chain.doFilter(request,response);
     }
 }

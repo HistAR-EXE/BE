@@ -29,6 +29,16 @@ public class ResendEmailSender implements EmailSender {
     }
 
     @Override
+    public void sendHtmlBounded(String to, String subject, String html) {
+        var recipient=EmailRecipientValidator.requireRecipient(to);
+        var request=new ResendEmailRequest(resolveFromAddress(), new String[]{recipient}, subject, html);
+        try {
+            resendWebClient.post().uri("/emails").bodyValue(request).retrieve()
+                .bodyToMono(Void.class).block(java.time.Duration.ofSeconds(20));
+        } catch(Exception error) { throw new EmailDeliveryException("Resend HTML delivery failed"); }
+    }
+
+    @Override
     public void sendText(String to, String subject, String text) {
         String recipient = EmailRecipientValidator.requireRecipient(to);
         String html = "<p>" + escapeHtml(text) + "</p>";

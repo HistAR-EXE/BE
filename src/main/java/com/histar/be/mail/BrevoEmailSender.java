@@ -33,6 +33,16 @@ public class BrevoEmailSender implements EmailSender {
     }
 
     @Override
+    public void sendHtmlBounded(String to, String subject, String html) {
+        var recipient=EmailRecipientValidator.requireRecipient(to);
+        var request=new BrevoEmailRequest(parseSender(mailProperties.getFrom()), List.of(new BrevoEmailRequest.Recipient(recipient)), subject, html);
+        try {
+            brevoWebClient.post().uri("/smtp/email").bodyValue(request).retrieve()
+                .bodyToMono(Void.class).block(java.time.Duration.ofSeconds(20));
+        } catch(Exception error) { throw new EmailDeliveryException("Brevo HTML delivery failed"); }
+    }
+
+    @Override
     public void sendText(String to, String subject, String text) {
         sendHtml(to, subject, "<p>" + escapeHtml(text) + "</p>");
     }

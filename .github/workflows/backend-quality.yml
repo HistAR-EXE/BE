@@ -20,7 +20,7 @@ jobs:
       - run: ./mvnw test
 
   bootstrap-pgvector:
-    name: Bootstrap V87 on PostgreSQL pgvector
+    name: Bootstrap migrations on PostgreSQL pgvector
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -58,8 +58,15 @@ jobs:
           -DbUser timelens
           -Reset
 
-      - name: Verify pgvector extension and V87 baseline
-        shell: bash
+      - name: Verify pgvector extension and latest baseline
+        shell: pwsh
         run: |
-          docker exec histar-postgres psql -U timelens -d timelens_ci -v ON_ERROR_STOP=1 -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
-          test "$(docker exec histar-postgres psql -U timelens -d timelens_ci -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM flyway_schema_history WHERE version = '87' AND type = 'BASELINE' AND success = TRUE;")" = "1"
+          $latest = Get-ChildItem src/main/resources/db/migration -Filter 'V*__*.sql' |
+            Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) } |
+            Select-Object -Last 1
+          $version = [regex]::Match($latest.Name, '^V(\d+)__').Groups[1].Value
+          if ($version -notmatch '^\d+$') { throw 'Missing migration version' }
+          $vector = & docker exec histar-postgres psql -U timelens -d timelens_ci -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_extension WHERE extname = 'vector';"
+          if ($LASTEXITCODE -ne 0 -or ($vector -join '').Trim() -ne '1') { throw 'pgvector not installed' }
+          $baseline = & docker exec histar-postgres psql -U timelens -d timelens_ci -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM flyway_schema_history WHERE version = '$version' AND type = 'BASELINE' AND success = TRUE;"
+          if ($LASTEXITCODE -ne 0 -or ($baseline -join '').Trim() -ne '1') { throw "Missing V$version baseline" }

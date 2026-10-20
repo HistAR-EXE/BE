@@ -1,20 +1,22 @@
 $beRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $workspaceRoot = Split-Path $beRoot -Parent
+$latestVersion = (Get-ChildItem (Join-Path $beRoot 'src/main/resources/db/migration') -Filter 'V*__*.sql' | ForEach-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) } | Measure-Object -Maximum).Maximum
 
 Describe 'database bootstrap runners' {
-    It 'validates the Render migration and seed runner through V88 without connecting' {
+    It 'validates the Render migration and seed runner through the latest migration without connecting' {
         $output = & (Join-Path $beRoot 'docs\scripts\run-all-seed-render.ps1') -ValidateOnly 2>&1
-        ($output -join "`n") | Should Match 'latest migration: V88'
+        ($output -join "`n") | Should Match "latest migration: V$latestVersion"
     }
 
-    It 'validates the full local bootstrap runner through V88 without Docker' {
+    It 'validates the full local bootstrap runner through the latest migration without Docker' {
         $output = & (Join-Path $beRoot 'docs\scripts\bootstrap-local-db.ps1') -ValidateOnly 2>&1
-        ($output -join "`n") | Should Match 'latest migration: V88'
+        ($output -join "`n") | Should Match "latest migration: V$latestVersion"
     }
 
-    It 'discovers V88 in the workspace local bootstrap runner instead of a hard-coded version' {
+    # The workspace convenience runner is not part of a standalone BE checkout.
+    It 'discovers the latest migration in the workspace local bootstrap runner instead of a hard-coded version' -Skip:(-not (Test-Path (Join-Path $workspaceRoot 'scripts\bootstrap-local-db.ps1'))) {
         $output = & (Join-Path $workspaceRoot 'scripts\bootstrap-local-db.ps1') -ValidateOnly 2>&1
-        ($output -join "`n") | Should Match 'latest migration: V88'
+        ($output -join "`n") | Should Match "latest migration: V$latestVersion"
     }
 
     It 'adds a host-side DNS address to the Docker psql connection URI' {
