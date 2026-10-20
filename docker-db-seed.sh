@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+export PGCLIENTENCODING=UTF8
+
 echo "Waiting for Postgres..."
 until pg_isready -h postgres -U "${PGUSER}" -d "${PGDATABASE}" >/dev/null 2>&1; do
   sleep 2

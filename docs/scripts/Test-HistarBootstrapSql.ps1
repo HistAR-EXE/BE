@@ -35,8 +35,8 @@ $migrations = Get-ChildItem (Join-Path $beRoot 'src\main\resources\db\migration'
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
 
 $lastVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
-if ($lastVersion -ne '87') {
-    throw "Bootstrap smoke check expects the latest migration to be V87, found V$lastVersion."
+if ($lastVersion -ne '88') {
+    throw "Bootstrap smoke check expects the latest migration to be V88, found V$lastVersion."
 }
 Assert-Contains $bootstrap "'$lastVersion',"
 Assert-Contains $bootstrap 'CREATE TABLE IF NOT EXISTS passport_mail_attempts ('
@@ -63,10 +63,14 @@ foreach ($requiredMigration in @(
     'V84__quest_tracks_v2_content.sql',
     'V85__quest_media_and_minigames_v2.sql',
     'V86__cu_chi_quest_333_cover.sql',
-    'V87__passport_mail_attempts.sql'
+    'V87__passport_mail_attempts.sql',
+    'V88__repair_vietnamese_content.sql'
 )) {
     Assert-Contains $bootstrap "BEGIN migration: $requiredMigration"
 }
+
+Assert-Contains $bootstrap 'Địa đạo Củ Chi'
+Assert-Contains $bootstrap 'Hành trình dưới lòng đất'
 
 $lastMigrationMarker = "BEGIN migration: $($migrations[-1].Name)"
 $lastMigrationIndex = $bootstrap.IndexOf($lastMigrationMarker)

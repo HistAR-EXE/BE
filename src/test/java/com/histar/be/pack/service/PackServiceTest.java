@@ -16,24 +16,29 @@ class PackServiceTest {
             "https://media.example.com/", Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
 
     @Test
-    void liteHasHeroThumbAndStationVideos() {
+    void liteContainsOnlyPublishedOfflineAssets() {
         PackManifestResponse res = service.build("cu-chi", "lite");
         assertThat(res.tier()).isEqualTo("lite");
         assertThat(res.siteCode()).isEqualTo("cu-chi");
         assertThat(res.generatedAt()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
-        // hero + thumb (required) + 6 station intro videos (optional)
-        assertThat(res.assets()).hasSize(8);
+        // Hero + five current-day scene images that are published in the Củ Chi media manifest.
+        assertThat(res.assets()).hasSize(6);
         assertThat(res.assets().get(0).url()).isEqualTo("https://media.example.com/media/cu-chi/map/hero.jpg");
-        assertThat(res.assets().stream().filter(a -> a.required())).hasSize(2);
+        assertThat(res.assets()).allMatch(a -> a.required());
+        assertThat(res.assets()).noneMatch(a ->
+                a.path().contains("/thumbs/") || a.path().endsWith("/video/intro.mp4"));
     }
 
     @Test
-    void fullAddsOptionalAmbientsAndFaq() {
+    void fullAddsPublishedPanoramasArtifactAndFaq() {
         PackManifestResponse res = service.build("cu-chi", "FULL");
         assertThat(res.tier()).isEqualTo("full");
-        // 2 required + 6 videos + 6 ambients + site video + narration + faq = 17
-        assertThat(res.assets()).hasSize(17);
-        assertThat(res.assets().stream().filter(a -> !a.required())).hasSize(15);
+        // Lite (6) + five published panoramas + one artifact + offline FAQ.
+        assertThat(res.assets()).hasSize(13);
+        assertThat(res.assets()).anyMatch(a -> a.path().endsWith("/panoramas/duong-vao.jpg"));
+        assertThat(res.assets()).anyMatch(a -> a.path().endsWith("/artifacts/trung-bay-vu-khi.png"));
+        assertThat(res.assets()).noneMatch(a ->
+                a.path().endsWith("/audio/narration-vi.mp3") || a.path().endsWith("/audio/ambient.mp3"));
     }
 
     @Test

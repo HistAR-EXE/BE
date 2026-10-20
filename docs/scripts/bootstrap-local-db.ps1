@@ -10,7 +10,9 @@ param(
     # UTF-8-safe re-apply of Admin Billing CRM Kanban seed (V71 content; default: on).
     [switch]$SkipBillingCrmSeed,
     # UTF-8-safe Admin Analytics Cu Chi demo seed (docs/sql/seed; default: on).
-    [switch]$SkipAnalyticsSeed
+    [switch]$SkipAnalyticsSeed,
+    # Validate migration ordering/version without regenerating files or using Docker.
+    [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,7 +27,30 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 87
+$ExpectedMinFlywayVersion = 88
+
+$migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
+    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
+if ($migrations.Count -eq 0) {
+    throw "No Flyway migrations found in $migrationDir"
+}
+$duplicateVersions = @($migrations |
+    Group-Object { [regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value } |
+    Where-Object Count -gt 1)
+if ($duplicateVersions.Count -gt 0) {
+    $duplicates = ($duplicateVersions | ForEach-Object { "V$($_.Name): $($_.Group.Name -join ', ')" }) -join '; '
+    throw "Duplicate Flyway migration versions found: $duplicates"
+}
+$lastMigrationName = $migrations[-1].Name
+$lastVersion = [int]([regex]::Match($lastMigrationName, '^V(\d+)__').Groups[1].Value)
+if ($lastVersion -lt $ExpectedMinFlywayVersion) {
+    throw "Expected Flyway migrations through at least V$ExpectedMinFlywayVersion, but latest file is $lastMigrationName (V$lastVersion)."
+}
+
+if ($ValidateOnly) {
+    Write-Output "Full bootstrap runner validation passed; latest migration: V$lastVersion."
+    return
+}
 
 function Assert-SafeIdentifier([string]$Value, [string]$Label) {
     if ($Value -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
@@ -102,17 +127,6 @@ if ($bootstrapExitCode -ne 0) {
     throw "Bootstrap failed. Database '$Database' was not marked as ready."
 }
 
-$migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
-    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
-if ($migrations.Count -eq 0) {
-    throw "No Flyway migrations found in $migrationDir"
-}
-$lastMigrationName = $migrations[-1].Name
-$lastVersion = [int]([regex]::Match($lastMigrationName, '^V(\d+)__').Groups[1].Value)
-if ($lastVersion -lt $ExpectedMinFlywayVersion) {
-    throw "Expected Flyway migrations through at least V$ExpectedMinFlywayVersion, but latest file is $lastMigrationName (V$lastVersion)."
-}
-
 $historySql = "SELECT version || ':' || type || ':' || success FROM flyway_schema_history ORDER BY installed_rank;"
 $history = @(& docker exec $Container psql -U $DbUser -d $Database -tAc $historySql |
     ForEach-Object { $_.Trim() })
@@ -166,7 +180,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V87) ---
+# --- Smoke checks for recent Flyway chain (V70–V88) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -272,6 +286,14 @@ if ($LASTEXITCODE -ne 0 -or $passportMailReady -ne '5') {
     throw "Bootstrap baselined at V$lastVersion but V87 passport mail attempts constraints/index are incomplete ($passportMailReady/5)."
 }
 
+# V88: Vietnamese location, quest, and discovery content is restored as UTF-8.
+$cuChiNameUtf8Hex = 'c490e1bb8b6120c491e1baa16f2043e1bba720436869'
+$vietnameseContentReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM locations WHERE id = '11111111-1111-1111-1111-111111111111' AND encode(convert_to(name,'UTF8'),'hex') = '$cuChiNameUtf8Hex' AND description NOT LIKE '%?%';") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $vietnameseContentReady -ne '1') {
+    throw "Bootstrap baselined at V$lastVersion but V88 Vietnamese content repair is missing."
+}
+
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."
 Write-Host "V71 billing CRM seed inquiries: $crmSeeded."
@@ -288,6 +310,7 @@ Write-Host "V84 Củ Chi onsite quest steps: $cuChiQuestTrackContent/6."
 Write-Host 'V85 Quest media and mini-game content: ready.'
 Write-Host 'V86 Củ Chi quest cover: ready.'
 Write-Host 'V87 passport mail attempts table and constraints: ready.'
+Write-Host 'V88 Vietnamese location, quest, and discovery content: ready.'
 Write-Host 'Hard-refresh Admin Organizations / Billing CRM / Analytics / Audit after bootstrap.'
 if (-not $SkipDashboardRevenueSeed) {
     Write-Host 'Admin dashboard revenue demo seed applied (B2C/B2B 6-month chart + sample audit).'

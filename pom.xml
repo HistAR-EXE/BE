@@ -196,6 +196,7 @@
                     </locations>
                     <baselineOnMigrate>true</baselineOnMigrate>
                     <baselineVersion>0</baselineVersion>
+                    <encoding>UTF-8</encoding>
                     <placeholderReplacement>false</placeholderReplacement>
                 </configuration>
                 <dependencies>

@@ -21,12 +21,15 @@ $runner = Get-Content -Raw -Encoding UTF8 $runnerPath
 foreach ($requiredText in @(
     '[switch]$Reset',
     'TimeLens_full_bootstrap.sql',
-    '$ExpectedMinFlywayVersion = 87',
+    '$ExpectedMinFlywayVersion = 88',
     'Refusing to overwrite an existing database without -Reset',
     'Bootstrap completed successfully',
     'docker cp',
     '$containerBootstrapPath',
     'V87 passport mail attempts table and constraints: ready.',
+    'V88 Vietnamese location, quest, and discovery content: ready.',
+    '$cuChiNameUtf8Hex = ''c490e1bb8b6120c491e1baa16f2043e1bba720436869''',
+    "encode(convert_to(name,'UTF8'),'hex')",
     'fk_passport_mail_profile',
     'ck_passport_mail_image_hash',
     'ck_passport_mail_state',
@@ -36,6 +39,10 @@ foreach ($requiredText in @(
     if (-not $runner.Contains($requiredText)) {
         throw "Bootstrap runner is missing: $requiredText"
     }
+}
+
+if ($runner.Contains("name = 'Địa đạo Củ Chi'")) {
+    throw 'Bootstrap runner must not pass a Vietnamese SQL literal through docker exec on Windows PowerShell 5.1.'
 }
 
 foreach ($requiredMigration in @(
@@ -51,7 +58,8 @@ foreach ($requiredMigration in @(
     'V84__quest_tracks_v2_content.sql',
     'V85__quest_media_and_minigames_v2.sql',
     'V86__cu_chi_quest_333_cover.sql',
-    'V87__passport_mail_attempts.sql'
+    'V87__passport_mail_attempts.sql',
+    'V88__repair_vietnamese_content.sql'
 )) {
     if (-not (Test-Path (Join-Path $PSScriptRoot "..\..\src\main\resources\db\migration\$requiredMigration"))) {
         throw "Bootstrap runner smoke check is missing: $requiredMigration"
