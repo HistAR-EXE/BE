@@ -1,6 +1,6 @@
 # QR check-in - cu-chi
 
-Generated: 2026-10-20 11:51:23 +07:00
+Generated: 2026-10-20 16:28:09 +07:00
 
 - Mode: **SIGNED_STATIC**
 - Static payload format: siteCode:stationCode:0:signature.
