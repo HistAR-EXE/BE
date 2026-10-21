@@ -1,14 +1,21 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\docs\qr\cu-chi'),
+    [string]$OutputDirectory = '',
     [string]$SiteCode = 'cu-chi',
     [string]$Secret = $env:PRESENCE_QR_HMAC_SECRET,
-    [string]$EnvFile = (Join-Path $PSScriptRoot '..\.env'),
+    [string]$EnvFile = '',
     [switch]$AllowUnsignedDemo,
     [int]$Size = 900
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $OutputDirectory = Join-Path $PSScriptRoot '..\docs\qr\cu-chi'
+}
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+    $EnvFile = Join-Path $PSScriptRoot '..\.env'
+}
 
 $npmCommand = if ($env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
 if (-not (Get-Command $npmCommand -ErrorAction SilentlyContinue)) {
@@ -49,7 +56,7 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 function Get-Signature([string]$Message, [string]$Key) {
     $hmac = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($Key))
     try {
-        return ([Convert]::ToHexString($hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Message)))).ToLowerInvariant()
+        return ([BitConverter]::ToString($hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Message))) -replace '-', '').ToLowerInvariant()
     } finally {
         $hmac.Dispose()
     }

@@ -1,50 +1,50 @@
 [
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST01",
-    "stationName": "Phòng họp",
-    "payload": "cu-chi:ST01:0:a16a7a48052e838a13d2c37b5620bfc94da0436ac3a28f3897f763d20a8355a9",
-    "file": "ST01.png",
-    "mode": "SIGNED_STATIC"
-  },
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST02",
-    "stationName": "Kho ngầm",
-    "payload": "cu-chi:ST02:0:bd42d86b1bb877aea2b3c09102b1da648b556328ac09d680f3c26d43a79d7fff",
-    "file": "ST02.png",
-    "mode": "SIGNED_STATIC"
-  },
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST03",
-    "stationName": "Giếng hầm & thông gió",
-    "payload": "cu-chi:ST03:0:b29c43b888d5fae59e6756356792f8bf2293bcd4a89b6d8c93a54785a694400a",
-    "file": "ST03.png",
-    "mode": "SIGNED_STATIC"
-  },
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST04",
-    "stationName": "Quân y",
-    "payload": "cu-chi:ST04:0:3dee612c8aa7dae7a1807fa95b672b8af2cb8c8c10f0620043f052c87e851b3f",
-    "file": "ST04.png",
-    "mode": "SIGNED_STATIC"
-  },
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST05",
-    "stationName": "Xưởng vũ khí",
-    "payload": "cu-chi:ST05:0:15c1030c7bb2c3507df263fc7987185a6e33044eaa9cb8cd3e1a018a43febf63",
-    "file": "ST05.png",
-    "mode": "SIGNED_STATIC"
-  },
-  {
-    "siteCode": "cu-chi",
-    "stationCode": "ST06",
-    "stationName": "Hầm phòng thủ",
-    "payload": "cu-chi:ST06:0:f05e76722884e1cbab923b63a4acdab646a8299cc5c8ad722fbeb31b85a6cdc5",
-    "file": "ST06.png",
-    "mode": "SIGNED_STATIC"
-  }
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST01",
+        "stationName":  "Phòng họp",
+        "payload":  "cu-chi:ST01:0:a16a7a48052e838a13d2c37b5620bfc94da0436ac3a28f3897f763d20a8355a9",
+        "file":  "ST01.png",
+        "mode":  "SIGNED_STATIC"
+    },
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST02",
+        "stationName":  "Kho ngầm",
+        "payload":  "cu-chi:ST02:0:bd42d86b1bb877aea2b3c09102b1da648b556328ac09d680f3c26d43a79d7fff",
+        "file":  "ST02.png",
+        "mode":  "SIGNED_STATIC"
+    },
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST03",
+        "stationName":  "Giếng hầm \u0026 thông gió",
+        "payload":  "cu-chi:ST03:0:b29c43b888d5fae59e6756356792f8bf2293bcd4a89b6d8c93a54785a694400a",
+        "file":  "ST03.png",
+        "mode":  "SIGNED_STATIC"
+    },
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST04",
+        "stationName":  "Quân y",
+        "payload":  "cu-chi:ST04:0:3dee612c8aa7dae7a1807fa95b672b8af2cb8c8c10f0620043f052c87e851b3f",
+        "file":  "ST04.png",
+        "mode":  "SIGNED_STATIC"
+    },
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST05",
+        "stationName":  "Xưởng vũ khí",
+        "payload":  "cu-chi:ST05:0:15c1030c7bb2c3507df263fc7987185a6e33044eaa9cb8cd3e1a018a43febf63",
+        "file":  "ST05.png",
+        "mode":  "SIGNED_STATIC"
+    },
+    {
+        "siteCode":  "cu-chi",
+        "stationCode":  "ST06",
+        "stationName":  "Hầm phòng thủ",
+        "payload":  "cu-chi:ST06:0:f05e76722884e1cbab923b63a4acdab646a8299cc5c8ad722fbeb31b85a6cdc5",
+        "file":  "ST06.png",
+        "mode":  "SIGNED_STATIC"
+    }
 ]

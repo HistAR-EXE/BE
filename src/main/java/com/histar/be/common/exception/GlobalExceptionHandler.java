@@ -149,7 +149,7 @@ public class GlobalExceptionHandler {
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
-            case VALIDATION_ERROR -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case VALIDATION_ERROR, INVALID_STATION_CONTEXT -> HttpStatus.UNPROCESSABLE_ENTITY;
             case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_ENTITY;
             case EMAIL_NOT_VERIFIED -> HttpStatus.UNPROCESSABLE_ENTITY;
             case LMS_PREMIUM_REQUIRED -> HttpStatus.UNPROCESSABLE_ENTITY;

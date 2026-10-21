@@ -30,7 +30,9 @@ public class PhotoFrameController {
                 .getUserId()
                 .map(tierAccessService::hasPremiumAccess)
                 .orElse(false);
-        List<PhotoFrame> frames = photoFrameService.findAllOrdered();
+        List<PhotoFrame> frames = photoFrameService.findAllOrdered().stream()
+                .filter(PhotoFrameAccessService::isUsableFrame)
+                .toList();
         List<PhotoFrameResponse> data = new ArrayList<>();
         for (int i = 0; i < frames.size(); i++) {
             PhotoFrame frame = frames.get(i);
@@ -39,4 +41,5 @@ public class PhotoFrameController {
         }
         return ApiResponse.ok(data);
     }
+
 }

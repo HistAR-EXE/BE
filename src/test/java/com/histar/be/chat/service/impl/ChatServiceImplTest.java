@@ -1,6 +1,7 @@
 package com.histar.be.chat.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -19,6 +20,9 @@ import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.chat.service.RagAiChatClient;
 import com.histar.be.chat.service.RagChatResponse;
+import com.histar.be.chat.service.StationChatContextResolver;
+import com.histar.be.common.exception.BaseException;
+import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
@@ -74,6 +78,8 @@ class ChatServiceImplTest {
     private ProductionMetrics productionMetrics;
     @Mock
     private NarrativeInvestigationService narrativeInvestigationService;
+    @Mock
+    private StationChatContextResolver stationChatContextResolver;
 
     @InjectMocks
     private ChatServiceImpl chatService;
@@ -206,5 +212,40 @@ class ChatServiceImplTest {
 
         assertThat(response.sources()).hasSize(1);
         verify(usageQuotaService).shouldIncludeChatSources(userId, "cu-chi");
+    }
+
+    @Test
+    void sendOrchestrated_rejectsStationSiteThatDoesNotMatchCharacterLocation() {
+        UUID userId = UUID.randomUUID();
+        UUID characterId = UUID.randomUUID();
+        UUID locationId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        CharacterEntity character = CharacterEntity.builder()
+                .id(characterId)
+                .name("Chrono")
+                .locationId(locationId)
+                .personaPrompt("persona")
+                .chatEnabled(true)
+                .build();
+        Location location = Location.builder().id(locationId).name("Củ Chi").siteCode("cu-chi").build();
+        Conversation conversation = Conversation.builder()
+                .id(conversationId)
+                .userId(userId)
+                .characterId(characterId)
+                .build();
+
+        when(characterService.findEnabledChatAgentById(characterId)).thenReturn(character);
+        when(locationService.findById(locationId)).thenReturn(location);
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+        when(profileRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userArtifactRepository.findByUserId(userId)).thenReturn(List.of());
+        when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
+        when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
+
+        assertThatThrownBy(() -> chatService.sendOrchestrated(
+                        userId,
+                        new ChatMessageRequest(characterId, "hello", conversationId, "ST01", "other-site")))
+                .isInstanceOfSatisfying(BaseException.class, ex ->
+                        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_STATION_CONTEXT));
     }
 }

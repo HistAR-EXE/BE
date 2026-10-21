@@ -180,7 +180,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V88) ---
+# --- Smoke checks for recent Flyway chain (V70–V90) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()

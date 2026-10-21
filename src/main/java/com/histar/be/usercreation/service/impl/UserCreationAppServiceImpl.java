@@ -59,11 +59,19 @@ public class UserCreationAppServiceImpl implements UserCreationAppService {
             throw new BusinessRuleException("variant phải là square hoặc story");
         }
 
-        PhotoFrame frame = photoFrameService.findById(frameId);
-        if (!tierAccessService.hasPremiumAccess(userId)) {
-            int index = photoFrameService.findAllOrdered().indexOf(frame);
-            if (!photoFrameAccessService.isFrameFree(frame, Math.max(index, 0))) {
-                throw new BusinessRuleException("Khung ảnh Premium — nâng cấp tại /pricing để sử dụng.");
+        if (frameId != null) {
+            PhotoFrame frame = photoFrameService.findById(frameId);
+            List<PhotoFrame> usableFrames = photoFrameService.findAllOrdered().stream()
+                    .filter(PhotoFrameAccessService::isUsableFrame)
+                    .toList();
+            int index = usableFrames.indexOf(frame);
+            if (index < 0) {
+                throw new BusinessRuleException("Khung ảnh không khả dụng");
+            }
+            if (!tierAccessService.hasPremiumAccess(userId)) {
+                if (!photoFrameAccessService.isFrameFree(frame, index)) {
+                    throw new BusinessRuleException("Khung ảnh Premium — nâng cấp tại /pricing để sử dụng.");
+                }
             }
         }
 

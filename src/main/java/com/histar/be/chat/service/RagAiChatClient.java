@@ -2,6 +2,7 @@ package com.histar.be.chat.service;
 
 import com.histar.be.config.ChatProperties;
 import com.histar.be.chat.dto.ChatSource;
+import com.histar.be.chat.dto.StationChatContext;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -105,6 +106,24 @@ public class RagAiChatClient {
             long artifactsUnlockedCount,
             long discoveriesCount,
             Map<String, Object> playerContext) {
+        return generateWithSources(
+                message, personaKey, personaOverride, knowledgeContext, sources, locationId, history,
+                userLevel, artifactsUnlockedCount, discoveriesCount, playerContext, null);
+    }
+
+    public RagChatResponse generateWithSources(
+            String message,
+            String personaKey,
+            Map<String, String> personaOverride,
+            String knowledgeContext,
+            String sources,
+            UUID locationId,
+            List<Map<String, String>> history,
+            Integer userLevel,
+            long artifactsUnlockedCount,
+            long discoveriesCount,
+            Map<String, Object> playerContext,
+            StationChatContext stationContext) {
         Map<String, Object> body = new HashMap<>();
         body.put("message", message);
         body.put("persona_key", personaKey != null ? personaKey : "");
@@ -120,6 +139,13 @@ public class RagAiChatClient {
         body.put("discoveries_count", discoveriesCount);
         if (playerContext != null && !playerContext.isEmpty()) {
             body.put("player_context", playerContext);
+        }
+        if (stationContext != null) {
+            body.put("station_context", Map.of(
+                    "siteCode", stationContext.siteCode(),
+                    "stationCode", stationContext.stationCode(),
+                    "stationName", stationContext.stationName(),
+                    "summary", stationContext.summary() == null ? "" : stationContext.summary()));
         }
         String requestId = MDC.get("requestId");
         if (requestId == null || requestId.isBlank()) requestId = UUID.randomUUID().toString();
