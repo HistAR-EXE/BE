@@ -12,6 +12,7 @@ import com.histar.be.chat.service.ChatLlmClient;
 import com.histar.be.rag.config.RagProperties;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
+import com.histar.be.chat.dto.StationChatContext;
 import com.histar.be.rag.dto.RetrievalResult;
 import com.histar.be.rag.dto.RetrievedChunk;
 import com.histar.be.rag.entity.ChatQualityLog;
@@ -31,6 +32,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RagChatServiceTest {
+
+    @Test
+    void promptNamesTheViewedStationWithoutClaimingPresence() {
+        RagChatRequest request = new RagChatRequest(
+                "Phòng này dùng để làm gì?",
+                "ST01",
+                "cu-chi",
+                "chrono",
+                "persona",
+                "Địa đạo Củ Chi",
+                List.of(),
+                new StationChatContext("cu-chi", "ST01", "Phòng họp", "Nơi diễn ra các cuộc họp."));
+
+        String prompt = service.buildPrompt(request, List.of());
+
+        assertThat(prompt).contains("Người dùng đang xem ST01 · Phòng họp");
+        assertThat(prompt).contains("không phải bằng chứng người dùng đã check-in");
+    }
 
     @Mock
     private PgVectorRagService ragService;

@@ -10,6 +10,8 @@ public interface StationRepository extends JpaRepository<Station, UUID> {
 
     List<Station> findBySiteCodeAndActiveTrueOrderBySortOrderAsc(String siteCode);
 
+    List<Station> findBySiteCodeOrderBySortOrderAsc(String siteCode);
+
     Optional<Station> findBySiteCodeAndCodeAndActiveTrue(String siteCode, String code);
 
     Optional<Station> findBySiteCodeAndCode(String siteCode, String code);

@@ -189,6 +189,17 @@ public class RagChatService {
                 .append("3. Nếu tư liệu không đủ để trả lời, nói rõ là chưa có tư liệu xác minh (không gắn chú thích).\n")
                 .append("4. Giữ giọng nhân vật, trả lời ngắn gọn bằng tiếng Việt.\n\n")
                 .append("TƯ LIỆU ĐÃ XÁC MINH:\n");
+        if (request.stationContext() != null) {
+            sb.append("\nNGỮ CẢNH TRẠM ĐANG XEM:\n")
+                    .append("Người dùng đang xem ")
+                    .append(request.stationContext().stationCode())
+                    .append(" · ")
+                    .append(request.stationContext().stationName())
+                    .append(". Đây là ngữ cảnh điều hướng, không phải bằng chứng người dùng đã check-in.\n");
+            if (request.stationContext().summary() != null && !request.stationContext().summary().isBlank()) {
+                sb.append(request.stationContext().summary().trim()).append('\n');
+            }
+        }
         for (int i = 0; i < chunks.size(); i++) {
             RetrievedChunk c = chunks.get(i);
             sb.append('[').append(i + 1).append("] ").append(c.sourceTitle());

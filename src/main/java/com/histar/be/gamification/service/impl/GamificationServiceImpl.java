@@ -338,13 +338,23 @@ public class GamificationServiceImpl implements GamificationService {
         locationService.findById(locationId);
         boolean unlocked = userSecretUnlockRepository.existsByUserIdAndLocationId(userId, locationId);
         if (!unlocked) {
-            return new SecretStoryResponse(true, "Câu chuyện bí mật", null);
+            return new SecretStoryResponse(
+                    true,
+                    "Câu chuyện bí mật",
+                    null,
+                    "COMPLETE_LOCATION_QUEST",
+                    "Hoàn thành ít nhất một nhiệm vụ tại địa điểm để mở câu chuyện bí mật.");
         }
         String story = questRepository.findByLocationId(locationId).stream()
                 .findFirst()
                 .map(Quest::getStory)
                 .orElse(null);
-        return new SecretStoryResponse(false, "Câu chuyện bí mật", story);
+        return new SecretStoryResponse(
+                false,
+                "Câu chuyện bí mật",
+                story,
+                null,
+                "Hoàn thành ít nhất một nhiệm vụ tại địa điểm để mở câu chuyện bí mật.");
     }
 
     private boolean tryUnlockSecret(UUID userId, UUID locationId) {

@@ -16,6 +16,7 @@ import com.histar.be.chat.dto.ChatResponse;
 import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
+import com.histar.be.chat.dto.StationChatContext;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.PreparedChatResponse;
 import com.histar.be.chat.service.ChatStreamChunk;
@@ -23,7 +24,10 @@ import com.histar.be.chat.service.PersonaMapper;
 import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.chat.service.RagAiChatClient;
 import com.histar.be.chat.service.RagChatResponse;
+import com.histar.be.chat.service.StationChatContextResolver;
 import com.histar.be.common.exception.AuthException;
+import com.histar.be.common.exception.BaseException;
+import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
@@ -40,6 +44,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,6 +79,7 @@ public class ChatServiceImpl implements ChatService {
     private final RagChatService ragChatService;
     private final ProductionMetrics productionMetrics;
     private final NarrativeInvestigationService narrativeInvestigationService;
+    private final StationChatContextResolver stationChatContextResolver;
 
     private void assertEmailVerified(UUID userId) {
         emailVerifiedGuard.assertEmailVerified(userId);
@@ -196,16 +202,37 @@ public class ChatServiceImpl implements ChatService {
         List<ChatSource> responseSources;
         String answerSource = "rag-ai";
         boolean pgVectorRagUsed = false;
+        String locationSiteCode = location.getSiteCode() == null
+                ? ""
+                : location.getSiteCode().trim().toLowerCase(Locale.ROOT);
         String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
-                ? request.siteCode().trim().toLowerCase()
-                : location.getSiteCode();
+                ? request.siteCode().trim().toLowerCase(Locale.ROOT)
+                : locationSiteCode;
+        if (!siteCode.equals(locationSiteCode)) {
+            throw new BaseException(
+                    ErrorCode.INVALID_STATION_CONTEXT,
+                    "Địa điểm và site của trạm không khớp");
+        }
+        StationChatContext stationContext = null;
+        if (request.stationCode() != null && !request.stationCode().isBlank()
+                && stationChatContextResolver != null) {
+            stationContext = stationChatContextResolver
+                    .resolve(siteCode, request.stationCode())
+                    .orElse(null);
+        }
+        String verifiedStationCode = stationContext == null
+                ? request.stationCode()
+                : stationContext.stationCode();
+        String verifiedSiteCode = stationContext == null
+                ? siteCode
+                : stationContext.siteCode();
         RagChatRequest ragRequest = new RagChatRequest(
                 request.message(),
-                request.stationCode(),
-                siteCode,
+                verifiedStationCode,
+                verifiedSiteCode,
                 PersonaMapper.resolvePersonaKey(character.getName()),
                 character.getPersonaPrompt(),
-                location.getName(), historyTurns);
+                location.getName(), historyTurns, stationContext);
         Optional<RagChatAnswer> pgVectorAnswer = publisher == null
                 ? ragChatService.tryAnswer(ragRequest)
                 : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
@@ -220,18 +247,32 @@ public class ChatServiceImpl implements ChatService {
             pgVectorRagUsed = true;
         } else {
             try {
-                RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
-                        request.message(),
-                        PersonaMapper.resolvePersonaKey(character.getName()),
-                        Collections.emptyMap(),
-                        location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                        resolveCiteSources(location),
-                        character.getLocationId(),
-                        historyPayload,
-                        userLevel,
-                        artifactsUnlocked,
-                        discoveriesCount,
-                        playerContext);
+                RagChatResponse ragResponse = stationContext == null
+                        ? ragAiChatClient.generateWithSources(
+                                request.message(),
+                                PersonaMapper.resolvePersonaKey(character.getName()),
+                                Collections.emptyMap(),
+                                location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                                resolveCiteSources(location),
+                                character.getLocationId(),
+                                historyPayload,
+                                userLevel,
+                                artifactsUnlocked,
+                                discoveriesCount,
+                                playerContext)
+                        : ragAiChatClient.generateWithSources(
+                                request.message(),
+                                PersonaMapper.resolvePersonaKey(character.getName()),
+                                Collections.emptyMap(),
+                                location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                                resolveCiteSources(location),
+                                character.getLocationId(),
+                                historyPayload,
+                                userLevel,
+                                artifactsUnlocked,
+                                discoveriesCount,
+                                playerContext,
+                                stationContext);
                 reply = ragResponse.reply();
                 answerSource = publicAnswerSource(ragResponse.cache());
                 responseSources = ragResponse.sources();

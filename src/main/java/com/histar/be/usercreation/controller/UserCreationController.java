@@ -28,7 +28,7 @@ public class UserCreationController {
 
     @PostMapping(value = "/user-creations", consumes = "multipart/form-data")
     public ApiResponse<UserCreationResponse> upload(
-            @RequestParam UUID frameId,
+            @RequestParam(required = false) UUID frameId,
             @RequestParam(defaultValue = "square") String variant,
             @RequestPart("file") MultipartFile file) {
         UUID userId = currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));

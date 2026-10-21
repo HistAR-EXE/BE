@@ -14,6 +14,13 @@ public class PhotoFrameAccessService {
 
     private final HistarOrgProperties histarOrgProperties;
 
+    public static boolean isUsableFrame(PhotoFrame frame) {
+        String url = frame.getImageUrl();
+        return url != null
+                && !url.isBlank()
+                && !url.toLowerCase(java.util.Locale.ROOT).contains("placehold.co");
+    }
+
     public boolean isFrameFree(PhotoFrame frame, int index) {
         String configured = histarOrgProperties.getTier().getFreePhotoFrameIds();
         if (configured == null || configured.isBlank()) {

@@ -22,6 +22,8 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
 
     List<Checkin> findByUserIdAndLocationId(UUID userId, UUID locationId);
 
+    List<Checkin> findByUserIdAndLocationIdOrderByCreatedAtDesc(UUID userId, UUID locationId);
+
     List<Checkin> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     /** Live board: check-ins of a set of users since {@code since}. */
