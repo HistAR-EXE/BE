@@ -15,6 +15,18 @@ public class SmtpEmailSender implements EmailSender {
     private final HistarMailProperties mailProperties;
 
     @Override
+    public void sendHtmlBounded(String to, String subject, String html) {
+        var recipient=EmailRecipientValidator.requireRecipient(to);
+        try {
+            var bounded=attachmentSender();
+            var message=bounded.createMimeMessage();
+            var helper=new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+            helper.setFrom(mailProperties.getFrom());helper.setTo(recipient);
+            helper.setSubject(subject);helper.setText(html,true);bounded.send(message);
+        } catch(Exception error) { throw new EmailDeliveryException("SMTP HTML delivery failed"); }
+    }
+
+    @Override
     public void sendAttachment(String from, String to, String subject, String html, String filename, byte[] png) {
         AttachmentMailValidator.validate(from, to, subject, filename, png);
         try {

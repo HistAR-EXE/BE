@@ -6,7 +6,7 @@
 #
 # Safe default flow:
 #   1. Validate the external connection.
-#   2. Apply pending Flyway migrations (through the latest V__ file; currently V88).
+#   2. Apply pending Flyway migrations through the latest V__ file in this checkout.
 #   3. Apply the ordered seed manifest.
 #   4. Verify the latest Flyway version is successful.
 #
@@ -34,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 $beRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $beRoot
 . (Join-Path $PSScriptRoot 'Resolve-DockerPsqlHost.ps1')
-$ExpectedMinimumFlywayVersion = 88
+$ExpectedMinimumFlywayVersion = 90
 
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
 $migrations = @(Get-ChildItem -LiteralPath $migrationDir -Filter 'V*__*.sql' |

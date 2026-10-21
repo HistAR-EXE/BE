@@ -17,7 +17,8 @@ if ([string]::IsNullOrWhiteSpace($EnvFile)) {
     $EnvFile = Join-Path $PSScriptRoot '..\.env'
 }
 
-if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+$npmCommand = if ($env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
+if (-not (Get-Command $npmCommand -ErrorAction SilentlyContinue)) {
     throw 'npm is required to render QR PNG files.'
 }
 
@@ -71,7 +72,7 @@ foreach ($station in $stations) {
     $fileName = "$($station.Code).png"
     $outputPath = Join-Path $OutputDirectory $fileName
 
-    & npm exec --yes --package=qrcode -- qrcode -t png -e H -w $Size -q 4 -o $outputPath -- $payload
+    & $npmCommand exec --yes --package=qrcode -- qrcode -t png -e H -w $Size -q 4 -o $outputPath -- $payload
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $outputPath)) {
         throw "Failed to render QR for $($station.Code)."
     }

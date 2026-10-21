@@ -52,3 +52,6 @@ temp.zip
 
 ### Local Git worktrees ###
 .worktrees/
+
+# Local AR launcher output
+ar-home-ux-local.*.log
