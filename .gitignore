@@ -55,3 +55,6 @@ temp.zip
 
 # Local AR launcher output
 ar-home-ux-local.*.log
+
+# Local authentication recovery logs
+/auth-recovery-*.log
