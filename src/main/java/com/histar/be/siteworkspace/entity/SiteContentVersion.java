@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -96,4 +97,9 @@ public class SiteContentVersion {
 
     @Column(name = "published_at")
     private Instant publishedAt;
+
+    @PreUpdate
+    void refreshUpdatedAt() {
+        updatedAt = Instant.now();
+    }
 }

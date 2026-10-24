@@ -15,4 +15,7 @@ public interface SiteOnboardingRequestRepository extends JpaRepository<SiteOnboa
 
     Optional<SiteOnboardingRequest> findByRequesterIdAndSiteCodeIgnoreCaseAndStatus(
             UUID requesterId, String siteCode, SiteOnboardingStatus status);
+
+    boolean existsByRequesterIdAndSiteCodeIgnoreCaseAndStatus(
+            UUID requesterId, String siteCode, SiteOnboardingStatus status);
 }

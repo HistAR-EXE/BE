@@ -1,12 +1,19 @@
 -- B2G site workspaces, representative onboarding, and reviewed content snapshots.
 
--- V33 used a partial unique index for non-empty site codes. PostgreSQL foreign keys
--- require a non-partial unique key on the referenced columns; UNIQUE still permits
--- multiple NULL values while preserving the existing non-null uniqueness contract.
-UPDATE locations SET site_code = NULL WHERE site_code = '';
+-- Canonical site codes make case-insensitive application lookups agree with the
+-- database uniqueness boundary. NULLIF also normalizes blank/whitespace-only codes.
+UPDATE locations
+SET site_code = NULLIF(LOWER(TRIM(site_code)), '')
+WHERE site_code IS NOT NULL;
 
 ALTER TABLE locations
-    ADD CONSTRAINT uq_locations_site_code_reference UNIQUE (site_code);
+    ADD CONSTRAINT uq_locations_site_code_reference UNIQUE (site_code),
+    ADD CONSTRAINT uq_locations_site_code_id UNIQUE (site_code, id),
+    ADD CONSTRAINT chk_locations_site_code_canonical
+        CHECK (site_code IS NULL OR site_code ~ '^[a-z0-9][a-z0-9-]{0,63}$');
+
+ALTER TABLE stations
+    ADD CONSTRAINT uq_stations_site_code_code_id UNIQUE (site_code, code, id);
 
 CREATE TABLE site_memberships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,6 +59,10 @@ CREATE INDEX idx_site_onboarding_requests_site_status
 CREATE INDEX idx_site_onboarding_requests_requester_created
     ON site_onboarding_requests (requester_id, created_at DESC);
 
+CREATE UNIQUE INDEX uq_site_onboarding_requests_pending
+    ON site_onboarding_requests (requester_id, site_code)
+    WHERE status = 'PENDING';
+
 CREATE TABLE site_workspace_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -66,8 +77,8 @@ CREATE TABLE site_content_versions (
     site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
     content_kind VARCHAR(32) NOT NULL,
     resource_key VARCHAR(128) NOT NULL,
-    location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
-    station_id UUID REFERENCES stations(id) ON DELETE CASCADE,
+    location_id UUID,
+    station_id UUID,
     version INTEGER NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
     snapshot_json JSONB NOT NULL,
@@ -84,6 +95,12 @@ CREATE TABLE site_content_versions (
     published_at TIMESTAMPTZ,
     CONSTRAINT uq_site_content_versions_resource_version
         UNIQUE (site_code, content_kind, resource_key, version),
+    CONSTRAINT fk_site_content_versions_location
+        FOREIGN KEY (site_code, location_id)
+        REFERENCES locations (site_code, id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_site_content_versions_station
+        FOREIGN KEY (site_code, resource_key, station_id)
+        REFERENCES stations (site_code, code, id) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT chk_site_content_versions_kind
         CHECK (content_kind IN ('SITE_PROFILE', 'STATION')),
     CONSTRAINT chk_site_content_versions_status
@@ -91,6 +108,8 @@ CREATE TABLE site_content_versions (
     CONSTRAINT chk_site_content_versions_resource_fk
         CHECK ((content_kind = 'SITE_PROFILE' AND location_id IS NOT NULL AND station_id IS NULL)
             OR (content_kind = 'STATION' AND location_id IS NULL AND station_id IS NOT NULL)),
+    CONSTRAINT chk_site_content_versions_profile_key
+        CHECK (content_kind <> 'SITE_PROFILE' OR resource_key = site_code),
     CONSTRAINT chk_site_content_versions_station_snapshot
         CHECK (content_kind <> 'STATION' OR (
             snapshot_json ?& ARRAY['stationCode', 'name', 'sortOrder', 'lat', 'lng', 'questStepKey', 'active', 'blocks']
@@ -102,6 +121,9 @@ CREATE TABLE site_content_versions (
 
 CREATE INDEX idx_site_content_versions_lookup
     ON site_content_versions (site_code, content_kind, resource_key, status);
+
+CREATE INDEX idx_site_content_versions_site_status
+    ON site_content_versions (site_code, status);
 
 CREATE INDEX idx_site_content_versions_station
     ON site_content_versions (station_id, version DESC)

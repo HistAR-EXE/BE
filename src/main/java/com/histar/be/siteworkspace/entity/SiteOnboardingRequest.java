@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -68,4 +69,9 @@ public class SiteOnboardingRequest {
 
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
+
+    @PreUpdate
+    void refreshUpdatedAt() {
+        updatedAt = Instant.now();
+    }
 }
