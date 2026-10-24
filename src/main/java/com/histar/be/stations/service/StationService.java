@@ -140,6 +140,9 @@ public class StationService {
                 || snapshot.name().isBlank()) {
             throw new BusinessRuleException("Station code and name are required");
         }
+        if (snapshot.sortOrder() == null || snapshot.active() == null || snapshot.blocks() == null) {
+            throw new BusinessRuleException("Station snapshot is incomplete");
+        }
         String code = snapshot.stationCode().trim();
         Station station = stationRepository
                 .findBySiteCodeAndCode(siteCode, code)
@@ -156,8 +159,7 @@ public class StationService {
         blockRepository.flush();
 
         List<StationContentBlock> saved = new ArrayList<>();
-        List<StationBlockSnapshot> blocks = snapshot.blocks() == null ? List.of() : snapshot.blocks();
-        for (StationBlockSnapshot block : blocks) {
+        for (StationBlockSnapshot block : snapshot.blocks()) {
             if (block.blockType() == null) {
                 throw new BusinessRuleException("Loại block không hợp lệ");
             }

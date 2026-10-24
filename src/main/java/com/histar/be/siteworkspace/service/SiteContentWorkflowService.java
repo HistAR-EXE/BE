@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -373,11 +374,15 @@ public class SiteContentWorkflowService {
         if (parsed.stationCode() == null || !parsed.stationCode().equalsIgnoreCase(stationCode)) {
             throw new BusinessRuleException("stationCode không khớp resource key");
         }
+        if (strict) {
+            requireStrictStationDocument(snapshot);
+        }
         if (strict && (parsed.name() == null || parsed.name().isBlank())) {
             throw new BusinessRuleException("Tên trạm là bắt buộc");
         }
-        List<StationBlockSnapshot> blocks = new ArrayList<>();
+        List<StationBlockSnapshot> blocks = null;
         if (parsed.blocks() != null) {
+            blocks = new ArrayList<>();
             for (StationBlockSnapshot block : parsed.blocks()) {
                 blocks.add(validateBlock(block, strict));
             }
@@ -391,6 +396,27 @@ public class SiteContentWorkflowService {
                 parsed.questStepKey(),
                 parsed.active(),
                 blocks);
+    }
+
+    private void requireStrictStationDocument(JsonNode snapshot) {
+        requireJsonNumber(snapshot, "sortOrder");
+        requireJsonNumber(snapshot, "lat");
+        requireJsonNumber(snapshot, "lng");
+        JsonNode active = snapshot.get("active");
+        if (active == null || !active.isBoolean()) {
+            throw new BusinessRuleException("Trường active là bắt buộc");
+        }
+        JsonNode blocks = snapshot.get("blocks");
+        if (blocks == null || !blocks.isArray()) {
+            throw new BusinessRuleException("Trường blocks là bắt buộc");
+        }
+    }
+
+    private void requireJsonNumber(JsonNode snapshot, String field) {
+        JsonNode node = snapshot.get(field);
+        if (node == null || !node.isNumber()) {
+            throw new BusinessRuleException("Trường " + field + " là bắt buộc");
+        }
     }
 
     private StationBlockSnapshot validateBlock(StationBlockSnapshot block, boolean strict) {
@@ -524,7 +550,28 @@ public class SiteContentWorkflowService {
             return versions.saveAndFlush(version);
         } catch (OptimisticLockingFailureException | OptimisticLockException ex) {
             throw new NarrativeConflictException(ErrorCode.VERSION_CONFLICT, STALE_VERSION);
+        } catch (DataIntegrityViolationException ex) {
+            if (uniqueResourceVersion(ex)) {
+                throw new NarrativeConflictException(ErrorCode.VERSION_CONFLICT, STALE_VERSION);
+            }
+            throw ex;
         }
+    }
+
+    private boolean uniqueResourceVersion(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase(Locale.ROOT);
+                if (lower.contains("uq_site_content_versions_resource_version")
+                        || lower.contains("violates unique constraint")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private void audit(

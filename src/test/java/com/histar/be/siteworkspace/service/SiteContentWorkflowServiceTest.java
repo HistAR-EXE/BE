@@ -50,6 +50,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
@@ -667,6 +668,107 @@ class SiteContentWorkflowServiceTest {
                 .requireAny(reviewerId, SITE, EDITORS);
         assertThatThrownBy(() -> service.issueStaticQr(reviewerId, SITE, STATION_CODE))
                 .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void approveAndPublishRejectSnapshotWithoutActive() {
+        assertIncompleteStationRejected(
+                "{\"stationCode\":\"ST01\",\"name\":\"Ben moi\",\"sortOrder\":2,\"lat\":11.1,\"lng\":107.2,"
+                        + "\"questStepKey\":\"step-1\",\"blocks\":[]}");
+    }
+
+    @Test
+    void approveAndPublishRejectSnapshotWithoutBlocks() {
+        assertIncompleteStationRejected(
+                "{\"stationCode\":\"ST01\",\"name\":\"Ben moi\",\"sortOrder\":2,\"lat\":11.1,\"lng\":107.2,"
+                        + "\"questStepKey\":\"step-1\",\"active\":true}");
+    }
+
+    @Test
+    void approveAndPublishRejectSnapshotWithOmittedKeys() {
+        assertIncompleteStationRejected("{\"stationCode\":\"ST01\",\"name\":\"Ben moi\"}");
+        assertIncompleteStationRejected(
+                "{\"stationCode\":\"ST01\",\"name\":\"Ben moi\",\"sortOrder\":2,\"questStepKey\":\"step-1\","
+                        + "\"active\":true,\"blocks\":[]}");
+    }
+
+    @Test
+    void approveAndPublishAcceptsCompleteStationSnapshot() {
+        StationContentSnapshot applied = approveAndPublish(stationJson("TEXT", null));
+
+        assertThat(applied.active()).isTrue();
+        assertThat(applied.name()).isEqualTo("Ben moi");
+        assertThat(applied.sortOrder()).isEqualTo(2);
+        assertThat(applied.lat()).isEqualTo(11.1);
+        assertThat(applied.lng()).isEqualTo(107.2);
+        assertThat(applied.blocks()).singleElement().satisfies(block ->
+                assertThat(block.blockType()).isEqualTo(StationBlockType.TEXT));
+    }
+
+    @Test
+    void approveAndPublishAcceptsExplicitEmptyBlocksAndActiveTrue() {
+        StationContentSnapshot applied = approveAndPublish(
+                "{\"stationCode\":\"ST01\",\"name\":\"Ben moi\",\"sortOrder\":2,\"lat\":11.1,\"lng\":107.2,"
+                        + "\"questStepKey\":\"step-1\",\"active\":true,\"blocks\":[]}");
+
+        assertThat(applied.active()).isTrue();
+        assertThat(applied.blocks()).isEmpty();
+    }
+
+    @Test
+    void createDraft_uniqueKeyViolationMapsToVersionConflict() throws Exception {
+        stubStation(true);
+        stubNoInFlight(SiteContentKind.STATION, STATION_CODE);
+        when(versions.saveAndFlush(any(SiteContentVersion.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "duplicate key value violates unique constraint \"uq_site_content_versions_resource_version\""));
+
+        assertConflict(() -> service.createDraft(
+                editorId, SITE, SiteContentKind.STATION, STATION_CODE, draft(stationJson("TEXT", null))));
+    }
+
+    private void assertIncompleteStationRejected(String json) {
+        SiteContentVersion version = content(
+                SiteContentKind.STATION, STATION_CODE, 1, ContentLifecycleStatus.IN_REVIEW, json, 1);
+        version.setSubmittedBy(editorId);
+        stubLookup(version);
+
+        assertThatThrownBy(() -> service.review(
+                        reviewerId,
+                        SITE,
+                        SiteContentKind.STATION,
+                        STATION_CODE,
+                        1,
+                        1,
+                        ContentReviewDecision.APPROVE,
+                        "no"))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(version.getStatus()).isEqualTo(ContentLifecycleStatus.IN_REVIEW);
+
+        version.setStatus(ContentLifecycleStatus.APPROVED);
+        assertThatThrownBy(() -> service.publish(managerId, SITE, SiteContentKind.STATION, STATION_CODE, 1, 1))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(version.getStatus()).isEqualTo(ContentLifecycleStatus.APPROVED);
+        verify(stationService, never()).applyPublishedSnapshot(anyString(), any());
+    }
+
+    private StationContentSnapshot approveAndPublish(String json) {
+        SiteContentVersion version = content(
+                SiteContentKind.STATION, STATION_CODE, 1, ContentLifecycleStatus.IN_REVIEW, json, 1);
+        version.setSubmittedBy(editorId);
+        stubLookup(version);
+
+        SiteContentVersionResponse approved = service.review(
+                reviewerId, SITE, SiteContentKind.STATION, STATION_CODE, 1, 1, ContentReviewDecision.APPROVE, "ok");
+        assertThat(approved.status()).isEqualTo(ContentLifecycleStatus.APPROVED);
+
+        SiteContentVersionResponse published =
+                service.publish(managerId, SITE, SiteContentKind.STATION, STATION_CODE, 1, 1);
+        assertThat(published.status()).isEqualTo(ContentLifecycleStatus.PUBLISHED);
+
+        ArgumentCaptor<StationContentSnapshot> snapshot = ArgumentCaptor.forClass(StationContentSnapshot.class);
+        verify(stationService).applyPublishedSnapshot(eq(SITE), snapshot.capture());
+        return snapshot.getValue();
     }
 
     private void stubNoInFlight(SiteContentKind kind, String persistedKey) {

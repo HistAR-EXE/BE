@@ -5,9 +5,9 @@ import java.util.List;
 public record StationContentSnapshot(
         String stationCode,
         String name,
-        int sortOrder,
+        Integer sortOrder,
         Double lat,
         Double lng,
         String questStepKey,
-        boolean active,
+        Boolean active,
         List<StationBlockSnapshot> blocks) {}
