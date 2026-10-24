@@ -75,6 +75,26 @@ class SiteWorkspaceAccessServiceTest {
     }
 
     @Test
+    void listMine_returnsDefaultConfirmationWithoutPersistingSettings() {
+        UUID userId = UUID.randomUUID();
+        when(siteMembershipRepository.findByUserIdAndActiveTrue(userId))
+                .thenReturn(List.of(membership(SITE_CODE, userId, SiteRole.CONTENT_EDITOR, true)));
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE))
+                .thenReturn(Optional.of(Location.builder().siteCode(SITE_CODE).name("Imperial City").build()));
+        when(siteWorkspaceSettingsRepository.findBySiteCodeIgnoreCase(SITE_CODE))
+                .thenReturn(Optional.empty());
+
+        List<SiteWorkspaceMembershipResponse> result = service.listMine(userId);
+
+        assertThat(result).containsExactly(new SiteWorkspaceMembershipResponse(
+                SITE_CODE,
+                "Imperial City",
+                SiteRole.CONTENT_EDITOR,
+                false));
+        verify(siteWorkspaceSettingsRepository, never()).save(any());
+    }
+
+    @Test
     void requireAny_allowsManagerForMatchingRole() {
         UUID userId = UUID.randomUUID();
         when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE))
@@ -152,7 +172,7 @@ class SiteWorkspaceAccessServiceTest {
     }
 
     @Test
-    void getWorkspace_createsDefaultSettingsWhenMissing() {
+    void getWorkspace_returnsDefaultSettingsWithoutPersisting() {
         UUID userId = UUID.randomUUID();
         when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE))
                 .thenReturn(Optional.of(Location.builder().siteCode(SITE_CODE).name("Imperial City").build()));
@@ -160,8 +180,6 @@ class SiteWorkspaceAccessServiceTest {
                 .thenReturn(Optional.of(membership(SITE_CODE, userId, SiteRole.CONTENT_EDITOR, true)));
         when(siteWorkspaceSettingsRepository.findBySiteCodeIgnoreCase(SITE_CODE))
                 .thenReturn(Optional.empty());
-        when(siteWorkspaceSettingsRepository.save(any(SiteWorkspaceSettings.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
 
         SiteWorkspaceSummaryResponse result = service.getWorkspace(userId, SITE_CODE);
 
@@ -170,6 +188,7 @@ class SiteWorkspaceAccessServiceTest {
         assertThat(result.callerRole()).isEqualTo(SiteRole.CONTENT_EDITOR);
         assertThat(result.requiresTripConfirmation()).isFalse();
         assertThat(result.members()).isNull();
+        verify(siteWorkspaceSettingsRepository, never()).save(any());
     }
 
     @Test
@@ -241,6 +260,24 @@ class SiteWorkspaceAccessServiceTest {
                         new UpdateSiteMemberRequest(targetUserId, SiteRole.SITE_MANAGER)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("SITE_MANAGER");
+    }
+
+    @Test
+    void updateMember_rejectsManagerDemotingActiveSiteManager() {
+        UUID actorId = UUID.randomUUID();
+        UUID targetUserId = UUID.randomUUID();
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE))
+                .thenReturn(Optional.of(Location.builder().siteCode(SITE_CODE).name("Imperial City").build()));
+        when(siteMembershipRepository.findBySiteCodeIgnoreCaseAndUserId(SITE_CODE, targetUserId))
+                .thenReturn(Optional.of(membership(SITE_CODE, targetUserId, SiteRole.SITE_MANAGER, true)));
+
+        assertThatThrownBy(() -> service.updateMember(
+                        actorId,
+                        SITE_CODE,
+                        new UpdateSiteMemberRequest(targetUserId, SiteRole.CONTENT_EDITOR)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("SITE_MANAGER");
+        verify(siteMembershipRepository, never()).save(any());
     }
 
     @Test

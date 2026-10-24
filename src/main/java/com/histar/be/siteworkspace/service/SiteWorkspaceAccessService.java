@@ -36,12 +36,11 @@ public class SiteWorkspaceAccessService {
                 .map(membership -> {
                     String normalizedSiteCode = normalizeSiteCode(membership.getSiteCode());
                     Location location = locationRepository.findBySiteCodeIgnoreCase(normalizedSiteCode).orElse(null);
-                    SiteWorkspaceSettings settings = getOrCreateSettings(normalizedSiteCode);
                     return new SiteWorkspaceMembershipResponse(
                             normalizedSiteCode,
                             location != null ? location.getName() : null,
                             membership.getRole(),
-                            settings.isRequiresTripConfirmation());
+                            readRequiresTripConfirmation(normalizedSiteCode));
                 })
                 .toList();
     }
@@ -69,7 +68,6 @@ public class SiteWorkspaceAccessService {
                     .map(SiteMembership::getRole)
                     .orElseThrow(() -> new BusinessRuleException("Không có quyền truy cập site workspace này"));
         }
-        SiteWorkspaceSettings settings = getOrCreateSettings(normalizedSiteCode);
         List<SiteWorkspaceMemberResponse> members = canManage(userId, normalizedSiteCode)
                 ? listActiveMembers(normalizedSiteCode)
                 : null;
@@ -77,7 +75,7 @@ public class SiteWorkspaceAccessService {
                 normalizedSiteCode,
                 location.getName(),
                 callerRole,
-                settings.isRequiresTripConfirmation(),
+                readRequiresTripConfirmation(normalizedSiteCode),
                 members);
     }
 
@@ -90,13 +88,20 @@ public class SiteWorkspaceAccessService {
     @Transactional
     public SiteWorkspaceMemberResponse updateMember(UUID actorId, String siteCode, UpdateSiteMemberRequest request) {
         String normalizedSiteCode = resolveSite(siteCode).getSiteCode();
-        authorizeRoleMutation(actorId, normalizedSiteCode, request.role());
+        if (request.role() == SiteRole.SITE_MANAGER) {
+            authorizeRoleMutation(actorId, normalizedSiteCode, SiteRole.SITE_MANAGER);
+        }
         SiteMembership membership = siteMembershipRepository
                 .findBySiteCodeIgnoreCaseAndUserId(normalizedSiteCode, request.userId())
                 .orElseGet(() -> SiteMembership.builder()
                         .siteCode(normalizedSiteCode)
                         .userId(request.userId())
                         .build());
+        if (membership.getRole() == SiteRole.SITE_MANAGER) {
+            authorizeRoleMutation(actorId, normalizedSiteCode, SiteRole.SITE_MANAGER);
+        } else if (request.role() != SiteRole.SITE_MANAGER) {
+            authorizeRoleMutation(actorId, normalizedSiteCode, request.role());
+        }
         membership.setSiteCode(normalizedSiteCode);
         membership.setUserId(request.userId());
         membership.setRole(request.role());
@@ -182,6 +187,12 @@ public class SiteWorkspaceAccessService {
         String normalizedSiteCode = normalizeSiteCode(siteCode);
         return locationRepository.findBySiteCodeIgnoreCase(normalizedSiteCode)
                 .orElseThrow(() -> new BusinessRuleException("Không tìm thấy site workspace"));
+    }
+
+    private boolean readRequiresTripConfirmation(String siteCode) {
+        return siteWorkspaceSettingsRepository.findBySiteCodeIgnoreCase(normalizeSiteCode(siteCode))
+                .map(SiteWorkspaceSettings::isRequiresTripConfirmation)
+                .orElse(false);
     }
 
     private SiteWorkspaceSettings getOrCreateSettings(String siteCode) {
