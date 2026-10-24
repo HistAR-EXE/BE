@@ -3,6 +3,7 @@ package com.histar.be.stations.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,8 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.stations.dto.StationBlockRequest;
+import com.histar.be.stations.dto.StationBlockSnapshot;
+import com.histar.be.stations.dto.StationContentSnapshot;
 import com.histar.be.stations.dto.StationImportItem;
 import com.histar.be.stations.dto.StationResponse;
 import com.histar.be.stations.entity.Station;
@@ -115,5 +118,43 @@ class StationServiceTest {
         assertThat(command.getValue().action()).isEqualTo("STATIONS_IMPORTED");
         assertThat(command.getValue().metadata().get("count")).isEqualTo(1);
         assertThat(command.getValue().metadata()).containsKey("stationIds");
+    }
+
+    @Test
+    void applyPublishedSnapshotReplacesFieldsAndBlocksWithoutImportAudit() {
+        UUID stationId = UUID.randomUUID();
+        Station existing = Station.builder()
+                .id(stationId)
+                .siteCode("cu-chi")
+                .code("ST01")
+                .name("Old")
+                .active(true)
+                .build();
+        when(stationRepository.findBySiteCodeAndCode("cu-chi", "ST01")).thenReturn(Optional.of(existing));
+        when(stationRepository.saveAndFlush(any(Station.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(blockRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        stationService.applyPublishedSnapshot(
+                "cu-chi",
+                new StationContentSnapshot(
+                        "ST01",
+                        "Bến Dược",
+                        3,
+                        10.0,
+                        106.0,
+                        "step",
+                        false,
+                        List.of(new StationBlockSnapshot(StationBlockType.TEXT, "t", "body", null, 1, null))));
+
+        assertThat(existing.getName()).isEqualTo("Bến Dược");
+        assertThat(existing.getSortOrder()).isEqualTo(3);
+        assertThat(existing.getLat()).isEqualTo(10.0);
+        assertThat(existing.getLng()).isEqualTo(106.0);
+        assertThat(existing.getQuestStepKey()).isEqualTo("step");
+        assertThat(existing.isActive()).isFalse();
+        verify(blockRepository).deleteByStationId(stationId);
+        verify(blockRepository).flush();
+        verify(audit, never()).append(any());
+        verify(currentUserAccessor, never()).getUserId();
     }
 }
