@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 
@@ -13,6 +14,8 @@ import com.histar.be.rag.config.RagProperties;
 import com.histar.be.rag.dto.RagChatAnswer;
 import com.histar.be.rag.dto.RagChatRequest;
 import com.histar.be.chat.dto.StationChatContext;
+import com.histar.be.chat.knowledge.ChatKnowledgeIntent;
+import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
 import com.histar.be.rag.dto.RetrievalResult;
 import com.histar.be.rag.dto.RetrievedChunk;
 import com.histar.be.rag.entity.ChatQualityLog;
@@ -23,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,6 +96,20 @@ class RagChatServiceTest {
 
         assertThat(service.tryAnswer(request())).isEmpty();
         verify(ragService, never()).retrieve(anyString(), any(), any());
+    }
+
+    @Test
+    void nonHeritageRouteNeverTouchesPgvectorEvenIfCalledDefensively() {
+        RagChatRequest productRequest = new RagChatRequest(
+                "Cổ vật dùng để làm gì?", null, "cu-chi", "chrono", "persona", "Củ Chi", List.of(), null,
+                new ChatKnowledgeRoute(
+                        ChatKnowledgeIntent.PRODUCT_HELP,
+                        Set.of(ChatKnowledgeRoute.KnowledgeScope.PLATFORM),
+                        "ARTIFACTS", null, false, null));
+
+        assertThat(service.tryAnswer(productRequest)).isEmpty();
+
+        verifyNoInteractions(ragService, semanticCache, chatLlmClient);
     }
 
     @Test

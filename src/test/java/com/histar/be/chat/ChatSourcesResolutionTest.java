@@ -115,6 +115,8 @@ class ChatSourcesResolutionTest {
                         anyInt(),
                         anyLong(),
                         anyLong(),
+                        any(),
+                        any(),
                         any()))
                 .thenReturn(new RagChatResponse(
                         "Reply from RAG",
@@ -141,6 +143,8 @@ class ChatSourcesResolutionTest {
                         anyInt(),
                         anyLong(),
                         anyLong(),
+                        any(),
+                        any(),
                         any()))
                 .thenReturn(new RagChatResponse("Reply only", List.of()));
 

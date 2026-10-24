@@ -118,7 +118,8 @@ class ChatServiceImplTest {
         when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
         when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
         when(ragAiChatClient.generateWithSources(
-                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                        any(), any(), any()))
                 .thenReturn(new RagChatResponse(
                         "reply",
                         List.of(new ChatSource("Nguồn A", "excerpt", "https://example.com"))));
@@ -163,7 +164,8 @@ class ChatServiceImplTest {
         when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
         when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
         when(ragAiChatClient.generateWithSources(
-                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                        any(), any(), any()))
                 .thenReturn(new RagChatResponse("reply", sources));
         when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(true);
 
@@ -202,8 +204,11 @@ class ChatServiceImplTest {
         when(userArtifactRepository.findByUserId(userId)).thenReturn(List.of());
         when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
         when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
+        when(stationChatContextResolver.resolve("cu-chi", "ST01")).thenReturn(Optional.of(
+                new com.histar.be.chat.dto.StationChatContext("cu-chi", "ST01", "Phòng họp", "verified")));
         when(ragAiChatClient.generateWithSources(
-                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+                        any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                        any(), any(), any()))
                 .thenReturn(new RagChatResponse("reply", sources));
         when(usageQuotaService.shouldIncludeChatSources(eq(userId), eq("cu-chi"))).thenReturn(true);
 
@@ -240,8 +245,6 @@ class ChatServiceImplTest {
         when(profileRepository.findById(userId)).thenReturn(Optional.empty());
         when(userArtifactRepository.findByUserId(userId)).thenReturn(List.of());
         when(userDiscoveryRepository.findByUserId(userId)).thenReturn(List.of());
-        when(playerStoryContextService.build(userId, locationId)).thenReturn(Map.of());
-
         assertThatThrownBy(() -> chatService.sendOrchestrated(
                         userId,
                         new ChatMessageRequest(characterId, "hello", conversationId, "ST01", "other-site")))
