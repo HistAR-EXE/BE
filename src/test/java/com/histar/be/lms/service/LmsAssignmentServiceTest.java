@@ -29,15 +29,20 @@ import com.histar.be.quest.campaign.QuestCampaignRepository;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 class LmsAssignmentServiceTest {
@@ -234,7 +239,7 @@ class LmsAssignmentServiceTest {
     }
 
     @Test
-    void ensureForFieldTrip_returnsWinnerWhenUniqueFieldTripConstraintConflicts() {
+    void ensureForFieldTrip_readsWinnerInCallerTransactionAfterInsertConflict() {
         FieldTrip trip = fieldTrip();
         Assignment winner = Assignment.builder()
                 .id(UUID.randomUUID())
@@ -243,14 +248,46 @@ class LmsAssignmentServiceTest {
                 .campaignId(trip.getCampaignId())
                 .title(trip.getTitle())
                 .build();
-        when(assignmentRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.empty(), Optional.of(winner));
-        when(assignmentRepository.saveAndFlush(any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate key uq_assignments_field_trip_id"));
+        AtomicReference<String> failedInsert = new AtomicReference<>();
+        AtomicInteger reads = new AtomicInteger();
+        when(assignmentRepository.findByFieldTripId(trip.getId())).thenAnswer(invocation -> {
+            String reader = assignmentWriter();
+            if (reader.equals(failedInsert.get())) {
+                throw new IllegalStateException(
+                        "current transaction is aborted, commands ignored until end of transaction block");
+            }
+            return reads.incrementAndGet() == 1 ? Optional.empty() : Optional.of(winner);
+        });
+        when(assignmentRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            String writer = assignmentWriter();
+            assertThat(isRequiresNew(writer))
+                    .as("insert must roll back alone so the caller can read the committed winner")
+                    .isTrue();
+            failedInsert.set(writer);
+            throw new DataIntegrityViolationException("duplicate key uq_assignments_field_trip_id");
+        });
 
         Assignment result = lmsAssignmentService.ensureForFieldTrip(trip);
 
         assertThat(result).isSameAs(winner);
+        assertThat(reads.get()).isEqualTo(2);
         verify(assignmentRepository).saveAndFlush(any());
+    }
+
+    private static String assignmentWriter() {
+        return Arrays.stream(Thread.currentThread().getStackTrace())
+                .filter(frame -> frame.getClassName().equals(LmsAssignmentService.class.getName()))
+                .map(StackTraceElement::getMethodName)
+                .findFirst()
+                .orElse("");
+    }
+
+    private static boolean isRequiresNew(String methodName) {
+        return Arrays.stream(LmsAssignmentService.class.getDeclaredMethods())
+                .filter(method -> method.getName().equals(methodName))
+                .map(method -> method.getAnnotation(Transactional.class))
+                .anyMatch(transactional ->
+                        transactional != null && transactional.propagation() == Propagation.REQUIRES_NEW);
     }
 
     private FieldTrip fieldTrip() {

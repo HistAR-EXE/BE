@@ -31,8 +31,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -48,6 +51,12 @@ public class LmsAssignmentService {
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final QuestCampaignRepository campaignRepository;
     private final QuestCampaignAdminService campaignAdminService;
+    private LmsAssignmentService self = this;
+
+    @Autowired
+    void setSelf(@Lazy LmsAssignmentService self) {
+        this.self = self;
+    }
 
     @Transactional
     public AssignmentResponse createAssignment(UUID teacherId, CreateAssignmentRequest request) {
@@ -100,10 +109,15 @@ public class LmsAssignmentService {
                 .updatedAt(now)
                 .build();
         try {
-            return assignmentRepository.saveAndFlush(assignment);
+            return self.persistFieldTripAssignment(assignment);
         } catch (DataIntegrityViolationException conflict) {
             return assignmentRepository.findByFieldTripId(trip.getId()).orElseThrow(() -> conflict);
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Assignment persistFieldTripAssignment(Assignment assignment) {
+        return assignmentRepository.saveAndFlush(assignment);
     }
 
     @Transactional(readOnly = true)

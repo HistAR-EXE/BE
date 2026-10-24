@@ -41,6 +41,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -156,6 +158,21 @@ class FieldTripServiceTest {
         fieldTripService.create(teacherId, createRequest(orgId, "cu-chi"));
 
         verify(fieldTripRepository, times(2)).saveAndFlush(any());
+    }
+
+    @Test
+    void create_doesNotRetryWhenIntegrityErrorOnlyMentionsJoinCodeColumn() {
+        stubPremiumTeacher(orgId);
+        stubActiveOrganization(orgId);
+        stubSiteQuestAndCampaign();
+        when(fieldTripRepository.existsByJoinCodeIgnoreCase(anyString())).thenReturn(false);
+        DataIntegrityViolationException notTheIndex = new DataIntegrityViolationException(
+                "null value in column \"join_code\" of relation \"field_trips\" violates not-null constraint");
+        when(fieldTripRepository.saveAndFlush(any())).thenThrow(notTheIndex);
+
+        assertThatThrownBy(() -> fieldTripService.create(teacherId, createRequest(orgId, "cu-chi")))
+                .isSameAs(notTheIndex);
+        verify(fieldTripRepository, times(1)).saveAndFlush(any());
     }
 
     @Test
@@ -323,6 +340,46 @@ class FieldTripServiceTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("người tạo");
         verify(fieldTripRepository, never()).saveAndFlush(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = FieldTripStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "DRAFT")
+    void update_rejectsQuestChangeUnlessStatusIsDraft(FieldTripStatus status) {
+        FieldTrip trip = storedTrip(3L);
+        trip.setStatus(status);
+        UUID originalQuest = trip.getQuestId();
+        when(fieldTripRepository.findById(trip.getId())).thenReturn(Optional.of(trip));
+        stubPremiumTeacher(orgId);
+        stubActiveOrganization(orgId);
+        UpdateFieldTripRequest request = new UpdateFieldTripRequest(
+                "Lịch mới", "cu-chi", VISIT_START, VISIT_END, UUID.randomUUID(), UUID.randomUUID(), 3L);
+
+        assertThatThrownBy(() -> fieldTripService.update(teacherId, trip.getId(), request, 3L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Chỉ chuyến nháp mới được sửa");
+        assertThat(trip.getQuestId()).isEqualTo(originalQuest);
+        assertThat(trip.getTitle()).isEqualTo("Chuyến lớp 6");
+        verify(fieldTripRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void update_rejectsPlatformAdminWhenTripIsNoLongerDraft() {
+        FieldTrip trip = storedTrip(5L);
+        trip.setStatus(FieldTripStatus.ACTIVE);
+        UUID originalQuest = trip.getQuestId();
+        when(fieldTripRepository.findById(trip.getId())).thenReturn(Optional.of(trip));
+        SecurityContextHolder.getContext()
+                .setAuthentication(new UsernamePasswordAuthenticationToken(
+                        "admin", "n/a", List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        UpdateFieldTripRequest request = new UpdateFieldTripRequest(
+                "Lịch mới", "cu-chi", VISIT_START, VISIT_END, UUID.randomUUID(), UUID.randomUUID(), 5L);
+
+        assertThatThrownBy(() -> fieldTripService.update(UUID.randomUUID(), trip.getId(), request, 5L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Chỉ chuyến nháp mới được sửa");
+        assertThat(trip.getQuestId()).isEqualTo(originalQuest);
+        verify(fieldTripRepository, never()).saveAndFlush(any());
+        verify(lmsAssignmentService, never()).requirePremiumTeacher(any());
     }
 
     @Test

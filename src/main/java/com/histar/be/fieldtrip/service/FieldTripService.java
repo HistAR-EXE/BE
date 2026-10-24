@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FieldTripService {
 
+    private static final String JOIN_CODE_CONSTRAINT = "uq_field_trips_join_code_ci";
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int JOIN_CODE_LENGTH = 8;
     private static final int MAX_JOIN_CODE_ATTEMPTS = 8;
@@ -119,6 +120,9 @@ public class FieldTripService {
             UUID teacherId, UUID tripId, UpdateFieldTripRequest request, long expectedVersion) {
         FieldTrip trip = load(tripId);
         fieldTripAccessService.requireCanEdit(teacherId, trip);
+        if (trip.getStatus() != FieldTripStatus.DRAFT) {
+            throw new BusinessRuleException("Chỉ chuyến nháp mới được sửa");
+        }
         requireCurrentVersion(trip, expectedVersion);
         String title = requireTitle(request.title());
         requireVisitWindow(request.visitStart(), request.visitEnd());
@@ -229,7 +233,7 @@ public class FieldTripService {
         Throwable current = error;
         while (current != null) {
             String message = current.getMessage();
-            if (message != null && message.toLowerCase(Locale.ROOT).contains("join_code")) {
+            if (message != null && message.toLowerCase(Locale.ROOT).contains(JOIN_CODE_CONSTRAINT)) {
                 return true;
             }
             Throwable next = current.getCause();
