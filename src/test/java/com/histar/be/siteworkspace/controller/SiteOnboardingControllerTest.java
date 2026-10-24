@@ -14,7 +14,9 @@ import com.histar.be.siteworkspace.dto.ReviewSiteOnboardingRequest;
 import com.histar.be.siteworkspace.dto.SiteOnboardingResponse;
 import com.histar.be.siteworkspace.entity.SiteOnboardingStatus;
 import com.histar.be.siteworkspace.service.SiteOnboardingService;
+import jakarta.validation.Valid;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -147,6 +149,14 @@ class SiteOnboardingControllerTest {
                         .getAnnotation(PostMapping.class)
                         .value())
                 .containsExactly("/{id}/reject");
+        assertThat(reviewBody("approve").getAnnotation(Valid.class)).isNotNull();
+        assertThat(reviewBody("reject").getAnnotation(Valid.class)).isNotNull();
+    }
+
+    private static Parameter reviewBody(String methodName) throws Exception {
+        return AdminSiteOnboardingController.class
+                .getMethod(methodName, UUID.class, ReviewSiteOnboardingRequest.class)
+                .getParameters()[1];
     }
 
     private CreateSiteOnboardingRequest request() {

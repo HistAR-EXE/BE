@@ -3,6 +3,8 @@ package com.histar.be.siteworkspace.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,17 +25,23 @@ import com.histar.be.siteworkspace.entity.SiteOnboardingStatus;
 import com.histar.be.siteworkspace.entity.SiteRole;
 import com.histar.be.siteworkspace.repository.SiteMembershipRepository;
 import com.histar.be.siteworkspace.repository.SiteOnboardingRequestRepository;
+import jakarta.persistence.LockModeType;
+import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
@@ -150,6 +158,21 @@ class SiteOnboardingServiceTest {
     }
 
     @Test
+    void submit_mapsDuplicateSaveViolationToBusinessRule() {
+        UUID actorId = UUID.randomUUID();
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE)).thenReturn(Optional.of(knownSite()));
+        when(siteOnboardingRequestRepository.existsByRequesterIdAndSiteCodeIgnoreCaseAndStatus(
+                        actorId, SITE_CODE, SiteOnboardingStatus.PENDING))
+                .thenReturn(false);
+        when(siteOnboardingRequestRepository.save(any(SiteOnboardingRequest.class)))
+                .thenThrow(new DataIntegrityViolationException("uq_site_onboarding_requests_pending"));
+
+        assertThatThrownBy(() -> service.submit(actorId, submission(SITE_CODE, "Nguyễn Văn A")))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Đã có yêu cầu onboarding đang chờ duyệt cho site này");
+    }
+
+    @Test
     void submit_rejectsUnknownSite() {
         UUID actorId = UUID.randomUUID();
         when(locationRepository.findBySiteCodeIgnoreCase("missing-site")).thenReturn(Optional.empty());
@@ -209,11 +232,25 @@ class SiteOnboardingServiceTest {
     }
 
     @Test
+    void reviewLookupDeclaresPessimisticWriteLock() {
+        Method method = Arrays.stream(SiteOnboardingRequestRepository.class.getMethods())
+                .filter(candidate -> candidate.getName().equals("findByIdForUpdate"))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(method).isNotNull();
+        assertThat(method.getAnnotation(Lock.class))
+                .isNotNull()
+                .extracting(Lock::value)
+                .isEqualTo(LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Test
     void approve_createsSiteManagerAndAuditsWithoutSecrets() throws Exception {
         UUID requesterId = UUID.randomUUID();
         UUID reviewerId = UUID.randomUUID();
         SiteOnboardingRequest pending = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
-        when(siteOnboardingRequestRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(pending.getId())).thenReturn(Optional.of(pending));
         when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE)).thenReturn(Optional.of(knownSite()));
         when(siteMembershipRepository.findBySiteCodeIgnoreCaseAndUserId(SITE_CODE, requesterId))
                 .thenReturn(Optional.empty());
@@ -243,6 +280,30 @@ class SiteOnboardingServiceTest {
         assertThat(SiteOnboardingService.class.getMethod("approve", UUID.class, UUID.class, String.class)
                         .getAnnotation(Transactional.class))
                 .isNotNull();
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(pending.getId());
+    }
+
+    @Test
+    void approve_locksRowAndGrantsMembershipOnlyAfterPendingTransition() {
+        UUID requesterId = UUID.randomUUID();
+        UUID reviewerId = UUID.randomUUID();
+        SiteOnboardingRequest pending = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(pending.getId())).thenReturn(Optional.of(pending));
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE)).thenReturn(Optional.of(knownSite()));
+        when(siteMembershipRepository.findBySiteCodeIgnoreCaseAndUserId(SITE_CODE, requesterId))
+                .thenReturn(Optional.empty());
+        when(siteMembershipRepository.save(any(SiteMembership.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(siteOnboardingRequestRepository.save(any(SiteOnboardingRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.approve(pending.getId(), reviewerId, "Hồ sơ hợp lệ");
+
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(pending.getId());
+        InOrder order = inOrder(siteOnboardingRequestRepository, siteMembershipRepository);
+        order.verify(siteOnboardingRequestRepository).save(argThat(
+                (SiteOnboardingRequest saved) -> saved.getStatus() == SiteOnboardingStatus.APPROVED));
+        order.verify(siteMembershipRepository).save(any(SiteMembership.class));
     }
 
     @Test
@@ -258,7 +319,7 @@ class SiteOnboardingServiceTest {
                 .role(SiteRole.CONTENT_EDITOR)
                 .active(false)
                 .build();
-        when(siteOnboardingRequestRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(pending.getId())).thenReturn(Optional.of(pending));
         when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE)).thenReturn(Optional.of(knownSite()));
         when(siteMembershipRepository.findBySiteCodeIgnoreCaseAndUserId(SITE_CODE, requesterId))
                 .thenReturn(Optional.of(existing));
@@ -285,13 +346,14 @@ class SiteOnboardingServiceTest {
         approved.setReviewedBy(originalReviewer);
         approved.setReviewNote("Đã xác minh");
         approved.setReviewedAt(Instant.parse("2026-10-24T02:00:00Z"));
-        when(siteOnboardingRequestRepository.findById(approved.getId())).thenReturn(Optional.of(approved));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(approved.getId())).thenReturn(Optional.of(approved));
 
         SiteOnboardingResponse response = service.approve(approved.getId(), UUID.randomUUID(), "Duyệt lại");
 
         assertThat(response).isEqualTo(toExpected(approved));
         assertThat(approved.getReviewedBy()).isEqualTo(originalReviewer);
         assertThat(approved.getReviewNote()).isEqualTo("Đã xác minh");
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(approved.getId());
         verify(siteOnboardingRequestRepository, never()).save(any());
         verify(siteMembershipRepository, never()).save(any());
         verify(siteMembershipRepository, never()).findBySiteCodeIgnoreCaseAndUserId(any(), any());
@@ -301,7 +363,7 @@ class SiteOnboardingServiceTest {
     @Test
     void approve_rejectsUnknownRequest() {
         UUID requestId = UUID.randomUUID();
-        when(siteOnboardingRequestRepository.findById(requestId)).thenReturn(Optional.empty());
+        when(siteOnboardingRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.approve(requestId, UUID.randomUUID(), "Hồ sơ hợp lệ"))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -313,12 +375,13 @@ class SiteOnboardingServiceTest {
         UUID requesterId = UUID.randomUUID();
         SiteOnboardingRequest rejected = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
         rejected.setStatus(SiteOnboardingStatus.REJECTED);
-        when(siteOnboardingRequestRepository.findById(rejected.getId())).thenReturn(Optional.of(rejected));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(rejected.getId())).thenReturn(Optional.of(rejected));
 
         assertThatThrownBy(() -> service.approve(rejected.getId(), UUID.randomUUID(), "Đổi ý"))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessage("Yêu cầu onboarding không còn chờ duyệt");
 
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(rejected.getId());
         verify(siteMembershipRepository, never()).save(any());
         verify(siteOnboardingRequestRepository, never()).save(any());
         verify(adminAuditService, never()).append(any());
@@ -329,7 +392,7 @@ class SiteOnboardingServiceTest {
         UUID requesterId = UUID.randomUUID();
         UUID reviewerId = UUID.randomUUID();
         SiteOnboardingRequest pending = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
-        when(siteOnboardingRequestRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(pending.getId())).thenReturn(Optional.of(pending));
         when(siteOnboardingRequestRepository.save(pending)).thenReturn(pending);
 
         SiteOnboardingResponse response = service.reject(pending.getId(), reviewerId, "Thiếu giấy ủy quyền");
@@ -345,13 +408,31 @@ class SiteOnboardingServiceTest {
         assertThat(SiteOnboardingService.class.getMethod("reject", UUID.class, UUID.class, String.class)
                         .getAnnotation(Transactional.class))
                 .isNotNull();
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(pending.getId());
+    }
+
+    @Test
+    void reject_doesNotMutateMembershipWhenRowIsNoLongerPending() {
+        UUID requesterId = UUID.randomUUID();
+        SiteOnboardingRequest approved = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
+        approved.setStatus(SiteOnboardingStatus.APPROVED);
+        when(siteOnboardingRequestRepository.findByIdForUpdate(approved.getId())).thenReturn(Optional.of(approved));
+
+        assertThatThrownBy(() -> service.reject(approved.getId(), UUID.randomUUID(), "Đổi ý"))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Yêu cầu onboarding không còn chờ duyệt");
+
+        verify(siteOnboardingRequestRepository).findByIdForUpdate(approved.getId());
+        verify(siteMembershipRepository, never()).save(any());
+        verify(siteOnboardingRequestRepository, never()).save(any());
+        verify(adminAuditService, never()).append(any());
     }
 
     @Test
     void reject_requiresNote() {
         UUID requesterId = UUID.randomUUID();
         SiteOnboardingRequest pending = storedRequest(requesterId, Instant.parse("2026-10-24T01:00:00Z"));
-        when(siteOnboardingRequestRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+        when(siteOnboardingRequestRepository.findByIdForUpdate(pending.getId())).thenReturn(Optional.of(pending));
 
         for (String note : new String[] {null, "", "   "}) {
             assertThatThrownBy(() -> service.reject(pending.getId(), UUID.randomUUID(), note))

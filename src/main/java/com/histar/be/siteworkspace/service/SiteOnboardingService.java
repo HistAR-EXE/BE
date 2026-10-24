@@ -21,12 +21,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class SiteOnboardingService {
+
+    private static final String DUPLICATE_PENDING_MESSAGE =
+            "Đã có yêu cầu onboarding đang chờ duyệt cho site này";
 
     private static final Pattern EMBEDDED_SECRET = Pattern.compile(
             "-----BEGIN [A-Z0-9 ]*-----|data:[\\w.+-]+/[\\w.+-]+;base64,",
@@ -51,22 +55,27 @@ public class SiteOnboardingService {
         String siteCode = location.getSiteCode();
         if (siteOnboardingRequestRepository.existsByRequesterIdAndSiteCodeIgnoreCaseAndStatus(
                 actorId, siteCode, SiteOnboardingStatus.PENDING)) {
-            throw new BusinessRuleException("Đã có yêu cầu onboarding đang chờ duyệt cho site này");
+            throw new BusinessRuleException(DUPLICATE_PENDING_MESSAGE);
         }
 
         Instant now = Instant.now();
-        SiteOnboardingRequest saved = siteOnboardingRequestRepository.save(SiteOnboardingRequest.builder()
-                .requesterId(actorId)
-                .siteCode(siteCode)
-                .representativeName(representativeName)
-                .organizationName(organizationName)
-                .representativeEmail(representativeEmail)
-                .evidenceNote(evidenceNote)
-                .status(SiteOnboardingStatus.PENDING)
-                .createdAt(now)
-                .updatedAt(now)
-                .build());
-        return toResponse(saved);
+        try {
+            SiteOnboardingRequest saved = siteOnboardingRequestRepository.save(SiteOnboardingRequest.builder()
+                    .requesterId(actorId)
+                    .siteCode(siteCode)
+                    .representativeName(representativeName)
+                    .organizationName(organizationName)
+                    .representativeEmail(representativeEmail)
+                    .evidenceNote(evidenceNote)
+                    .status(SiteOnboardingStatus.PENDING)
+                    .createdAt(now)
+                    .updatedAt(now)
+                    .build());
+            siteOnboardingRequestRepository.flush();
+            return toResponse(saved);
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessRuleException(DUPLICATE_PENDING_MESSAGE);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -87,7 +96,7 @@ public class SiteOnboardingService {
     @Transactional
     public SiteOnboardingResponse approve(UUID requestId, UUID reviewerId, String note) {
         requireActor(reviewerId);
-        SiteOnboardingRequest request = load(requestId);
+        SiteOnboardingRequest request = loadForUpdate(requestId);
         if (request.getStatus() == SiteOnboardingStatus.APPROVED) {
             return toResponse(request);
         }
@@ -96,14 +105,15 @@ public class SiteOnboardingService {
         }
         Location location = locationRepository.findBySiteCodeIgnoreCase(request.getSiteCode())
                 .orElseThrow(() -> new BusinessRuleException("Không tìm thấy site workspace"));
-        grantSiteManager(location.getSiteCode(), request.getRequesterId(), reviewerId);
         String reviewNote = blankToNull(note);
+        Instant reviewedAt = Instant.now();
         request.setStatus(SiteOnboardingStatus.APPROVED);
         request.setReviewedBy(reviewerId);
         request.setReviewNote(reviewNote);
-        request.setReviewedAt(Instant.now());
-        request.setUpdatedAt(request.getReviewedAt());
+        request.setReviewedAt(reviewedAt);
+        request.setUpdatedAt(reviewedAt);
         SiteOnboardingRequest saved = siteOnboardingRequestRepository.save(request);
+        grantSiteManager(location.getSiteCode(), saved.getRequesterId(), reviewerId);
         audit(reviewerId, saved, SiteOnboardingStatus.PENDING, "APPROVED", reviewNote);
         return toResponse(saved);
     }
@@ -111,7 +121,7 @@ public class SiteOnboardingService {
     @Transactional
     public SiteOnboardingResponse reject(UUID requestId, UUID reviewerId, String note) {
         requireActor(reviewerId);
-        SiteOnboardingRequest request = load(requestId);
+        SiteOnboardingRequest request = loadForUpdate(requestId);
         String reviewNote = note == null ? "" : note.trim();
         if (reviewNote.isEmpty()) {
             throw new BusinessRuleException("Lý do từ chối là bắt buộc");
@@ -166,8 +176,8 @@ public class SiteOnboardingService {
                         "newStatus", request.getStatus().name())));
     }
 
-    private SiteOnboardingRequest load(UUID requestId) {
-        return siteOnboardingRequestRepository.findById(requestId)
+    private SiteOnboardingRequest loadForUpdate(UUID requestId) {
+        return siteOnboardingRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu onboarding"));
     }
 

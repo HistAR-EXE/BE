@@ -38,7 +38,7 @@ public class AdminSiteOnboardingController {
     @PostMapping("/{id}/approve")
     public ApiResponse<SiteOnboardingResponse> approve(
             @PathVariable UUID id,
-            @RequestBody(required = false) ReviewSiteOnboardingRequest request) {
+            @Valid @RequestBody(required = false) ReviewSiteOnboardingRequest request) {
         return ApiResponse.ok(siteOnboardingService.approve(id, currentUserId(), note(request)));
     }
 
