@@ -727,6 +727,40 @@ class SiteContentWorkflowServiceTest {
                 editorId, SITE, SiteContentKind.STATION, STATION_CODE, draft(stationJson("TEXT", null))));
     }
 
+    @Test
+    void listVersions_requiresReaderRoleAndPassesOptionalStatus() throws Exception {
+        when(versions.findBySiteCodeIgnoreCaseOrderByUpdatedAtDescVersionDesc(SITE)).thenReturn(null);
+
+        assertThat(service.listVersions(editorId, "IMPERIAL-CITY", null)).isEmpty();
+        verify(access).requireAny(
+                editorId,
+                SITE,
+                Set.of(SiteRole.SITE_MANAGER, SiteRole.CONTENT_EDITOR, SiteRole.CONTENT_REVIEWER));
+        verify(versions).findBySiteCodeIgnoreCaseOrderByUpdatedAtDescVersionDesc(SITE);
+        verify(versions, never())
+                .findBySiteCodeIgnoreCaseAndStatusOrderByUpdatedAtDescVersionDesc(anyString(), any());
+
+        SiteContentVersion inReview = content(
+                SiteContentKind.SITE_PROFILE, SITE, 2, ContentLifecycleStatus.IN_REVIEW, profileJson(), 4);
+        when(versions.findBySiteCodeIgnoreCaseAndStatusOrderByUpdatedAtDescVersionDesc(
+                        SITE, ContentLifecycleStatus.IN_REVIEW))
+                .thenReturn(List.of(inReview));
+
+        List<SiteContentVersionResponse> listed =
+                service.listVersions(reviewerId, SITE, ContentLifecycleStatus.IN_REVIEW);
+
+        assertThat(listed).singleElement().satisfies(item -> {
+            assertThat(item.resourceKey()).isEqualTo(PROFILE_KEY);
+            assertThat(item.status()).isEqualTo(ContentLifecycleStatus.IN_REVIEW);
+            assertThat(item.version()).isEqualTo(2);
+            assertThat(item.revision()).isEqualTo(4);
+        });
+        verify(access).requireAny(
+                reviewerId,
+                SITE,
+                Set.of(SiteRole.SITE_MANAGER, SiteRole.CONTENT_EDITOR, SiteRole.CONTENT_REVIEWER));
+    }
+
     private void assertIncompleteStationRejected(String json) {
         SiteContentVersion version = content(
                 SiteContentKind.STATION, STATION_CODE, 1, ContentLifecycleStatus.IN_REVIEW, json, 1);

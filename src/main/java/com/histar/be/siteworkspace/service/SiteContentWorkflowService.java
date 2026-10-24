@@ -58,6 +58,8 @@ public class SiteContentWorkflowService {
     private static final String VERSION_NOT_FOUND = "Không tìm thấy phiên bản nội dung";
     private static final String STALE_VERSION = "Content version was changed by another editor";
     private static final Pattern MEDIA_URL = Pattern.compile("^(https://|http://|/)\\S+$");
+    private static final Set<SiteRole> READERS =
+            Set.of(SiteRole.SITE_MANAGER, SiteRole.CONTENT_EDITOR, SiteRole.CONTENT_REVIEWER);
     private static final Set<SiteRole> EDITORS = Set.of(SiteRole.SITE_MANAGER, SiteRole.CONTENT_EDITOR);
     private static final Set<SiteRole> REVIEWERS = Set.of(SiteRole.CONTENT_REVIEWER, SiteRole.SITE_MANAGER);
     private static final Set<SiteRole> PUBLISHERS = Set.of(SiteRole.SITE_MANAGER);
@@ -92,6 +94,19 @@ public class SiteContentWorkflowService {
         this.objectMapper = objectMapper.copy();
         this.objectMapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
         this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SiteContentVersionResponse> listVersions(UUID userId, String siteCode, ContentLifecycleStatus status) {
+        Location location = authorize(userId, siteCode, READERS);
+        List<SiteContentVersion> rows = status == null
+                ? versions.findBySiteCodeIgnoreCaseOrderByUpdatedAtDescVersionDesc(location.getSiteCode())
+                : versions.findBySiteCodeIgnoreCaseAndStatusOrderByUpdatedAtDescVersionDesc(
+                        location.getSiteCode(), status);
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream().map(this::toResponse).toList();
     }
 
     @Transactional

@@ -21,4 +21,9 @@ public interface SiteContentVersionRepository extends JpaRepository<SiteContentV
             SiteContentKind contentKind,
             String resourceKey,
             ContentLifecycleStatus status);
+
+    List<SiteContentVersion> findBySiteCodeIgnoreCaseOrderByUpdatedAtDescVersionDesc(String siteCode);
+
+    List<SiteContentVersion> findBySiteCodeIgnoreCaseAndStatusOrderByUpdatedAtDescVersionDesc(
+            String siteCode, ContentLifecycleStatus status);
 }
