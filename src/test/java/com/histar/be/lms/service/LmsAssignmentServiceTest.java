@@ -10,6 +10,9 @@ import static org.mockito.Mockito.when;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.common.exception.LmsPremiumRequiredException;
+import com.histar.be.fieldtrip.entity.FieldTrip;
+import com.histar.be.fieldtrip.entity.FieldTripStatus;
+import com.histar.be.fieldtrip.entity.SiteConfirmationStatus;
 import com.histar.be.lms.dto.CreateAssignmentRequest;
 import com.histar.be.lms.entity.Assignment;
 import com.histar.be.lms.repository.AssignmentRepository;
@@ -20,6 +23,7 @@ import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.quest.campaign.QuestCampaignAdminService;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.campaign.QuestCampaignRepository;
 import com.histar.be.quest.progress.entity.UserQuestProgress;
@@ -33,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class LmsAssignmentServiceTest {
@@ -60,6 +65,9 @@ class LmsAssignmentServiceTest {
 
     @Mock
     private QuestCampaignRepository campaignRepository;
+
+    @Mock
+    private QuestCampaignAdminService campaignAdminService;
 
     @InjectMocks
     private LmsAssignmentService lmsAssignmentService;
@@ -184,5 +192,84 @@ class LmsAssignmentServiceTest {
                 });
         verify(assignmentRepository, never()).save(any());
         verify(questRepository, never()).findById(any());
+    }
+
+    @Test
+    void ensureForFieldTrip_returnsExistingAssignmentWithoutSavingAgain() {
+        FieldTrip trip = fieldTrip();
+        Assignment existing = Assignment.builder()
+                .id(UUID.randomUUID())
+                .orgId(trip.getOrgId())
+                .teacherId(trip.getCreatedBy())
+                .questId(trip.getQuestId())
+                .campaignId(trip.getCampaignId())
+                .fieldTripId(trip.getId())
+                .title("Đã tạo")
+                .build();
+        when(assignmentRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.of(existing));
+
+        Assignment result = lmsAssignmentService.ensureForFieldTrip(trip);
+
+        assertThat(result).isSameAs(existing);
+        verify(assignmentRepository, never()).save(any());
+        verify(assignmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void ensureForFieldTrip_createsOneAssignmentTiedToTheTrip() {
+        FieldTrip trip = fieldTrip();
+        when(assignmentRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.empty());
+        when(assignmentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Assignment result = lmsAssignmentService.ensureForFieldTrip(trip);
+
+        assertThat(result.getFieldTripId()).isEqualTo(trip.getId());
+        assertThat(result.getOrgId()).isEqualTo(trip.getOrgId());
+        assertThat(result.getTeacherId()).isEqualTo(trip.getCreatedBy());
+        assertThat(result.getQuestId()).isEqualTo(trip.getQuestId());
+        assertThat(result.getCampaignId()).isEqualTo(trip.getCampaignId());
+        assertThat(result.getTitle()).isEqualTo(trip.getTitle());
+        assertThat(result.getDueAt()).isEqualTo(trip.getVisitEnd());
+        verify(assignmentRepository).saveAndFlush(any());
+    }
+
+    @Test
+    void ensureForFieldTrip_returnsWinnerWhenUniqueFieldTripConstraintConflicts() {
+        FieldTrip trip = fieldTrip();
+        Assignment winner = Assignment.builder()
+                .id(UUID.randomUUID())
+                .fieldTripId(trip.getId())
+                .questId(trip.getQuestId())
+                .campaignId(trip.getCampaignId())
+                .title(trip.getTitle())
+                .build();
+        when(assignmentRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.empty(), Optional.of(winner));
+        when(assignmentRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key uq_assignments_field_trip_id"));
+
+        Assignment result = lmsAssignmentService.ensureForFieldTrip(trip);
+
+        assertThat(result).isSameAs(winner);
+        verify(assignmentRepository).saveAndFlush(any());
+    }
+
+    private FieldTrip fieldTrip() {
+        return FieldTrip.builder()
+                .id(UUID.randomUUID())
+                .orgId(UUID.randomUUID())
+                .siteCode("cu-chi")
+                .title("Chuyến lớp 6")
+                .visitStart(Instant.parse("2026-11-01T01:00:00Z"))
+                .visitEnd(Instant.parse("2026-11-01T06:00:00Z"))
+                .questId(UUID.randomUUID())
+                .campaignId(UUID.randomUUID())
+                .joinCode("ABCDEFGH")
+                .status(FieldTripStatus.DRAFT)
+                .siteConfirmationStatus(SiteConfirmationStatus.NOT_REQUIRED)
+                .createdBy(UUID.randomUUID())
+                .createdAt(Instant.parse("2026-10-24T00:00:00Z"))
+                .updatedAt(Instant.parse("2026-10-24T00:00:00Z"))
+                .rowVersion(0L)
+                .build();
     }
 }

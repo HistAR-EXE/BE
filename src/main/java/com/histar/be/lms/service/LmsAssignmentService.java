@@ -3,6 +3,7 @@ package com.histar.be.lms.service;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.LmsPremiumRequiredException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.fieldtrip.entity.FieldTrip;
 import com.histar.be.lms.dto.AssignmentResponse;
 import com.histar.be.lms.dto.AssignmentSubmissionResponse;
 import com.histar.be.lms.dto.CreateAssignmentRequest;
@@ -27,8 +28,10 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,6 +72,38 @@ public class LmsAssignmentService {
                 .updatedAt(now)
                 .build());
         return toResponse(saved, quest.getTitle(), List.of());
+    }
+
+    @Transactional
+    public Assignment ensureForFieldTrip(FieldTrip trip) {
+        if (trip == null || trip.getId() == null) {
+            throw new BusinessRuleException("Chuyến đi chưa được lưu");
+        }
+        Optional<Assignment> existing = assignmentRepository.findByFieldTripId(trip.getId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Instant now = Instant.now();
+        String title = trip.getTitle() == null ? "" : trip.getTitle().trim();
+        if (title.isEmpty()) {
+            throw new BusinessRuleException("Tiêu đề chuyến đi không hợp lệ");
+        }
+        Assignment assignment = Assignment.builder()
+                .orgId(trip.getOrgId())
+                .teacherId(trip.getCreatedBy())
+                .questId(trip.getQuestId())
+                .campaignId(trip.getCampaignId())
+                .fieldTripId(trip.getId())
+                .title(title)
+                .dueAt(trip.getVisitEnd())
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        try {
+            return assignmentRepository.saveAndFlush(assignment);
+        } catch (DataIntegrityViolationException conflict) {
+            return assignmentRepository.findByFieldTripId(trip.getId()).orElseThrow(() -> conflict);
+        }
     }
 
     @Transactional(readOnly = true)
