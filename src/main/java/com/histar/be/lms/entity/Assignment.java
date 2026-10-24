@@ -39,6 +39,9 @@ public class Assignment {
     @Column(name = "campaign_id")
     private UUID campaignId;
 
+    @Column(name = "field_trip_id", unique = true)
+    private UUID fieldTripId;
+
     @Column(nullable = false)
     private String title;
 
