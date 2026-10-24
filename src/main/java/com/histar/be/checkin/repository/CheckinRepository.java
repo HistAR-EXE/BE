@@ -29,6 +29,10 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
     /** Live board: check-ins of a set of users since {@code since}. */
     List<Checkin> findByUserIdInAndCreatedAtGreaterThanEqual(Collection<UUID> userIds, Instant since);
 
+    /** Trip board and report: check-ins for these users at one location inside a visit window. */
+    List<Checkin> findByUserIdInAndLocationIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanEqual(
+            Collection<UUID> userIds, UUID locationId, Instant from, Instant to);
+
     Optional<Checkin> findByUserIdAndClientUuid(UUID userId, UUID clientUuid);
 
     /** Last check-in where presence was proven by a verified station QR. */

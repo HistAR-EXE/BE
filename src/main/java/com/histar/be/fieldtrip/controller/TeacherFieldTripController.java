@@ -10,6 +10,7 @@ import com.histar.be.fieldtrip.dto.FieldTripTransitionRequest;
 import com.histar.be.fieldtrip.dto.UpdateFieldTripRequest;
 import com.histar.be.fieldtrip.service.FieldTripJoinService;
 import com.histar.be.fieldtrip.service.FieldTripLifecycleService;
+import com.histar.be.fieldtrip.service.FieldTripReportingService;
 import com.histar.be.fieldtrip.service.FieldTripService;
 import com.histar.be.group.dto.GroupSummaryResponse;
 import jakarta.validation.Valid;
@@ -34,6 +35,7 @@ public class TeacherFieldTripController {
     private final FieldTripService fieldTripService;
     private final FieldTripJoinService fieldTripJoinService;
     private final FieldTripLifecycleService fieldTripLifecycleService;
+    private final FieldTripReportingService fieldTripReportingService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -80,7 +82,9 @@ public class TeacherFieldTripController {
     @PostMapping("/{tripId}/complete")
     public ApiResponse<FieldTripResponse> complete(
             @PathVariable UUID tripId, @RequestBody @Valid FieldTripTransitionRequest request) {
-        return ApiResponse.ok(fieldTripLifecycleService.complete(requireUser(), tripId, request.rowVersion()));
+        UUID teacherId = requireUser();
+        fieldTripReportingService.completeAndSnapshot(teacherId, tripId, request.rowVersion());
+        return ApiResponse.ok(fieldTripService.get(teacherId, tripId));
     }
 
     @PostMapping("/{tripId}/cancel")
