@@ -184,7 +184,8 @@ public class FieldTripLifecycleService {
                         trip.getVisitEnd(),
                         trip.getStatus(),
                         trip.getSiteConfirmationStatus(),
-                        studyGroupRepository.countByFieldTripId(trip.getId())))
+                        studyGroupRepository.countByFieldTripId(trip.getId()),
+                        trip.getRowVersion()))
                 .toList();
     }
 

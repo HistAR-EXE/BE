@@ -12,4 +12,5 @@ public record SiteFieldTripScheduleResponse(
         Instant visitEnd,
         FieldTripStatus status,
         SiteConfirmationStatus siteConfirmationStatus,
-        long groupCount) {}
+        long groupCount,
+        Long rowVersion) {}

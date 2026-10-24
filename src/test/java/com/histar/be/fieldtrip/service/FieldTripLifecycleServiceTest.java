@@ -670,7 +670,8 @@ class FieldTripLifecycleServiceTest {
                                 earlier.getVisitEnd(),
                                 FieldTripStatus.PENDING_SITE,
                                 SiteConfirmationStatus.PENDING,
-                                2L),
+                                2L,
+                                1L),
                         new SiteFieldTripScheduleResponse(
                                 later.getId(),
                                 "Chuyến chiều",
@@ -678,7 +679,8 @@ class FieldTripLifecycleServiceTest {
                                 later.getVisitEnd(),
                                 FieldTripStatus.DRAFT,
                                 SiteConfirmationStatus.NOT_REQUIRED,
-                                0L));
+                                0L,
+                                2L));
         assertThat(SiteFieldTripScheduleResponse.class.getRecordComponents())
                 .extracting(component -> component.getName())
                 .containsExactly(
@@ -688,7 +690,9 @@ class FieldTripLifecycleServiceTest {
                         "visitEnd",
                         "status",
                         "siteConfirmationStatus",
-                        "groupCount");
+                        "groupCount",
+                        "rowVersion")
+                .doesNotContain("email", "photoUrl", "displayName", "userId");
         InOrder order = inOrder(siteWorkspaceAccessService, fieldTripRepository);
         order.verify(siteWorkspaceAccessService).requireAny(managerId, SITE, SITE_MANAGERS);
         order.verify(fieldTripRepository).findBySiteCodeIgnoreCaseOrderByVisitStartAsc(SITE);
