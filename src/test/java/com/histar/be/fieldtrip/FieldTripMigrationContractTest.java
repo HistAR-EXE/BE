@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.hibernate.annotations.Immutable;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -57,7 +58,8 @@ class FieldTripMigrationContractTest {
 
         assertThat(sql)
                 .contains("references organizations(id)")
-                .contains("references locations(site_code)")
+                .contains("references locations(site_code) on update cascade on delete restrict")
+                .contains("on update cascade on delete restrict")
                 .contains("references quests(id)")
                 .contains("references quest_campaigns(id)")
                 .contains("references profiles(id)")
@@ -81,6 +83,7 @@ class FieldTripMigrationContractTest {
                 .contains("references field_trips(id)")
                 .contains("add column participation_mode varchar(32)")
                 .contains("add column declared_size integer")
+                .contains("check (declared_size is null or declared_size >= 1)")
                 .contains("check (participation_mode in ('individual', 'shared_device'))")
                 .contains("alter table assignments")
                 .contains("create unique index uq_assignments_field_trip_id on assignments (field_trip_id)")
@@ -180,6 +183,18 @@ class FieldTripMigrationContractTest {
         assertThat(hasPreUpdate).isFalse();
         assertThat(Arrays.stream(snapshot.getDeclaredFields()).map(Field::getName))
                 .doesNotContain("updatedAt");
+        assertThat(snapshot.isAnnotationPresent(Immutable.class)).isTrue();
+
+        UUID tripId = UUID.randomUUID();
+        Object builder = snapshot.getMethod("builder").invoke(null);
+        Class<?> builderType = builder.getClass();
+        builderType.getMethod("fieldTripId", UUID.class).invoke(builder, tripId);
+        builderType.getMethod("reportJson", String.class).invoke(builder, "{\"summary\":1}");
+        Object built = builderType.getMethod("build").invoke(builder);
+        Field fieldTripId = snapshot.getDeclaredField("fieldTripId");
+        fieldTripId.setAccessible(true);
+        assertThat(built).isInstanceOf(snapshot);
+        assertThat(fieldTripId.get(built)).isEqualTo(tripId);
     }
 
     private String migrationSql() throws Exception {

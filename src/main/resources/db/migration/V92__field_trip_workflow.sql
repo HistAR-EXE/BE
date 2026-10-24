@@ -4,7 +4,7 @@
 CREATE TABLE field_trips (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id),
-    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE RESTRICT,
     title VARCHAR(255) NOT NULL,
     visit_start TIMESTAMPTZ NOT NULL,
     visit_end TIMESTAMPTZ NOT NULL,
@@ -41,7 +41,9 @@ ALTER TABLE study_groups
     ADD COLUMN participation_mode VARCHAR(32),
     ADD COLUMN declared_size INTEGER,
     ADD CONSTRAINT chk_study_groups_participation_mode
-        CHECK (participation_mode IN ('INDIVIDUAL', 'SHARED_DEVICE'));
+        CHECK (participation_mode IN ('INDIVIDUAL', 'SHARED_DEVICE')),
+    ADD CONSTRAINT chk_study_groups_declared_size
+        CHECK (declared_size IS NULL OR declared_size >= 1);
 
 CREATE INDEX idx_study_groups_field_trip_id ON study_groups (field_trip_id);
 
