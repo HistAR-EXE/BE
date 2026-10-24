@@ -6,8 +6,10 @@ import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.fieldtrip.dto.CreateFieldTripRequest;
 import com.histar.be.fieldtrip.dto.CreateTripGroupRequest;
 import com.histar.be.fieldtrip.dto.FieldTripResponse;
+import com.histar.be.fieldtrip.dto.FieldTripTransitionRequest;
 import com.histar.be.fieldtrip.dto.UpdateFieldTripRequest;
 import com.histar.be.fieldtrip.service.FieldTripJoinService;
+import com.histar.be.fieldtrip.service.FieldTripLifecycleService;
 import com.histar.be.fieldtrip.service.FieldTripService;
 import com.histar.be.group.dto.GroupSummaryResponse;
 import jakarta.validation.Valid;
@@ -31,6 +33,7 @@ public class TeacherFieldTripController {
 
     private final FieldTripService fieldTripService;
     private final FieldTripJoinService fieldTripJoinService;
+    private final FieldTripLifecycleService fieldTripLifecycleService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -59,6 +62,31 @@ public class TeacherFieldTripController {
             @PathVariable UUID tripId, @RequestBody @Valid UpdateFieldTripRequest request) {
         return ApiResponse.ok(
                 fieldTripService.update(requireUser(), tripId, request, request.rowVersion()));
+    }
+
+    @PostMapping("/{tripId}/request-confirmation")
+    public ApiResponse<FieldTripResponse> requestConfirmation(
+            @PathVariable UUID tripId, @RequestBody @Valid FieldTripTransitionRequest request) {
+        return ApiResponse.ok(
+                fieldTripLifecycleService.requestConfirmation(requireUser(), tripId, request.rowVersion()));
+    }
+
+    @PostMapping("/{tripId}/start")
+    public ApiResponse<FieldTripResponse> start(
+            @PathVariable UUID tripId, @RequestBody @Valid FieldTripTransitionRequest request) {
+        return ApiResponse.ok(fieldTripLifecycleService.start(requireUser(), tripId, request.rowVersion()));
+    }
+
+    @PostMapping("/{tripId}/complete")
+    public ApiResponse<FieldTripResponse> complete(
+            @PathVariable UUID tripId, @RequestBody @Valid FieldTripTransitionRequest request) {
+        return ApiResponse.ok(fieldTripLifecycleService.complete(requireUser(), tripId, request.rowVersion()));
+    }
+
+    @PostMapping("/{tripId}/cancel")
+    public ApiResponse<FieldTripResponse> cancel(
+            @PathVariable UUID tripId, @RequestBody @Valid FieldTripTransitionRequest request) {
+        return ApiResponse.ok(fieldTripLifecycleService.cancel(requireUser(), tripId, request.rowVersion()));
     }
 
     private UUID requireUser() {

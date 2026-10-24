@@ -12,5 +12,7 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, UUID> {
     Optional<StudyGroup> findByCodeIgnoreCase(String code);
     List<StudyGroup> findByOrgIdAndQuestId(UUID orgId, UUID questId);
     List<StudyGroup> findByFieldTripId(UUID fieldTripId);
+
+    long countByFieldTripId(UUID fieldTripId);
     long countByQuestIdAndExpiresAtGreaterThan(UUID questId, Instant now);
 }
