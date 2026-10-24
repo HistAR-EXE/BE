@@ -192,6 +192,32 @@ class SiteWorkspaceAccessServiceTest {
     }
 
     @Test
+    void getWorkspace_includesLocationProfile() {
+        UUID userId = UUID.randomUUID();
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_CODE))
+                .thenReturn(Optional.of(Location.builder()
+                        .siteCode(SITE_CODE)
+                        .name("Imperial City")
+                        .description("Citadel")
+                        .formattedAddress("Hue")
+                        .coverImage("https://cdn.example/cover.jpg")
+                        .sources("Đại Nam thực lục")
+                        .build()));
+        when(siteMembershipRepository.findBySiteCodeIgnoreCaseAndUserId(SITE_CODE, userId))
+                .thenReturn(Optional.of(membership(SITE_CODE, userId, SiteRole.CONTENT_EDITOR, true)));
+        when(siteWorkspaceSettingsRepository.findBySiteCodeIgnoreCase(SITE_CODE))
+                .thenReturn(Optional.empty());
+
+        SiteWorkspaceSummaryResponse result = service.getWorkspace(userId, SITE_CODE);
+
+        assertThat(result.name()).isEqualTo("Imperial City");
+        assertThat(result.description()).isEqualTo("Citadel");
+        assertThat(result.formattedAddress()).isEqualTo("Hue");
+        assertThat(result.coverImage()).isEqualTo("https://cdn.example/cover.jpg");
+        assertThat(result.sources()).isEqualTo("Đại Nam thực lục");
+    }
+
+    @Test
     void getWorkspace_includesMembersForManagers() {
         UUID userId = UUID.randomUUID();
         UUID memberId = UUID.randomUUID();

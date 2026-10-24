@@ -76,7 +76,12 @@ public class SiteWorkspaceAccessService {
                 location.getName(),
                 callerRole,
                 readRequiresTripConfirmation(normalizedSiteCode),
-                members);
+                members,
+                location.getName(),
+                location.getDescription(),
+                location.getFormattedAddress(),
+                location.getCoverImage(),
+                location.getSources());
     }
 
     public List<SiteWorkspaceMemberResponse> listMembers(UUID userId, String siteCode) {

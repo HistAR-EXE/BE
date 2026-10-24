@@ -75,7 +75,12 @@ class SiteWorkspaceControllerTest {
                 "Imperial City",
                 SiteRole.CONTENT_EDITOR,
                 false,
-                null);
+                null,
+                "Imperial City",
+                "Citadel",
+                "Hue",
+                "https://cdn.example/cover.jpg",
+                "Đại Nam thực lục");
         when(currentUserAccessor.getUserId()).thenReturn(Optional.of(userId));
         when(siteWorkspaceAccessService.getWorkspace(userId, "IMPERIAL-CITY")).thenReturn(summary);
 

@@ -8,4 +8,9 @@ public record SiteWorkspaceSummaryResponse(
         String locationName,
         SiteRole callerRole,
         boolean requiresTripConfirmation,
-        List<SiteWorkspaceMemberResponse> members) {}
+        List<SiteWorkspaceMemberResponse> members,
+        String name,
+        String description,
+        String formattedAddress,
+        String coverImage,
+        String sources) {}
