@@ -15,4 +15,6 @@ public interface StudyGroupMemberRepository extends JpaRepository<StudyGroupMemb
     Optional<StudyGroupMember> findByGroupIdAndUserId(UUID groupId, UUID userId);
 
     long countByUserId(UUID userId);
+
+    long countByGroupId(UUID groupId);
 }

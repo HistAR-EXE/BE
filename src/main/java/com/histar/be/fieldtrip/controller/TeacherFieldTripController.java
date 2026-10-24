@@ -4,9 +4,12 @@ import com.histar.be.common.exception.AuthException;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.fieldtrip.dto.CreateFieldTripRequest;
+import com.histar.be.fieldtrip.dto.CreateTripGroupRequest;
 import com.histar.be.fieldtrip.dto.FieldTripResponse;
 import com.histar.be.fieldtrip.dto.UpdateFieldTripRequest;
+import com.histar.be.fieldtrip.service.FieldTripJoinService;
 import com.histar.be.fieldtrip.service.FieldTripService;
+import com.histar.be.group.dto.GroupSummaryResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TeacherFieldTripController {
 
     private final FieldTripService fieldTripService;
+    private final FieldTripJoinService fieldTripJoinService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @PostMapping
@@ -42,6 +46,12 @@ public class TeacherFieldTripController {
     @GetMapping("/{tripId}")
     public ApiResponse<FieldTripResponse> get(@PathVariable UUID tripId) {
         return ApiResponse.ok(fieldTripService.get(requireUser(), tripId));
+    }
+
+    @PostMapping("/{tripId}/groups")
+    public ApiResponse<GroupSummaryResponse> createGroup(
+            @PathVariable UUID tripId, @RequestBody @Valid CreateTripGroupRequest request) {
+        return ApiResponse.ok(fieldTripJoinService.createGroup(requireUser(), tripId, request));
     }
 
     @PutMapping("/{tripId}")
