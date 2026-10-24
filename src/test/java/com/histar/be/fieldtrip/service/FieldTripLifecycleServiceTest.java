@@ -18,11 +18,14 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.common.exception.NarrativeConflictException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.fieldtrip.dto.FieldTripReportResponse;
 import com.histar.be.fieldtrip.dto.FieldTripResponse;
 import com.histar.be.fieldtrip.dto.SiteFieldTripScheduleResponse;
 import com.histar.be.fieldtrip.entity.FieldTrip;
+import com.histar.be.fieldtrip.entity.FieldTripReportSnapshot;
 import com.histar.be.fieldtrip.entity.FieldTripStatus;
 import com.histar.be.fieldtrip.entity.SiteConfirmationStatus;
+import com.histar.be.fieldtrip.repository.FieldTripReportSnapshotRepository;
 import com.histar.be.fieldtrip.repository.FieldTripRepository;
 import com.histar.be.group.repository.StudyGroupRepository;
 import com.histar.be.lms.entity.Assignment;
@@ -86,6 +89,12 @@ class FieldTripLifecycleServiceTest {
     @Mock
     private AdminAuditService adminAuditService;
 
+    @Mock
+    private FieldTripReportSnapshotRepository snapshotRepository;
+
+    @Mock
+    private FieldTripReportAssembler reportAssembler;
+
     private FieldTripLifecycleService service;
 
     private UUID teacherId;
@@ -101,7 +110,9 @@ class FieldTripLifecycleServiceTest {
                 siteWorkspaceSettingsRepository,
                 lmsAssignmentService,
                 studyGroupRepository,
-                adminAuditService);
+                adminAuditService,
+                snapshotRepository,
+                reportAssembler);
         teacherId = UUID.randomUUID();
         orgId = UUID.randomUUID();
         managerId = UUID.randomUUID();
@@ -523,10 +534,32 @@ class FieldTripLifecycleServiceTest {
     }
 
     @Test
-    void complete_movesActiveTripToCompletedWithoutCreatingAssignmentOrSnapshotWork() {
+    void complete_movesActiveTripToCompletedAndStoresASnapshot() {
         FieldTrip trip = confirmedTrip(5L);
         trip.setStatus(FieldTripStatus.ACTIVE);
+        Instant generatedAt = Instant.parse("2026-11-01T06:00:00Z");
+        FieldTripReportResponse assembled = new FieldTripReportResponse(
+                trip.getId(),
+                trip.getTitle(),
+                trip.getSiteCode(),
+                trip.getQuestId(),
+                trip.getCampaignId(),
+                FieldTripStatus.COMPLETED,
+                generatedAt,
+                List.of());
+        FieldTripReportSnapshot snapshot = FieldTripReportSnapshot.builder()
+                .fieldTripId(trip.getId())
+                .generatedAt(generatedAt)
+                .reportJson("{\"status\":\"COMPLETED\"}")
+                .build();
         when(fieldTripRepository.findById(trip.getId())).thenReturn(Optional.of(trip));
+        when(snapshotRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.empty());
+        when(reportAssembler.assemble(eq(trip), any())).thenAnswer(invocation -> {
+            assertThat(trip.getStatus()).isEqualTo(FieldTripStatus.COMPLETED);
+            return assembled;
+        });
+        when(reportAssembler.toSnapshot(trip.getId(), assembled)).thenReturn(snapshot);
+        when(snapshotRepository.save(snapshot)).thenReturn(snapshot);
         stubTeacher();
         stubSaveIncrementsVersion();
 
@@ -536,6 +569,7 @@ class FieldTripLifecycleServiceTest {
         assertThat(response.siteConfirmationStatus()).isEqualTo(SiteConfirmationStatus.CONFIRMED);
         assertThat(response.rowVersion()).isEqualTo(6L);
         verify(lmsAssignmentService, never()).ensureForFieldTrip(any());
+        verify(snapshotRepository).save(snapshot);
         assertAudited(
                 teacherId,
                 "COMPLETE",
@@ -561,6 +595,8 @@ class FieldTripLifecycleServiceTest {
                 .hasMessage("Chỉ chuyến đang diễn ra mới được kết thúc");
         assertThat(trip.getStatus()).isEqualTo(status);
         verify(fieldTripRepository, never()).saveAndFlush(any());
+        verify(snapshotRepository, never()).save(any());
+        verify(reportAssembler, never()).assemble(any(), any());
     }
 
     @ParameterizedTest

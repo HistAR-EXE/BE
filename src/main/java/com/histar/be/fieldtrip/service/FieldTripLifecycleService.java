@@ -6,11 +6,13 @@ import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.common.exception.NarrativeConflictException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.fieldtrip.dto.FieldTripReportResponse;
 import com.histar.be.fieldtrip.dto.FieldTripResponse;
 import com.histar.be.fieldtrip.dto.SiteFieldTripScheduleResponse;
 import com.histar.be.fieldtrip.entity.FieldTrip;
 import com.histar.be.fieldtrip.entity.FieldTripStatus;
 import com.histar.be.fieldtrip.entity.SiteConfirmationStatus;
+import com.histar.be.fieldtrip.repository.FieldTripReportSnapshotRepository;
 import com.histar.be.fieldtrip.repository.FieldTripRepository;
 import com.histar.be.group.repository.StudyGroupRepository;
 import com.histar.be.lms.service.LmsAssignmentService;
@@ -41,6 +43,8 @@ public class FieldTripLifecycleService {
     private final LmsAssignmentService lmsAssignmentService;
     private final StudyGroupRepository studyGroupRepository;
     private final AdminAuditService adminAuditService;
+    private final FieldTripReportSnapshotRepository snapshotRepository;
+    private final FieldTripReportAssembler reportAssembler;
 
     public FieldTripLifecycleService(
             FieldTripRepository fieldTripRepository,
@@ -49,7 +53,9 @@ public class FieldTripLifecycleService {
             SiteWorkspaceSettingsRepository siteWorkspaceSettingsRepository,
             LmsAssignmentService lmsAssignmentService,
             StudyGroupRepository studyGroupRepository,
-            AdminAuditService adminAuditService) {
+            AdminAuditService adminAuditService,
+            FieldTripReportSnapshotRepository snapshotRepository,
+            FieldTripReportAssembler reportAssembler) {
         this.fieldTripRepository = fieldTripRepository;
         this.fieldTripAccessService = fieldTripAccessService;
         this.siteWorkspaceAccessService = siteWorkspaceAccessService;
@@ -57,6 +63,8 @@ public class FieldTripLifecycleService {
         this.lmsAssignmentService = lmsAssignmentService;
         this.studyGroupRepository = studyGroupRepository;
         this.adminAuditService = adminAuditService;
+        this.snapshotRepository = snapshotRepository;
+        this.reportAssembler = reportAssembler;
     }
 
     @Transactional
@@ -135,13 +143,15 @@ public class FieldTripLifecycleService {
         if (trip.getStatus() != FieldTripStatus.ACTIVE) {
             throw new BusinessRuleException("Chỉ chuyến đang diễn ra mới được kết thúc");
         }
-        return change(
+        FieldTripResponse response = change(
                 trip,
                 teacherId,
                 "COMPLETE",
                 FieldTripStatus.COMPLETED,
                 trip.getSiteConfirmationStatus(),
                 trip.getSiteNote());
+        storeSnapshotIfAbsent(trip);
+        return response;
     }
 
     @Transactional
@@ -176,6 +186,14 @@ public class FieldTripLifecycleService {
                         trip.getSiteConfirmationStatus(),
                         studyGroupRepository.countByFieldTripId(trip.getId())))
                 .toList();
+    }
+
+    private void storeSnapshotIfAbsent(FieldTrip trip) {
+        if (snapshotRepository.findByFieldTripId(trip.getId()).isPresent()) {
+            return;
+        }
+        FieldTripReportResponse report = reportAssembler.assemble(trip, Instant.now());
+        snapshotRepository.save(reportAssembler.toSnapshot(trip.getId(), report));
     }
 
     private FieldTripResponse change(

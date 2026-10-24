@@ -1,17 +1,6 @@
 package com.histar.be.fieldtrip.service;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.histar.be.checkin.entity.Checkin;
-import com.histar.be.checkin.repository.CheckinRepository;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.fieldtrip.dto.FieldTripLiveBoardResponse;
@@ -22,25 +11,18 @@ import com.histar.be.fieldtrip.entity.FieldTripReportSnapshot;
 import com.histar.be.fieldtrip.entity.FieldTripStatus;
 import com.histar.be.fieldtrip.repository.FieldTripReportSnapshotRepository;
 import com.histar.be.fieldtrip.repository.FieldTripRepository;
+import com.histar.be.fieldtrip.service.FieldTripReportAssembler.GroupStats;
 import com.histar.be.group.entity.ParticipationMode;
 import com.histar.be.group.entity.StudyGroup;
-import com.histar.be.group.entity.StudyGroupMember;
-import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.group.repository.StudyGroupRepository;
-import com.histar.be.location.entity.Location;
-import com.histar.be.location.repository.LocationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
-import com.histar.be.quest.progress.entity.UserQuestProgress;
-import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -59,12 +41,8 @@ public class FieldTripReportingService {
     private final FieldTripLifecycleService lifecycleService;
     private final FieldTripAccessService fieldTripAccessService;
     private final StudyGroupRepository studyGroupRepository;
-    private final StudyGroupMemberRepository studyGroupMemberRepository;
-    private final CheckinRepository checkinRepository;
-    private final UserQuestProgressRepository userQuestProgressRepository;
-    private final LocationRepository locationRepository;
     private final ProfileRepository profileRepository;
-    private final ObjectMapper objectMapper;
+    private final FieldTripReportAssembler reportAssembler;
 
     public FieldTripReportingService(
             FieldTripRepository fieldTripRepository,
@@ -72,23 +50,15 @@ public class FieldTripReportingService {
             FieldTripLifecycleService lifecycleService,
             FieldTripAccessService fieldTripAccessService,
             StudyGroupRepository studyGroupRepository,
-            StudyGroupMemberRepository studyGroupMemberRepository,
-            CheckinRepository checkinRepository,
-            UserQuestProgressRepository userQuestProgressRepository,
-            LocationRepository locationRepository,
             ProfileRepository profileRepository,
-            ObjectMapper objectMapper) {
+            FieldTripReportAssembler reportAssembler) {
         this.fieldTripRepository = fieldTripRepository;
         this.snapshotRepository = snapshotRepository;
         this.lifecycleService = lifecycleService;
         this.fieldTripAccessService = fieldTripAccessService;
         this.studyGroupRepository = studyGroupRepository;
-        this.studyGroupMemberRepository = studyGroupMemberRepository;
-        this.checkinRepository = checkinRepository;
-        this.userQuestProgressRepository = userQuestProgressRepository;
-        this.locationRepository = locationRepository;
         this.profileRepository = profileRepository;
-        this.objectMapper = snapshotMapper(objectMapper);
+        this.reportAssembler = reportAssembler;
     }
 
     @Transactional(readOnly = true)
@@ -96,13 +66,12 @@ public class FieldTripReportingService {
         FieldTrip trip = load(tripId);
         fieldTripAccessService.requireCanView(teacherId, trip);
         List<StudyGroup> groups = studyGroupRepository.findByFieldTripId(trip.getId());
-        if (groups.isEmpty()) {
+        if (groups == null || groups.isEmpty()) {
             return new FieldTripLiveBoardResponse(trip.getId(), trip.getStatus(), List.of());
         }
-        Location location = locationFor(trip);
         List<Row> rows = new ArrayList<>();
         for (StudyGroup group : groups) {
-            GroupStats stats = stats(trip, location, group);
+            GroupStats stats = reportAssembler.stats(trip, group);
             if (group.getParticipationMode() == ParticipationMode.SHARED_DEVICE) {
                 rows.add(new Row(
                         group.getId(),
@@ -149,97 +118,22 @@ public class FieldTripReportingService {
         FieldTrip trip = load(tripId);
         fieldTripAccessService.requireCanEdit(teacherId, trip);
         if (trip.getStatus() == FieldTripStatus.COMPLETED) {
-            return readStored(tripId);
+            return snapshotRepository
+                    .findByFieldTripId(tripId)
+                    .map(snapshot -> reportAssembler.read(snapshot.getReportJson()))
+                    .orElseGet(() -> heal(trip));
         }
         if (trip.getStatus() != FieldTripStatus.ACTIVE) {
             throw new BusinessRuleException(COMPLETE_ONLY_ACTIVE);
         }
         lifecycleService.complete(teacherId, tripId, expectedVersion);
-        trip = load(tripId);
-        FieldTripReportResponse report = buildReport(trip, Instant.now());
-        snapshotRepository.save(FieldTripReportSnapshot.builder()
-                .fieldTripId(trip.getId())
-                .generatedAt(report.generatedAt())
-                .reportJson(write(report))
-                .build());
+        return readStored(tripId);
+    }
+
+    private FieldTripReportResponse heal(FieldTrip trip) {
+        FieldTripReportResponse report = reportAssembler.assemble(trip, Instant.now());
+        snapshotRepository.save(reportAssembler.toSnapshot(trip.getId(), report));
         return report;
-    }
-
-    private FieldTripReportResponse buildReport(FieldTrip trip, Instant generatedAt) {
-        List<StudyGroup> groups = studyGroupRepository.findByFieldTripId(trip.getId());
-        Location location = groups.isEmpty() ? null : locationFor(trip);
-        List<FieldTripReportResponse.Group> rows = new ArrayList<>();
-        for (StudyGroup group : groups) {
-            GroupStats stats = stats(trip, location, group);
-            rows.add(new FieldTripReportResponse.Group(
-                    group.getId(),
-                    group.getName(),
-                    group.getParticipationMode(),
-                    stats.headcount(),
-                    stats.stationsCompleted(),
-                    stats.questCompletions(),
-                    stats.points()));
-        }
-        return new FieldTripReportResponse(
-                trip.getId(),
-                trip.getTitle(),
-                trip.getSiteCode(),
-                trip.getQuestId(),
-                trip.getCampaignId(),
-                trip.getStatus(),
-                generatedAt,
-                List.copyOf(rows));
-    }
-
-    private GroupStats stats(FieldTrip trip, Location location, StudyGroup group) {
-        List<UUID> userIds = memberIds(group.getId());
-        long memberCount = studyGroupMemberRepository.countByGroupId(group.getId());
-        int headcount = group.getParticipationMode() == ParticipationMode.SHARED_DEVICE
-                ? declaredSize(group)
-                : (int) memberCount;
-        List<Checkin> checkins = checkinsFor(userIds, location, trip.getVisitStart(), trip.getVisitEnd());
-        return new GroupStats(
-                userIds,
-                headcount,
-                distinctStations(checkins, null),
-                pointsOf(checkins, null),
-                questCompletions(userIds, trip),
-                checkins);
-    }
-
-    private List<UUID> memberIds(UUID groupId) {
-        return studyGroupMemberRepository.findByGroupId(groupId).stream()
-                .map(StudyGroupMember::getUserId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-    }
-
-    private List<Checkin> checkinsFor(List<UUID> userIds, Location location, Instant from, Instant to) {
-        if (userIds.isEmpty() || location == null || location.getId() == null || from == null || to == null) {
-            return List.of();
-        }
-        List<Checkin> rows =
-                checkinRepository.findByUserIdInAndLocationIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanEqual(
-                        userIds, location.getId(), from, to);
-        return rows == null ? List.of() : rows;
-    }
-
-    private int questCompletions(List<UUID> userIds, FieldTrip trip) {
-        if (userIds.isEmpty() || trip.getQuestId() == null || trip.getVisitStart() == null || trip.getVisitEnd() == null) {
-            return 0;
-        }
-        List<UserQuestProgress> rows = userQuestProgressRepository
-                .findByUserIdInAndQuestIdAndStatusIgnoreCaseAndCompletedAtGreaterThanEqualAndCompletedAtLessThanEqual(
-                        userIds, trip.getQuestId(), "completed", trip.getVisitStart(), trip.getVisitEnd());
-        if (rows == null || rows.isEmpty()) {
-            return 0;
-        }
-        return (int) rows.stream()
-                .map(UserQuestProgress::getUserId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .count();
     }
 
     private Map<UUID, Profile> profiles(List<UUID> userIds) {
@@ -251,44 +145,17 @@ public class FieldTripReportingService {
         return profiles;
     }
 
-    private Location locationFor(FieldTrip trip) {
-        if (trip.getSiteCode() == null || trip.getSiteCode().isBlank()) {
-            return null;
-        }
-        return locationRepository.findBySiteCodeIgnoreCase(trip.getSiteCode()).orElse(null);
-    }
-
     private FieldTripReportResponse readStored(UUID tripId) {
         FieldTripReportSnapshot snapshot = snapshotRepository
                 .findByFieldTripId(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException(REPORT_MISSING));
-        try {
-            return objectMapper.readValue(snapshot.getReportJson(), FieldTripReportResponse.class);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Không thể đọc báo cáo chuyến đi", ex);
-        }
-    }
-
-    private String write(FieldTripReportResponse report) {
-        try {
-            return objectMapper.writeValueAsString(report);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Không thể lưu báo cáo chuyến đi", ex);
-        }
+        return reportAssembler.read(snapshot.getReportJson());
     }
 
     private FieldTrip load(UUID tripId) {
         return fieldTripRepository
                 .findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException(TRIP_MISSING));
-    }
-
-    private static int declaredSize(StudyGroup group) {
-        Integer declared = group.getDeclaredSize();
-        if (declared == null || declared < 0) {
-            return 0;
-        }
-        return declared;
     }
 
     private static String displayName(Profile profile) {
@@ -327,30 +194,4 @@ public class FieldTripReportingService {
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
-
-    private static ObjectMapper snapshotMapper(ObjectMapper source) {
-        SimpleModule times = new SimpleModule();
-        times.addSerializer(Instant.class, new JsonSerializer<>() {
-            @Override
-            public void serialize(Instant value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                gen.writeString(value.toString());
-            }
-        });
-        times.addDeserializer(Instant.class, new JsonDeserializer<>() {
-            @Override
-            public Instant deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-                String text = parser.getText();
-                return text == null || text.isBlank() ? null : Instant.parse(text);
-            }
-        });
-        return source.copy().registerModule(times).disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    }
-
-    private record GroupStats(
-            List<UUID> userIds,
-            int headcount,
-            int stationsCompleted,
-            int points,
-            int questCompletions,
-            List<Checkin> checkins) {}
 }

@@ -103,6 +103,7 @@ class FieldTripReportingServiceTest {
     private final List<Checkin> checkins = new ArrayList<>();
     private final List<UserQuestProgress> progress = new ArrayList<>();
 
+    private FieldTripReportAssembler reportAssembler;
     private FieldTripReportingService service;
 
     private UUID teacherId;
@@ -118,18 +119,21 @@ class FieldTripReportingServiceTest {
 
     @BeforeEach
     void setUp() {
+        reportAssembler = new FieldTripReportAssembler(
+                studyGroupRepository,
+                studyGroupMemberRepository,
+                checkinRepository,
+                userQuestProgressRepository,
+                locationRepository,
+                objectMapper);
         service = new FieldTripReportingService(
                 fieldTripRepository,
                 snapshotRepository,
                 lifecycleService,
                 new FieldTripAccessService(lmsAssignmentService, organizationRepository),
                 studyGroupRepository,
-                studyGroupMemberRepository,
-                checkinRepository,
-                userQuestProgressRepository,
-                locationRepository,
                 profileRepository,
-                objectMapper);
+                reportAssembler);
         teacherId = UUID.randomUUID();
         orgId = UUID.randomUUID();
         questId = UUID.randomUUID();
@@ -286,6 +290,139 @@ class FieldTripReportingServiceTest {
         verify(checkinRepository, never()).findAll();
         verify(userQuestProgressRepository, never()).findAll();
         verify(checkinRepository, never()).findByUserIdInAndCreatedAtGreaterThanEqual(any(), any());
+    }
+
+    @Test
+    void sameSiteOverlappingTripsKeepEachGroupsMetricsAndIgnoreQuestRowsWithoutPresence() {
+        Instant overlap = Instant.parse("2026-11-01T04:30:00Z");
+        Instant tripBStart = Instant.parse("2026-11-01T04:00:00Z");
+        Instant tripBEnd = Instant.parse("2026-11-01T09:00:00Z");
+        FieldTrip tripA = activeTrip("Chuyến A", SITE_A, TRIP_A_START, TRIP_A_END, 5L);
+        FieldTrip tripB = activeTrip("Chuyến B", SITE_A, tripBStart, tripBEnd, 3L);
+        StudyGroup groupA = group(tripA, "Lop A", ParticipationMode.INDIVIDUAL, 30);
+        StudyGroup groupB = group(tripB, "Lop B", ParticipationMode.INDIVIDUAL, 30);
+        UUID absentStudent = UUID.randomUUID();
+
+        stubTeacher(teacherId);
+        stubTrips(tripA, tripB);
+        stubGroups(tripA, List.of(groupA), tripB, List.of(groupB));
+        stubMembers(groupA, List.of(student1, absentStudent), 2);
+        stubMembers(groupB, List.of(student2), 1);
+        when(locationRepository.findBySiteCodeIgnoreCase(SITE_A))
+                .thenReturn(Optional.of(Location.builder().id(locationAId).siteCode(SITE_A).name("Cu Chi").build()));
+        when(profileRepository.findAllById(any())).thenAnswer(invocation -> {
+            Collection<UUID> ids = invocation.getArgument(0);
+            return List.of(
+                            profile(student1, "An", "secret.student@example.com", "https://photos.example/secret-photo-1.jpg"),
+                            profile(student2, "Binh", "secret.student2@example.com", "https://photos.example/secret-photo-2.jpg"),
+                            profile(absentStudent, "Vang", "secret.absent@example.com", "https://photos.example/secret-photo-absent.jpg"))
+                    .stream()
+                    .filter(profile -> ids.contains(profile.getId()))
+                    .toList();
+        });
+        stubScopedCheckins();
+        stubScopedQuestProgress();
+        when(snapshotRepository.save(any())).thenAnswer(invocation -> {
+            FieldTripReportSnapshot snapshot = invocation.getArgument(0);
+            snapshots.put(snapshot.getFieldTripId(), snapshot);
+            return snapshot;
+        });
+        when(snapshotRepository.findByFieldTripId(any()))
+                .thenAnswer(invocation -> Optional.ofNullable(snapshots.get(invocation.getArgument(0))));
+        stubComplete(tripA, 5L);
+        stubComplete(tripB, 3L);
+
+        checkins.add(checkin(student1, locationAId, "ST01", 5, overlap));
+        checkins.add(checkin(student2, locationAId, "ST09", 100, overlap.plusSeconds(600)));
+        checkins.add(checkin(absentStudent, locationAId, "ST08", 40, TRIP_A_START.minusSeconds(60)));
+        progress.add(questProgress(student1, "completed", overlap.plusSeconds(60)));
+        progress.add(questProgress(student2, "completed", overlap.plusSeconds(900)));
+        progress.add(questProgress(absentStudent, "completed", overlap.plusSeconds(120)));
+
+        FieldTripLiveBoardResponse boardA = service.liveBoard(teacherId, tripA.getId());
+        FieldTripLiveBoardResponse boardB = service.liveBoard(teacherId, tripB.getId());
+
+        assertThat(boardA.rows()).extracting(Row::groupId).containsOnly(groupA.getId());
+        assertThat(boardA.rows()).extracting(Row::userId).containsExactlyInAnyOrder(student1, absentStudent);
+        assertThat(rowForUser(boardA, student1).stationsCompleted()).isEqualTo(1);
+        assertThat(rowForUser(boardA, student1).points()).isEqualTo(5);
+        assertThat(rowForUser(boardA, absentStudent).stationsCompleted()).isZero();
+        assertThat(rowForUser(boardA, absentStudent).points()).isZero();
+        assertThat(boardA.rows()).extracting(Row::points).doesNotContain(100);
+        assertThat(boardB.rows()).extracting(Row::groupId).containsExactly(groupB.getId());
+        assertThat(boardB.rows()).extracting(Row::userId).containsExactly(student2);
+        assertThat(boardB.rows().get(0).stationsCompleted()).isEqualTo(1);
+        assertThat(boardB.rows().get(0).points()).isEqualTo(100);
+
+        FieldTripReportResponse reportA = service.completeAndSnapshot(teacherId, tripA.getId(), 5L);
+        FieldTripReportResponse reportB = service.completeAndSnapshot(teacherId, tripB.getId(), 3L);
+
+        assertThat(reportA.groups()).extracting(Group::groupId).containsExactly(groupA.getId());
+        assertThat(reportB.groups()).extracting(Group::groupId).containsExactly(groupB.getId());
+        Group metricsA = groupReport(reportA, groupA.getId());
+        assertThat(metricsA.headcount()).isEqualTo(2);
+        assertThat(metricsA.stationsCompleted()).isEqualTo(1);
+        assertThat(metricsA.points()).isEqualTo(5);
+        assertThat(metricsA.questCompletions()).isEqualTo(1);
+        Group metricsB = groupReport(reportB, groupB.getId());
+        assertThat(metricsB.headcount()).isEqualTo(1);
+        assertThat(metricsB.stationsCompleted()).isEqualTo(1);
+        assertThat(metricsB.points()).isEqualTo(100);
+        assertThat(metricsB.questCompletions()).isEqualTo(1);
+    }
+
+    @Test
+    void completeAndSnapshotReturnsTheSnapshotLifecycleStoredAndDoesNotWriteAnother() {
+        FieldTrip trip = activeTrip("Chuyến A", SITE_A, TRIP_A_START, TRIP_A_END, 5L);
+        FieldTripReportResponse stored = new FieldTripReportResponse(
+                trip.getId(),
+                trip.getTitle(),
+                trip.getSiteCode(),
+                trip.getQuestId(),
+                trip.getCampaignId(),
+                FieldTripStatus.COMPLETED,
+                Instant.parse("2026-11-01T06:00:00Z"),
+                List.of());
+        String storedJson = """
+                {"tripId":"%s","title":"Chuyến A","siteCode":"cu-chi","questId":"%s","campaignId":"%s","status":"COMPLETED","generatedAt":"2026-11-01T06:00:00Z","groups":[]}
+                """.formatted(trip.getId(), trip.getQuestId(), trip.getCampaignId()).replace("\n", "");
+        stubTeacher(teacherId);
+        stubTrips(trip);
+        when(lifecycleService.complete(teacherId, trip.getId(), 5L)).thenAnswer(invocation -> {
+            trip.setStatus(FieldTripStatus.COMPLETED);
+            trip.setRowVersion(6L);
+            snapshots.put(trip.getId(), FieldTripReportSnapshot.builder()
+                    .fieldTripId(trip.getId())
+                    .generatedAt(stored.generatedAt())
+                    .reportJson(storedJson)
+                    .build());
+            return null;
+        });
+        when(snapshotRepository.findByFieldTripId(trip.getId()))
+                .thenAnswer(invocation -> Optional.ofNullable(snapshots.get(trip.getId())));
+
+        FieldTripReportResponse report = service.completeAndSnapshot(teacherId, trip.getId(), 5L);
+
+        assertThat(report).isEqualTo(stored);
+        verify(snapshotRepository, never()).save(any());
+        verify(lifecycleService, times(1)).complete(teacherId, trip.getId(), 5L);
+    }
+
+    @Test
+    void completeAndSnapshotHealsACompletedTripThatHasNoSnapshot() {
+        FieldTrip trip = activeTrip("Chuyến A", SITE_A, TRIP_A_START, TRIP_A_END, 6L);
+        trip.setStatus(FieldTripStatus.COMPLETED);
+        stubTeacher(teacherId);
+        stubTrips(trip);
+        when(snapshotRepository.findByFieldTripId(trip.getId())).thenReturn(Optional.empty());
+
+        FieldTripReportResponse report = service.completeAndSnapshot(teacherId, trip.getId(), 6L);
+
+        assertThat(report.tripId()).isEqualTo(trip.getId());
+        assertThat(report.status()).isEqualTo(FieldTripStatus.COMPLETED);
+        assertThat(report.groups()).isEmpty();
+        verify(lifecycleService, never()).complete(any(), any(), anyLong());
+        verify(snapshotRepository).save(any());
     }
 
     @Test
@@ -492,6 +629,10 @@ class FieldTripReportingServiceTest {
         when(lifecycleService.complete(teacherId, trip.getId(), expectedVersion)).thenAnswer(invocation -> {
             trip.setStatus(FieldTripStatus.COMPLETED);
             trip.setRowVersion(expectedVersion + 1);
+            if (!snapshots.containsKey(trip.getId())) {
+                FieldTripReportResponse report = reportAssembler.assemble(trip, Instant.now());
+                snapshotRepository.save(reportAssembler.toSnapshot(trip.getId(), report));
+            }
             return null;
         });
     }
