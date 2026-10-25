@@ -8,6 +8,8 @@ import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.stations.dto.StationBlockRequest;
 import com.histar.be.stations.dto.StationBlockResponse;
+import com.histar.be.stations.dto.StationBlockSnapshot;
+import com.histar.be.stations.dto.StationContentSnapshot;
 import com.histar.be.stations.dto.StationImportItem;
 import com.histar.be.stations.dto.StationResponse;
 import com.histar.be.stations.entity.Station;
@@ -123,6 +125,57 @@ public class StationService {
                 null, null, null, null,
                 Map.of("siteCode", siteCode, "count", stationIds.size(), "stationIds", stationIds)));
         return result;
+    }
+
+    /**
+     * Replaces one station's public fields and blocks from a reviewed snapshot.
+     * Callers own the transaction and audit; this path does not grant admin import.
+     */
+    @Transactional
+    public void applyPublishedSnapshot(String siteCode, StationContentSnapshot snapshot) {
+        if (snapshot == null
+                || snapshot.stationCode() == null
+                || snapshot.stationCode().isBlank()
+                || snapshot.name() == null
+                || snapshot.name().isBlank()) {
+            throw new BusinessRuleException("Station code and name are required");
+        }
+        if (snapshot.sortOrder() == null || snapshot.active() == null || snapshot.blocks() == null) {
+            throw new BusinessRuleException("Station snapshot is incomplete");
+        }
+        String code = snapshot.stationCode().trim();
+        Station station = stationRepository
+                .findBySiteCodeAndCode(siteCode, code)
+                .orElseThrow(() -> new ResourceNotFoundException("Station not found: " + code));
+        station.setName(snapshot.name().trim());
+        station.setSortOrder(snapshot.sortOrder());
+        station.setLat(snapshot.lat());
+        station.setLng(snapshot.lng());
+        station.setQuestStepKey(snapshot.questStepKey());
+        station.setActive(snapshot.active());
+        station = stationRepository.saveAndFlush(station);
+
+        blockRepository.deleteByStationId(station.getId());
+        blockRepository.flush();
+
+        List<StationContentBlock> saved = new ArrayList<>();
+        for (StationBlockSnapshot block : snapshot.blocks()) {
+            if (block.blockType() == null) {
+                throw new BusinessRuleException("Loại block không hợp lệ");
+            }
+            saved.add(StationContentBlock.builder()
+                    .stationId(station.getId())
+                    .blockType(block.blockType())
+                    .title(block.title())
+                    .body(block.body())
+                    .mediaUrl(block.mediaUrl())
+                    .sortOrder(block.sortOrder())
+                    .metaJson(block.metaJson())
+                    .build());
+        }
+        if (!saved.isEmpty()) {
+            blockRepository.saveAll(saved);
+        }
     }
 
     private static StationResponse toResponse(Station s, List<StationBlockResponse> blocks) {

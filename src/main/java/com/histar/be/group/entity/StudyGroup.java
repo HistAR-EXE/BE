@@ -2,6 +2,8 @@ package com.histar.be.group.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -50,4 +52,14 @@ public class StudyGroup {
     @Column(name = "team_mode", length = 24)
     @Builder.Default
     private String teamMode = "QUEST";
+
+    @Column(name = "field_trip_id")
+    private UUID fieldTripId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "participation_mode", length = 32)
+    private ParticipationMode participationMode;
+
+    @Column(name = "declared_size")
+    private Integer declaredSize;
 }

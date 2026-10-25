@@ -3,6 +3,7 @@ package com.histar.be.lms.service;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.LmsPremiumRequiredException;
 import com.histar.be.common.exception.ResourceNotFoundException;
+import com.histar.be.fieldtrip.entity.FieldTrip;
 import com.histar.be.lms.dto.AssignmentResponse;
 import com.histar.be.lms.dto.AssignmentSubmissionResponse;
 import com.histar.be.lms.dto.CreateAssignmentRequest;
@@ -27,9 +28,14 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -45,6 +51,12 @@ public class LmsAssignmentService {
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final QuestCampaignRepository campaignRepository;
     private final QuestCampaignAdminService campaignAdminService;
+    private LmsAssignmentService self = this;
+
+    @Autowired
+    void setSelf(@Lazy LmsAssignmentService self) {
+        this.self = self;
+    }
 
     @Transactional
     public AssignmentResponse createAssignment(UUID teacherId, CreateAssignmentRequest request) {
@@ -69,6 +81,43 @@ public class LmsAssignmentService {
                 .updatedAt(now)
                 .build());
         return toResponse(saved, quest.getTitle(), List.of());
+    }
+
+    @Transactional
+    public Assignment ensureForFieldTrip(FieldTrip trip) {
+        if (trip == null || trip.getId() == null) {
+            throw new BusinessRuleException("Chuyến đi chưa được lưu");
+        }
+        Optional<Assignment> existing = assignmentRepository.findByFieldTripId(trip.getId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Instant now = Instant.now();
+        String title = trip.getTitle() == null ? "" : trip.getTitle().trim();
+        if (title.isEmpty()) {
+            throw new BusinessRuleException("Tiêu đề chuyến đi không hợp lệ");
+        }
+        Assignment assignment = Assignment.builder()
+                .orgId(trip.getOrgId())
+                .teacherId(trip.getCreatedBy())
+                .questId(trip.getQuestId())
+                .campaignId(trip.getCampaignId())
+                .fieldTripId(trip.getId())
+                .title(title)
+                .dueAt(trip.getVisitEnd())
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        try {
+            return self.persistFieldTripAssignment(assignment);
+        } catch (DataIntegrityViolationException conflict) {
+            return assignmentRepository.findByFieldTripId(trip.getId()).orElseThrow(() -> conflict);
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Assignment persistFieldTripAssignment(Assignment assignment) {
+        return assignmentRepository.saveAndFlush(assignment);
     }
 
     @Transactional(readOnly = true)

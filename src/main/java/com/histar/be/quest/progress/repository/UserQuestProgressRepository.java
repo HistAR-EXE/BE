@@ -15,6 +15,10 @@ public interface UserQuestProgressRepository extends JpaRepository<UserQuestProg
 
     Optional<UserQuestProgress> findByUserIdAndQuestId(UUID userId, UUID questId);
 
+    List<UserQuestProgress>
+            findByUserIdInAndQuestIdAndStatusIgnoreCaseAndCompletedAtGreaterThanEqualAndCompletedAtLessThanEqual(
+                    Collection<UUID> userIds, UUID questId, String status, Instant from, Instant to);
+
     List<UserQuestProgress> findByUserId(UUID userId);
 
     List<UserQuestProgress> findByUserIdAndStatus(UUID userId, String status);

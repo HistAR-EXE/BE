@@ -13,6 +13,7 @@ import com.histar.be.group.dto.GroupMemberResponse;
 import com.histar.be.group.dto.GroupProgressResponse;
 import com.histar.be.group.dto.GroupQuestProgressResponse;
 import com.histar.be.group.dto.GroupSummaryResponse;
+import com.histar.be.group.entity.ParticipationMode;
 import com.histar.be.group.entity.StudyGroup;
 import com.histar.be.group.entity.StudyGroupMember;
 import com.histar.be.group.repository.StudyGroupMemberRepository;
@@ -71,7 +72,7 @@ public class GroupService {
         this.questRepository = questRepository;
         this.histarOrgProperties = histarOrgProperties;
         this.multiplayerAccessService = multiplayerAccessService;
-        this.self = self;
+        this.self = self != null ? self : this;
     }
 
     public GroupSummaryResponse createGroup(UUID userId, CreateGroupRequest request) {
@@ -120,6 +121,9 @@ public class GroupService {
         StudyGroup group = studyGroupRepository
                 .findByCodeIgnoreCase(code)
                 .orElseThrow(() -> new BusinessRuleException("Mã nhóm không hợp lệ"));
+        if (group.getFieldTripId() != null) {
+            throw new BusinessRuleException("Nhóm thuộc chuyến đi, hãy dùng mã chuyến để tham gia");
+        }
         if (group.getExpiresAt().isBefore(Instant.now())) {
             throw new BusinessRuleException("Mã nhóm đã hết hạn");
         }
@@ -228,6 +232,70 @@ public class GroupService {
         return multiplayerAccessService.hasMultiplayerAccess(userId);
     }
 
+    @Transactional
+    public GroupSummaryResponse joinTripGroup(UUID userId, UUID groupId) {
+        StudyGroup group = studyGroupRepository
+                .findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
+        if (group.getFieldTripId() == null) {
+            throw new BusinessRuleException("Nhóm không thuộc chuyến đi");
+        }
+        if (studyGroupMemberRepository.findByGroupIdAndUserId(group.getId(), userId).isEmpty()) {
+            joinInternal(group, userId);
+        }
+        int count = studyGroupMemberRepository.findByGroupId(group.getId()).size();
+        return toSummary(group, count);
+    }
+
+    public GroupSummaryResponse createTripGroup(
+            UUID createdBy,
+            UUID orgId,
+            UUID fieldTripId,
+            String name,
+            ParticipationMode participationMode,
+            Integer declaredSize) {
+        String trimmed = requireTripGroupName(name);
+        requireDeclaredSize(participationMode, declaredSize);
+        if (fieldTripId == null) {
+            throw new BusinessRuleException("Nhóm không thuộc chuyến đi");
+        }
+        for (int attempt = 0; attempt < 30; attempt++) {
+            try {
+                return self.createTripGroupOnce(
+                        createdBy, orgId, fieldTripId, trimmed, participationMode, declaredSize);
+            } catch (DataIntegrityViolationException ex) {
+                // Isolated TX rolled back — retry with a new code in a fresh transaction.
+            }
+        }
+        throw new BusinessRuleException("Không thể tạo mã nhóm, vui lòng thử lại");
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public GroupSummaryResponse createTripGroupOnce(
+            UUID createdBy,
+            UUID orgId,
+            UUID fieldTripId,
+            String name,
+            ParticipationMode participationMode,
+            Integer declaredSize) {
+        String code = generateUniqueCode(6);
+        Instant now = Instant.now();
+        StudyGroup group = StudyGroup.builder()
+                .name(name.trim())
+                .code(code)
+                .createdBy(createdBy)
+                .createdAt(now)
+                .expiresAt(now.plus(histarOrgProperties.getGroup().getCodeTtlDays(), ChronoUnit.DAYS))
+                .orgId(orgId)
+                .teamMode("QUEST")
+                .fieldTripId(fieldTripId)
+                .participationMode(participationMode)
+                .declaredSize(declaredSize)
+                .build();
+        studyGroupRepository.save(group);
+        return toSummary(group, 0);
+    }
+
     private void joinInternal(StudyGroup group, UUID userId) {
         studyGroupMemberRepository.save(StudyGroupMember.builder()
                 .groupId(group.getId())
@@ -244,7 +312,36 @@ public class GroupService {
 
     private GroupSummaryResponse toSummary(StudyGroup group, int memberCount) {
         return new GroupSummaryResponse(
-                group.getId(), group.getName(), group.getCode(), group.getExpiresAt(), memberCount, group.getOrgId(), group.getQuestId());
+                group.getId(),
+                group.getName(),
+                group.getCode(),
+                group.getExpiresAt(),
+                memberCount,
+                group.getOrgId(),
+                group.getQuestId(),
+                group.getFieldTripId(),
+                group.getParticipationMode(),
+                group.getDeclaredSize());
+    }
+
+    private static String requireTripGroupName(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.length() < 2 || trimmed.length() > 255) {
+            throw new BusinessRuleException("Tên nhóm không hợp lệ");
+        }
+        return trimmed;
+    }
+
+    private static void requireDeclaredSize(ParticipationMode participationMode, Integer declaredSize) {
+        if (participationMode == null) {
+            throw new BusinessRuleException("Cần chọn kiểu tham gia");
+        }
+        if (participationMode == ParticipationMode.SHARED_DEVICE && (declaredSize == null || declaredSize < 1)) {
+            throw new BusinessRuleException("Nhóm dùng chung thiết bị cần sĩ số dự kiến từ 1");
+        }
+        if (declaredSize != null && declaredSize < 1) {
+            throw new BusinessRuleException("Cần sĩ số dự kiến từ 1");
+        }
     }
 
     private List<GroupMemberResponse> buildMemberResponses(List<StudyGroupMember> members) {
