@@ -346,7 +346,8 @@ public class SiteContentWorkflowService {
         return readStation(tree, persistedKey, true);
     }
 
-    private String writeSnapshot(SiteContentKind kind, JsonNode snapshot, ResolvedResource resource, boolean strict) {
+    private String writeSnapshot(SiteContentKind kind, Object snapshotValue, ResolvedResource resource, boolean strict) {
+        JsonNode snapshot = objectMapper.valueToTree(snapshotValue);
         try {
             if (kind == SiteContentKind.SITE_PROFILE) {
                 return objectMapper.writeValueAsString(readProfile(snapshot, strict));

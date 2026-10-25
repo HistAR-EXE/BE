@@ -34,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 $beRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $beRoot
 . (Join-Path $PSScriptRoot 'Resolve-DockerPsqlHost.ps1')
-$ExpectedMinimumFlywayVersion = 90
+$ExpectedMinimumFlywayVersion = 92
 
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
 $migrations = @(Get-ChildItem -LiteralPath $migrationDir -Filter 'V*__*.sql' |
@@ -289,6 +289,18 @@ try {
         throw "Flyway V$latestVersion is not recorded as successful. Actual result: '$versionCheck'"
     }
     Write-Host "Flyway V$latestVersion is successful."
+
+    $siteWorkspaceTables = ConvertFrom-PsqlScalar (Invoke-Psql "SELECT COUNT(*)::text FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('site_memberships','site_onboarding_requests','site_workspace_settings','site_content_versions');")
+    if ($siteWorkspaceTables -ne '4') {
+        throw "Flyway V91 site workspace tables are incomplete ($siteWorkspaceTables/4)."
+    }
+    Write-Host 'V91 site workspace schema is ready.'
+
+    $fieldTripSchemaObjects = ConvertFrom-PsqlScalar (Invoke-Psql "SELECT ((SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('field_trips','field_trip_report_snapshots')) + (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'study_groups' AND column_name IN ('field_trip_id','participation_mode','declared_size')) OR (table_name = 'assignments' AND column_name = 'field_trip_id'))))::text;")
+    if ($fieldTripSchemaObjects -ne '6') {
+        throw "Flyway V92 field trip schema is incomplete ($fieldTripSchemaObjects/6)."
+    }
+    Write-Host 'V92 field trip schema is ready.'
 
     if (-not $SkipSeeds) {
         Write-Host 'Applying ordered seed manifest...'

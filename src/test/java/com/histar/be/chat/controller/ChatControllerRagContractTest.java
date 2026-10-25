@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.histar.be.chat.guided.GuidedChatStreamService;
 import com.histar.be.chat.dto.ChatMessageRequest;
+import com.histar.be.chat.dto.ChatResponse;
+import com.histar.be.chat.knowledge.ChatKnowledgeIntent;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.RagServiceException;
 import com.histar.be.common.exception.GlobalExceptionHandler;
@@ -93,6 +95,16 @@ class ChatControllerRagContractTest {
         var captor = org.mockito.ArgumentCaptor.forClass(ChatMessageRequest.class);
         verify(chat).sendOrchestrated(any(), captor.capture());
         assertThat(captor.getValue().pageContext()).isNull();
+    }
+
+    @Test void synchronousResponseExposesResolvedKnowledgeIntent() throws Exception {
+        when(chat.sendOrchestrated(any(), any())).thenReturn(new ChatResponse(
+                "answer", UUID.randomUUID(), List.of(), ChatKnowledgeIntent.PRODUCT_HELP, false));
+
+        mvc.perform(post("/api/chat/messages").contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.knowledgeIntent").value("PRODUCT_HELP"))
+                .andExpect(jsonPath("$.data.userStateGrounded").value(false));
     }
 
     @Test void messageRequestBindsBoundedPageContext() throws Exception {

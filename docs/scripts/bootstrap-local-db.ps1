@@ -27,7 +27,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 90
+$ExpectedMinFlywayVersion = 92
 
 $migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
     Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
@@ -180,7 +180,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V90) ---
+# --- Smoke checks for recent Flyway chain (V70–V92) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -300,6 +300,22 @@ if ($LASTEXITCODE -ne 0 -or $arMailReady -ne '1') {
     throw "Bootstrap baselined at V$lastVersion but selected-artifact AR mail schema is missing."
 }
 Write-Host 'V89/V90 AR mail attempts and selected artifact: ready.'
+
+# V91: site workspace authorization, settings, onboarding, and content versions.
+$siteWorkspaceTables = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('site_memberships','site_onboarding_requests','site_workspace_settings','site_content_versions');") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $siteWorkspaceTables -ne '4') {
+    throw "Bootstrap baselined at V$lastVersion but V91 site workspace tables are incomplete ($siteWorkspaceTables/4)."
+}
+Write-Host 'V91 site workspace schema: ready.'
+
+# V92: field-trip aggregate plus links from groups and assignments.
+$fieldTripSchemaObjects = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT ((SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('field_trips','field_trip_report_snapshots')) + (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'study_groups' AND column_name IN ('field_trip_id','participation_mode','declared_size')) OR (table_name = 'assignments' AND column_name = 'field_trip_id'))))::text;") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $fieldTripSchemaObjects -ne '6') {
+    throw "Bootstrap baselined at V$lastVersion but V92 field trip schema is incomplete ($fieldTripSchemaObjects/6)."
+}
+Write-Host 'V92 field trip schema: ready.'
 
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."

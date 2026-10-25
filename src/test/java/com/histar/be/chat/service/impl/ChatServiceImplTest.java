@@ -42,6 +42,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class ChatServiceImplTest {
@@ -135,7 +136,7 @@ class ChatServiceImplTest {
     }
 
     @Test
-    void sendOrchestrated_keepsSourcesForPremiumUser() {
+    void sendOrchestrated_keepsSourcesForPremiumUserAndExposesResolvedIntent() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID characterId = UUID.randomUUID();
         UUID locationId = UUID.randomUUID();
@@ -173,6 +174,8 @@ class ChatServiceImplTest {
                 userId, new ChatMessageRequest(characterId, "hello", conversationId, null, "cu-chi"));
 
         assertThat(response.sources()).hasSize(1);
+        assertThat(JsonMapper.builder().build().writeValueAsString(response))
+                .contains("\"knowledgeIntent\":\"OUT_OF_SCOPE\"");
     }
 
     @Test

@@ -49,6 +49,10 @@ jobs:
         shell: pwsh
         run: ./docs/scripts/Test-HistarBootstrapRunner.ps1
 
+      - name: Validate Render seed runner
+        shell: pwsh
+        run: ./docs/scripts/Test-HistarRenderSeedRunner.ps1
+
       - name: Run full bootstrap and seed checks
         shell: pwsh
         run: >-

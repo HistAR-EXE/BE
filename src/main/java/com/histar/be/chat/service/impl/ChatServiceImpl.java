@@ -20,6 +20,7 @@ import com.histar.be.chat.dto.StationChatContext;
 import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
 import com.histar.be.chat.knowledge.ChatKnowledgeRouteResolver;
 import com.histar.be.chat.knowledge.ChatPageContext;
+import com.histar.be.chat.knowledge.UserProgressAnswerRenderer;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.PreparedChatResponse;
 import com.histar.be.chat.service.ChatStreamChunk;
@@ -249,50 +250,56 @@ public class ChatServiceImpl implements ChatService {
                 .toList();
         log.info("requestId={} knowledge_intent={} knowledge_scopes={}",
                 org.slf4j.MDC.get("requestId"), knowledgeRoute.intent(), knowledgeScopes);
-        RagChatRequest ragRequest = new RagChatRequest(
-                request.message(),
-                verifiedStationCode,
-                verifiedSiteCode,
-                PersonaMapper.resolvePersonaKey(character.getName()),
-                character.getPersonaPrompt(),
-                location.getName(), historyTurns, stationContext, knowledgeRoute);
-        Optional<RagChatAnswer> pgVectorAnswer = Optional.empty();
-        if (ragRequest.isHeritageOnly()) {
-            pgVectorAnswer = publisher == null
-                    ? ragChatService.tryAnswer(ragRequest)
-                    : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
-                        List<ChatSource> visible = filterSourcesForUser(userId, siteCode, chunk.sources());
-                        if (!visible.isEmpty()) publisher.accept(new ChatStreamChunk(chunk.content(), visible));
-                    });
-        }
-        if (pgVectorAnswer != null && pgVectorAnswer.isPresent()) {
-            // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
-            reply = pgVectorAnswer.get().reply();
-            responseSources = pgVectorAnswer.get().sources();
-            answerSource = "semantic";
-            pgVectorRagUsed = true;
+        if (knowledgeRoute.intent() == com.histar.be.chat.knowledge.ChatKnowledgeIntent.USER_PROGRESS) {
+            reply = UserProgressAnswerRenderer.render(request.message(), playerContext, verifiedStationCode);
+            responseSources = List.of();
+            answerSource = "live-user-state";
         } else {
-            try {
-                RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
-                        request.message(),
-                        PersonaMapper.resolvePersonaKey(character.getName()),
-                        Collections.emptyMap(),
-                        location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                        resolveCiteSources(location),
-                        character.getLocationId(),
-                        historyPayload,
-                        userLevel,
-                        artifactsUnlocked,
-                        discoveriesCount,
-                        playerContext,
-                        stationContext,
-                        knowledgeRoute);
-                reply = ragResponse.reply();
-                answerSource = publicAnswerSource(ragResponse.cache());
-                responseSources = ragResponse.sources();
-            } catch (RuntimeException ex) {
-                recordChatAnswer(answerSource, startedNanos, false);
-                throw ex;
+            RagChatRequest ragRequest = new RagChatRequest(
+                    request.message(),
+                    verifiedStationCode,
+                    verifiedSiteCode,
+                    PersonaMapper.resolvePersonaKey(character.getName()),
+                    character.getPersonaPrompt(),
+                    location.getName(), historyTurns, stationContext, knowledgeRoute);
+            Optional<RagChatAnswer> pgVectorAnswer = Optional.empty();
+            if (ragRequest.isHeritageOnly()) {
+                pgVectorAnswer = publisher == null
+                        ? ragChatService.tryAnswer(ragRequest)
+                        : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
+                            List<ChatSource> visible = filterSourcesForUser(userId, siteCode, chunk.sources());
+                            if (!visible.isEmpty()) publisher.accept(new ChatStreamChunk(chunk.content(), visible));
+                        });
+            }
+            if (pgVectorAnswer != null && pgVectorAnswer.isPresent()) {
+                // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
+                reply = pgVectorAnswer.get().reply();
+                responseSources = pgVectorAnswer.get().sources();
+                answerSource = "semantic";
+                pgVectorRagUsed = true;
+            } else {
+                try {
+                    RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
+                            request.message(),
+                            PersonaMapper.resolvePersonaKey(character.getName()),
+                            Collections.emptyMap(),
+                            location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                            resolveCiteSources(location),
+                            character.getLocationId(),
+                            historyPayload,
+                            userLevel,
+                            artifactsUnlocked,
+                            discoveriesCount,
+                            playerContext,
+                            stationContext,
+                            knowledgeRoute);
+                    reply = ragResponse.reply();
+                    answerSource = publicAnswerSource(ragResponse.cache());
+                    responseSources = ragResponse.sources();
+                } catch (RuntimeException ex) {
+                    recordChatAnswer(answerSource, startedNanos, false);
+                    throw ex;
+                }
             }
         }
         List<ChatSource> visibleSources = filterSourcesForUser(userId, siteCode, responseSources);
@@ -301,7 +308,10 @@ public class ChatServiceImpl implements ChatService {
             reply = reply.replaceAll("\\s*\\[\\d{1,2}]", "");
         }
 
-        return new PreparedChatResponse(conversation.getId(), reply, visibleSources, answerSource, questHint, startedNanos);
+        return new PreparedChatResponse(
+                conversation.getId(), reply, visibleSources, answerSource, questHint, startedNanos,
+                knowledgeRoute.intent(),
+                knowledgeRoute.scopes().contains(ChatKnowledgeRoute.KnowledgeScope.USER_STATE));
     }
 
     @Override
@@ -328,7 +338,9 @@ public class ChatServiceImpl implements ChatService {
         if (!prepared.questHint()) {
             chatRateLimiter.recordSuccess(userId);
         }
-        return new ChatResponse(prepared.reply(), conversation.getId(), prepared.sources());
+        return new ChatResponse(
+                prepared.reply(), conversation.getId(), prepared.sources(), prepared.knowledgeIntent(),
+                prepared.userStateGrounded());
     }
 
     private static String publicAnswerSource(String cache) {

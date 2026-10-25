@@ -1,5 +1,5 @@
-﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V90.
+-- HistAR full local bootstrap SQL
+-- Generated from schema, seed manifest, and Flyway migrations through V92.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -9674,6 +9674,219 @@ ALTER TABLE ar_card_mail_attempts ADD COLUMN IF NOT EXISTS artifact_id VARCHAR(3
 
 -- END migration: V90__ar_card_mail_artifact.sql
 COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V91__site_workspaces_and_content_versions.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V91__site_workspaces_and_content_versions.sql
+-- ============================================================================
+-- B2G site workspaces, representative onboarding, and reviewed content snapshots.
+
+-- Canonical site codes make case-insensitive application lookups agree with the
+-- database uniqueness boundary. NULLIF also normalizes blank/whitespace-only codes.
+UPDATE locations
+SET site_code = NULLIF(LOWER(TRIM(site_code)), '')
+WHERE site_code IS NOT NULL;
+
+ALTER TABLE locations
+    ADD CONSTRAINT uq_locations_site_code_reference UNIQUE (site_code),
+    ADD CONSTRAINT uq_locations_site_code_id UNIQUE (site_code, id),
+    ADD CONSTRAINT chk_locations_site_code_canonical
+        CHECK (site_code IS NULL OR site_code ~ '^[a-z0-9][a-z0-9-]{0,63}$');
+
+ALTER TABLE stations
+    ADD CONSTRAINT uq_stations_site_code_code_id UNIQUE (site_code, code, id);
+
+CREATE TABLE site_memberships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    role VARCHAR(32) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    granted_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_site_memberships_site_user UNIQUE (site_code, user_id),
+    CONSTRAINT chk_site_memberships_role
+        CHECK (role IN ('SITE_MANAGER', 'CONTENT_EDITOR', 'CONTENT_REVIEWER'))
+);
+
+CREATE INDEX idx_site_memberships_user_active
+    ON site_memberships (user_id, active);
+
+CREATE INDEX idx_site_memberships_site_active
+    ON site_memberships (site_code, active);
+
+CREATE TABLE site_onboarding_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    representative_name VARCHAR(255) NOT NULL,
+    organization_name VARCHAR(255) NOT NULL,
+    representative_email VARCHAR(320) NOT NULL,
+    evidence_note TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    review_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ,
+    CONSTRAINT chk_site_onboarding_requests_status
+        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+);
+
+CREATE INDEX idx_site_onboarding_requests_site_status
+    ON site_onboarding_requests (site_code, status);
+
+CREATE INDEX idx_site_onboarding_requests_requester_created
+    ON site_onboarding_requests (requester_id, created_at DESC);
+
+CREATE UNIQUE INDEX uq_site_onboarding_requests_pending
+    ON site_onboarding_requests (requester_id, site_code)
+    WHERE status = 'PENDING';
+
+CREATE TABLE site_workspace_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    requires_trip_confirmation BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_site_workspace_settings_site UNIQUE (site_code)
+);
+
+CREATE TABLE site_content_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    content_kind VARCHAR(32) NOT NULL,
+    resource_key VARCHAR(128) NOT NULL,
+    location_id UUID,
+    station_id UUID,
+    version INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    snapshot_json JSONB NOT NULL,
+    revision BIGINT NOT NULL DEFAULT 0,
+    created_by UUID NOT NULL REFERENCES profiles(id),
+    submitted_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    reviewed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    published_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    review_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    submitted_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    published_at TIMESTAMPTZ,
+    CONSTRAINT uq_site_content_versions_resource_version
+        UNIQUE (site_code, content_kind, resource_key, version),
+    CONSTRAINT fk_site_content_versions_location
+        FOREIGN KEY (site_code, location_id)
+        REFERENCES locations (site_code, id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_site_content_versions_station
+        FOREIGN KEY (site_code, resource_key, station_id)
+        REFERENCES stations (site_code, code, id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT chk_site_content_versions_kind
+        CHECK (content_kind IN ('SITE_PROFILE', 'STATION')),
+    CONSTRAINT chk_site_content_versions_status
+        CHECK (status IN ('DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED')),
+    CONSTRAINT chk_site_content_versions_resource_fk
+        CHECK ((content_kind = 'SITE_PROFILE' AND location_id IS NOT NULL AND station_id IS NULL)
+            OR (content_kind = 'STATION' AND location_id IS NULL AND station_id IS NOT NULL)),
+    CONSTRAINT chk_site_content_versions_profile_key
+        CHECK (content_kind <> 'SITE_PROFILE' OR resource_key = site_code),
+    CONSTRAINT chk_site_content_versions_station_snapshot
+        CHECK (content_kind <> 'STATION' OR (
+            snapshot_json ?& ARRAY['stationCode', 'name', 'sortOrder', 'lat', 'lng', 'questStepKey', 'active', 'blocks']
+            AND jsonb_typeof(snapshot_json -> 'blocks') = 'array'
+        )),
+    CONSTRAINT chk_site_content_versions_version CHECK (version > 0),
+    CONSTRAINT chk_site_content_versions_revision CHECK (revision >= 0)
+);
+
+CREATE INDEX idx_site_content_versions_lookup
+    ON site_content_versions (site_code, content_kind, resource_key, status);
+
+CREATE INDEX idx_site_content_versions_site_status
+    ON site_content_versions (site_code, status);
+
+CREATE INDEX idx_site_content_versions_station
+    ON site_content_versions (station_id, version DESC)
+    WHERE station_id IS NOT NULL;
+
+CREATE INDEX idx_site_content_versions_location
+    ON site_content_versions (location_id, version DESC)
+    WHERE location_id IS NOT NULL;
+
+-- END migration: V91__site_workspaces_and_content_versions.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V92__field_trip_workflow.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V92__field_trip_workflow.sql
+-- ============================================================================
+-- Field trips connect an organization visit to a site, quest, and optional campaign.
+-- Report JSON is opaque at the schema layer; excluding learner PII is the report writer's job.
+
+CREATE TABLE field_trips (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    site_code VARCHAR(64) NOT NULL REFERENCES locations(site_code) ON UPDATE CASCADE ON DELETE RESTRICT,
+    title VARCHAR(255) NOT NULL,
+    visit_start TIMESTAMPTZ NOT NULL,
+    visit_end TIMESTAMPTZ NOT NULL,
+    quest_id UUID NOT NULL REFERENCES quests(id),
+    campaign_id UUID REFERENCES quest_campaigns(id),
+    join_code VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    site_confirmation_status VARCHAR(32) NOT NULL DEFAULT 'NOT_REQUIRED',
+    site_note TEXT,
+    created_by UUID NOT NULL REFERENCES profiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    row_version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT chk_field_trips_visit_window CHECK (visit_end > visit_start),
+    CONSTRAINT chk_field_trips_status
+        CHECK (status IN ('DRAFT', 'PENDING_SITE', 'CONFIRMED', 'ACTIVE', 'COMPLETED', 'CANCELLED')),
+    CONSTRAINT chk_field_trips_site_confirmation_status
+        CHECK (site_confirmation_status IN ('NOT_REQUIRED', 'PENDING', 'CONFIRMED', 'DECLINED')),
+    CONSTRAINT chk_field_trips_site_code_lowercase CHECK (site_code = LOWER(site_code)),
+    CONSTRAINT chk_field_trips_site_code_canonical
+        CHECK (site_code ~ '^[a-z0-9][a-z0-9-]{0,63}$')
+);
+
+CREATE UNIQUE INDEX uq_field_trips_join_code_ci ON field_trips (LOWER(join_code));
+
+CREATE INDEX idx_field_trips_org_id ON field_trips (org_id);
+
+CREATE INDEX idx_field_trips_site_code ON field_trips (site_code);
+
+CREATE INDEX idx_field_trips_status ON field_trips (status);
+
+ALTER TABLE study_groups
+    ADD COLUMN field_trip_id UUID REFERENCES field_trips(id) ON DELETE SET NULL,
+    ADD COLUMN participation_mode VARCHAR(32),
+    ADD COLUMN declared_size INTEGER,
+    ADD CONSTRAINT chk_study_groups_participation_mode
+        CHECK (participation_mode IN ('INDIVIDUAL', 'SHARED_DEVICE')),
+    ADD CONSTRAINT chk_study_groups_declared_size
+        CHECK (declared_size IS NULL OR declared_size >= 1);
+
+CREATE INDEX idx_study_groups_field_trip_id ON study_groups (field_trip_id);
+
+ALTER TABLE assignments
+    ADD COLUMN field_trip_id UUID REFERENCES field_trips(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX uq_assignments_field_trip_id ON assignments (field_trip_id);
+
+CREATE TABLE field_trip_report_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    field_trip_id UUID NOT NULL REFERENCES field_trips(id) ON DELETE CASCADE,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    report_json JSONB NOT NULL,
+    CONSTRAINT uq_field_trip_report_snapshots_field_trip UNIQUE (field_trip_id)
+);
+
+-- END migration: V92__field_trip_workflow.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -9845,7 +10058,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V90
+-- Flyway baseline after full bootstrap: V92
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -9872,7 +10085,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '90', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '92', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

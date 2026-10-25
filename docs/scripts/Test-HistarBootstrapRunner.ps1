@@ -21,7 +21,7 @@ $runner = Get-Content -Raw -Encoding UTF8 $runnerPath
 foreach ($requiredText in @(
     '[switch]$Reset',
     'TimeLens_full_bootstrap.sql',
-    '$ExpectedMinFlywayVersion = 90',
+    '$ExpectedMinFlywayVersion = 92',
     'Refusing to overwrite an existing database without -Reset',
     'Bootstrap completed successfully',
     'docker cp',
@@ -29,6 +29,8 @@ foreach ($requiredText in @(
     'V87 passport mail attempts table and constraints: ready.',
     'V88 Vietnamese location, quest, and discovery content: ready.',
     'V89/V90 AR mail attempts and selected artifact: ready.',
+    'V91 site workspace schema: ready.',
+    'V92 field trip schema: ready.',
     '$cuChiNameUtf8Hex = ''c490e1bb8b6120c491e1baa16f2043e1bba720436869''',
     "encode(convert_to(name,'UTF8'),'hex')",
     'fk_passport_mail_profile',
@@ -62,7 +64,9 @@ foreach ($requiredMigration in @(
     'V87__passport_mail_attempts.sql',
     'V88__repair_vietnamese_content.sql',
     'V89__ar_card_mail_attempts.sql',
-    'V90__ar_card_mail_artifact.sql'
+    'V90__ar_card_mail_artifact.sql',
+    'V91__site_workspaces_and_content_versions.sql',
+    'V92__field_trip_workflow.sql'
 )) {
     if (-not (Test-Path (Join-Path $PSScriptRoot "..\..\src\main\resources\db\migration\$requiredMigration"))) {
         throw "Bootstrap runner smoke check is missing: $requiredMigration"

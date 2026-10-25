@@ -178,22 +178,17 @@ class RagOrchestrationRegressionTest {
     }
 
     @Test void userProgressBypassesPgvectorAndForwardsLivePlayerContext() {
-        var liveState = Map.<String, Object>of("remainingQuests", 2, "checkedInStations", List.of("ST01"));
+        var liveState = Map.<String, Object>of(
+                "remainingQuestNames", List.of("Mật thư", "Dẫn đường"),
+                "checkedInStations", List.of("ST01"));
         when(context.build(user, location)).thenReturn(liveState);
-        answer(new RagChatResponse("Bạn còn 2 nhiệm vụ.", List.of()));
 
-        service.sendOrchestrated(
+        var response = service.sendOrchestrated(
                 user, new ChatMessageRequest(character, "Tôi còn nhiệm vụ nào?", conversation));
 
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        ArgumentCaptor<Map<String, Object>> player = ArgumentCaptor.forClass((Class) Map.class);
-        var route = ArgumentCaptor.forClass(ChatKnowledgeRoute.class);
-        verify(ai).generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
-                player.capture(), any(), route.capture());
-        assertThat(player.getValue()).isEqualTo(liveState);
-        assertThat(route.getValue().intent()).isEqualTo(ChatKnowledgeIntent.USER_PROGRESS);
-        assertThat(route.getValue().scopes()).containsExactly(ChatKnowledgeRoute.KnowledgeScope.USER_STATE);
-        verifyNoInteractions(semantic);
+        assertThat(response.reply()).isEqualTo("Bạn còn 2 nhiệm vụ chưa hoàn thành: Mật thư, Dẫn đường.");
+        assertThat(response.userStateGrounded()).isTrue();
+        verifyNoInteractions(ai, semantic);
     }
 
     @Test void invalidStationFailsBeforeEitherRetrievalPath() {

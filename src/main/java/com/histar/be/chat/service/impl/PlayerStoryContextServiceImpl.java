@@ -3,6 +3,7 @@ package com.histar.be.chat.service.impl;
 import com.histar.be.artifact.entity.Artifact;
 import com.histar.be.artifact.repository.ArtifactRepository;
 import com.histar.be.artifact.repository.UserArtifactRepository;
+import com.histar.be.checkin.repository.CheckinRepository;
 import com.histar.be.chat.service.PlayerStoryContextService;
 import com.histar.be.common.gamification.QuestStatus;
 import com.histar.be.discovery.entity.DiscoveryPoint;
@@ -37,6 +38,7 @@ public class PlayerStoryContextServiceImpl implements PlayerStoryContextService 
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final ArtifactRepository artifactRepository;
     private final UserArtifactRepository userArtifactRepository;
+    private final CheckinRepository checkinRepository;
     private final VisitSessionRepository visitSessionRepository;
     private final VisitSessionEventRepository visitSessionEventRepository;
 
@@ -70,11 +72,14 @@ public class PlayerStoryContextServiceImpl implements PlayerStoryContextService 
         String lastVisitedPoi = resolveLastVisitedPoi(userId, locationId, points);
 
         List<String> completedQuests = new ArrayList<>();
+        List<String> remainingQuests = new ArrayList<>();
         Map<String, Object> questState = null;
         for (Quest quest : questRepository.findByLocationId(locationId)) {
             var progressOpt = userQuestProgressRepository.findByUserIdAndQuestId(userId, quest.getId());
             if (progressOpt.isPresent() && QuestStatus.COMPLETED.equals(progressOpt.get().getStatus())) {
                 completedQuests.add(quest.getTitle());
+            } else {
+                remainingQuests.add(quest.getTitle());
             }
             if (progressOpt.isPresent() && QuestStatus.IN_PROGRESS.equals(progressOpt.get().getStatus())) {
                 var counts = QuestDiscoveryProgress.compute(
@@ -87,10 +92,13 @@ public class PlayerStoryContextServiceImpl implements PlayerStoryContextService 
         }
 
         List<String> missingArtifacts = new ArrayList<>();
+        List<String> unlockedArtifacts = new ArrayList<>();
         Set<UUID> unlockedIds = new HashSet<>();
         userArtifactRepository.findByUserId(userId).forEach(ua -> unlockedIds.add(ua.getArtifactId()));
         for (Artifact artifact : artifactRepository.findByLocationIdOrderBySortOrder(locationId)) {
-            if (!unlockedIds.contains(artifact.getId())) {
+            if (unlockedIds.contains(artifact.getId())) {
+                unlockedArtifacts.add(artifact.getName());
+            } else {
                 missingArtifacts.add(artifact.getName());
             }
         }
@@ -114,12 +122,15 @@ public class PlayerStoryContextServiceImpl implements PlayerStoryContextService 
         ctx.put("discoveredCount", discoveredPois.size());
         ctx.put("totalPoi", points.size());
         ctx.put("completedQuests", completedQuests);
+        ctx.put("remainingQuestNames", remainingQuests);
         ctx.put("favoriteTopics", List.of());
         ctx.put("lastVisitedPoi", lastVisitedPoi);
         ctx.put("currentPoi", currentPoint != null ? currentPoint.getName() : null);
         ctx.put("nearbyPois", nearbyPois);
         ctx.put("questState", questState);
         ctx.put("missingArtifacts", missingArtifacts.subList(0, Math.min(5, missingArtifacts.size())));
+        ctx.put("unlockedArtifactNames", unlockedArtifacts);
+        ctx.put("checkedInStations", checkinRepository.findDistinctStationCodesByUserIdAndLocationId(userId, locationId));
         ctx.put("nextSuggestedPoi", nextSuggested);
         ctx.put(
                 "storyGuideHint",
