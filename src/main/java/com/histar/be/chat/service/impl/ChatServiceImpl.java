@@ -17,6 +17,9 @@ import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.dto.ChatSyncRequest;
 import com.histar.be.chat.dto.MessageResponse;
 import com.histar.be.chat.dto.StationChatContext;
+import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
+import com.histar.be.chat.knowledge.ChatKnowledgeRouteResolver;
+import com.histar.be.chat.knowledge.ChatPageContext;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.PreparedChatResponse;
 import com.histar.be.chat.service.ChatStreamChunk;
@@ -63,6 +66,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_HISTORY_TURNS = 6;
+    private static final ChatKnowledgeRouteResolver KNOWLEDGE_ROUTE_RESOLVER =
+            new ChatKnowledgeRouteResolver();
 
     private final CharacterService characterService;
     private final LocationService locationService;
@@ -195,9 +200,6 @@ public class ChatServiceImpl implements ChatService {
         long artifactsUnlocked = userArtifactRepository.findByUserId(userId).size();
         long discoveriesCount = userDiscoveryRepository.findByUserId(userId).size();
 
-        Map<String, Object> playerContext =
-                playerStoryContextService.build(userId, character.getLocationId());
-
         String reply;
         List<ChatSource> responseSources;
         String answerSource = "rag-ai";
@@ -205,40 +207,64 @@ public class ChatServiceImpl implements ChatService {
         String locationSiteCode = location.getSiteCode() == null
                 ? ""
                 : location.getSiteCode().trim().toLowerCase(Locale.ROOT);
-        String siteCode = request.siteCode() != null && !request.siteCode().isBlank()
-                ? request.siteCode().trim().toLowerCase(Locale.ROOT)
-                : locationSiteCode;
+        ChatPageContext suppliedPageContext = request.pageContext();
+        String requestSiteCode = normalizeSiteCode(request.siteCode());
+        String pageSiteCode = suppliedPageContext == null
+                ? null
+                : normalizeSiteCode(suppliedPageContext.siteCode());
+        requireMatchingContext(requestSiteCode, pageSiteCode, "Site trong trang không khớp yêu cầu");
+        String siteCode = firstNonBlank(requestSiteCode, pageSiteCode, locationSiteCode);
         if (!siteCode.equals(locationSiteCode)) {
             throw new BaseException(
                     ErrorCode.INVALID_STATION_CONTEXT,
                     "Địa điểm và site của trạm không khớp");
         }
+        String requestStationCode = normalizeStationCode(request.stationCode());
+        String pageStationCode = suppliedPageContext == null
+                ? null
+                : normalizeStationCode(suppliedPageContext.stationCode());
+        requireMatchingContext(requestStationCode, pageStationCode, "Trạm trong trang không khớp yêu cầu");
+        String stationCode = firstNonBlank(requestStationCode, pageStationCode, null);
         StationChatContext stationContext = null;
-        if (request.stationCode() != null && !request.stationCode().isBlank()
-                && stationChatContextResolver != null) {
+        if (stationCode != null) {
             stationContext = stationChatContextResolver
-                    .resolve(siteCode, request.stationCode())
-                    .orElse(null);
+                    .resolve(siteCode, stationCode)
+                    .orElseThrow(() -> new BaseException(
+                            ErrorCode.INVALID_STATION_CONTEXT,
+                            "Trạm không tồn tại hoặc chưa hoạt động: " + siteCode + "/" + stationCode));
         }
         String verifiedStationCode = stationContext == null
-                ? request.stationCode()
+                ? stationCode
                 : stationContext.stationCode();
         String verifiedSiteCode = stationContext == null
                 ? siteCode
                 : stationContext.siteCode();
+        Map<String, Object> playerContext =
+                playerStoryContextService.build(userId, character.getLocationId());
+        ChatKnowledgeRoute knowledgeRoute = KNOWLEDGE_ROUTE_RESOLVER.resolve(
+                request.message(), suppliedPageContext, playerContext);
+        List<String> knowledgeScopes = knowledgeRoute.scopes().stream()
+                .sorted(java.util.Comparator.comparingInt(Enum::ordinal))
+                .map(Enum::name)
+                .toList();
+        log.info("requestId={} knowledge_intent={} knowledge_scopes={}",
+                org.slf4j.MDC.get("requestId"), knowledgeRoute.intent(), knowledgeScopes);
         RagChatRequest ragRequest = new RagChatRequest(
                 request.message(),
                 verifiedStationCode,
                 verifiedSiteCode,
                 PersonaMapper.resolvePersonaKey(character.getName()),
                 character.getPersonaPrompt(),
-                location.getName(), historyTurns, stationContext);
-        Optional<RagChatAnswer> pgVectorAnswer = publisher == null
-                ? ragChatService.tryAnswer(ragRequest)
-                : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
-                    List<ChatSource> visible = filterSourcesForUser(userId, siteCode, chunk.sources());
-                    if (!visible.isEmpty()) publisher.accept(new ChatStreamChunk(chunk.content(), visible));
-                });
+                location.getName(), historyTurns, stationContext, knowledgeRoute);
+        Optional<RagChatAnswer> pgVectorAnswer = Optional.empty();
+        if (ragRequest.isHeritageOnly()) {
+            pgVectorAnswer = publisher == null
+                    ? ragChatService.tryAnswer(ragRequest)
+                    : ragChatService.tryAnswerStreaming(ragRequest, chunk -> {
+                        List<ChatSource> visible = filterSourcesForUser(userId, siteCode, chunk.sources());
+                        if (!visible.isEmpty()) publisher.accept(new ChatStreamChunk(chunk.content(), visible));
+                    });
+        }
         if (pgVectorAnswer != null && pgVectorAnswer.isPresent()) {
             // B5 pgvector RAG: verified chunks + [n] citations (or soft refusal when nothing is citable).
             reply = pgVectorAnswer.get().reply();
@@ -247,32 +273,20 @@ public class ChatServiceImpl implements ChatService {
             pgVectorRagUsed = true;
         } else {
             try {
-                RagChatResponse ragResponse = stationContext == null
-                        ? ragAiChatClient.generateWithSources(
-                                request.message(),
-                                PersonaMapper.resolvePersonaKey(character.getName()),
-                                Collections.emptyMap(),
-                                location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                                resolveCiteSources(location),
-                                character.getLocationId(),
-                                historyPayload,
-                                userLevel,
-                                artifactsUnlocked,
-                                discoveriesCount,
-                                playerContext)
-                        : ragAiChatClient.generateWithSources(
-                                request.message(),
-                                PersonaMapper.resolvePersonaKey(character.getName()),
-                                Collections.emptyMap(),
-                                location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
-                                resolveCiteSources(location),
-                                character.getLocationId(),
-                                historyPayload,
-                                userLevel,
-                                artifactsUnlocked,
-                                discoveriesCount,
-                                playerContext,
-                                stationContext);
+                RagChatResponse ragResponse = ragAiChatClient.generateWithSources(
+                        request.message(),
+                        PersonaMapper.resolvePersonaKey(character.getName()),
+                        Collections.emptyMap(),
+                        location.getKnowledgeContext() != null ? location.getKnowledgeContext() : "",
+                        resolveCiteSources(location),
+                        character.getLocationId(),
+                        historyPayload,
+                        userLevel,
+                        artifactsUnlocked,
+                        discoveriesCount,
+                        playerContext,
+                        stationContext,
+                        knowledgeRoute);
                 reply = ragResponse.reply();
                 answerSource = publicAnswerSource(ragResponse.cache());
                 responseSources = ragResponse.sources();
@@ -340,7 +354,35 @@ public class ChatServiceImpl implements ChatService {
         if (sources == null || sources.isEmpty()) {
             return List.of();
         }
-        return usageQuotaService.shouldIncludeChatSources(userId, siteCode) ? sources : List.of();
+        if (sources.stream().allMatch(ChatServiceImpl::isPlatformSource)) {
+            return sources;
+        }
+        if (usageQuotaService.shouldIncludeChatSources(userId, siteCode)) {
+            return sources;
+        }
+        return sources.stream().filter(ChatServiceImpl::isPlatformSource).toList();
+    }
+
+    private static boolean isPlatformSource(ChatSource source) {
+        return source != null && "PLATFORM".equalsIgnoreCase(source.scope());
+    }
+
+    private static String normalizeSiteCode(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeStationCode(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String firstNonBlank(String first, String second, String fallback) {
+        return first != null ? first : second != null ? second : fallback;
+    }
+
+    private static void requireMatchingContext(String explicit, String page, String message) {
+        if (explicit != null && page != null && !explicit.equals(page)) {
+            throw new BaseException(ErrorCode.INVALID_STATION_CONTEXT, message);
+        }
     }
 
     @Override

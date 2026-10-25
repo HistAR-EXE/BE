@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.*;
 import com.histar.be.common.exception.BaseException;
 import com.histar.be.common.exception.GlobalExceptionHandler;
 import com.histar.be.config.ChatProperties;
+import com.histar.be.chat.knowledge.ChatKnowledgeIntent;
+import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
+import com.histar.be.chat.knowledge.ChatPageContext;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +27,7 @@ class RagAiChatClientTest {
     RagAiChatClient client;
     AtomicInteger calls = new AtomicInteger();
     AtomicReference<String> header = new AtomicReference<>();
+    AtomicReference<String> requestBody = new AtomicReference<>();
     int status = 200;
     String body = "{\"reply\":\"answer\",\"sources\":[],\"cache\":\"llm\"}";
     long delayMillis;
@@ -33,7 +37,7 @@ class RagAiChatClientTest {
         server.createContext("/ai/chat", exchange -> {
             calls.incrementAndGet();
             header.set(exchange.getRequestHeaders().getFirst("X-Request-Id"));
-            exchange.getRequestBody().readAllBytes();
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             try { Thread.sleep(delayMillis); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -111,5 +115,49 @@ class RagAiChatClientTest {
         assertThat(exception).isInstanceOf(BaseException.class);
         var response = new GlobalExceptionHandler().handleBaseException((BaseException) exception);
         assertThat(response.getStatusCode().value()).isEqualTo(503);
+    }
+
+    @Test void sendsScopedKnowledgeAndNavigationContextWithoutDroppingLiveState() throws Exception {
+        var pageContext = new ChatPageContext(
+                "STATION_MEDIA", "/sites/cu-chi/stations/ST01/media", "cu-chi", "ST01");
+        var route = new ChatKnowledgeRoute(
+                ChatKnowledgeIntent.MIXED,
+                Set.of(ChatKnowledgeRoute.KnowledgeScope.PLATFORM,
+                        ChatKnowledgeRoute.KnowledgeScope.HERITAGE),
+                "STATION_MEDIA",
+                pageContext,
+                false,
+                null);
+        var playerContext = Map.<String, Object>of("remainingQuests", 2);
+        var stationContext = new com.histar.be.chat.dto.StationChatContext(
+                "cu-chi", "ST01", "Phòng họp", "Tóm tắt đã xác minh");
+
+        client.generateWithSources(
+                "question", "chrono", Map.of(), "", "", null, List.of(),
+                1, 0, 0, playerContext, stationContext, route);
+
+        var json = JsonMapper.builder().build().readTree(requestBody.get());
+        assertThat(json.path("knowledge_intent").asText()).isEqualTo("MIXED");
+        assertThat(json.path("knowledge_scopes").toString()).isEqualTo("[\"PLATFORM\",\"HERITAGE\"]");
+        assertThat(json.path("page_context").path("featureKey").asText()).isEqualTo("STATION_MEDIA");
+        assertThat(json.path("page_context").path("route").asText())
+                .isEqualTo("/sites/cu-chi/stations/ST01/media");
+        assertThat(json.path("station_context").path("stationCode").asText()).isEqualTo("ST01");
+        assertThat(json.path("player_context").path("remainingQuests").asInt()).isEqualTo(2);
+    }
+
+    @Test void parsesOptionalSourceScopeAndKeepsLegacySourcesCompatible() {
+        body = """
+                {"reply":"answer","sources":[
+                  {"title":"Hướng dẫn sử dụng TimeLens · Cổ vật","excerpt":"Cách dùng","scope":"PLATFORM"},
+                  {"title":"Nguồn lịch sử","excerpt":"Tư liệu"}
+                ]}
+                """;
+
+        var sources = call().sources();
+
+        assertThat(sources).hasSize(2);
+        assertThat(sources.get(0).scope()).isEqualTo("PLATFORM");
+        assertThat(sources.get(1).scope()).isNull();
     }
 }

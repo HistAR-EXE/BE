@@ -3,6 +3,8 @@ package com.histar.be.chat.service;
 import com.histar.be.config.ChatProperties;
 import com.histar.be.chat.dto.ChatSource;
 import com.histar.be.chat.dto.StationChatContext;
+import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
+import com.histar.be.chat.knowledge.ChatPageContext;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,6 +16,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -124,6 +127,25 @@ public class RagAiChatClient {
             long discoveriesCount,
             Map<String, Object> playerContext,
             StationChatContext stationContext) {
+        return generateWithSources(
+                message, personaKey, personaOverride, knowledgeContext, sources, locationId, history,
+                userLevel, artifactsUnlockedCount, discoveriesCount, playerContext, stationContext, null);
+    }
+
+    public RagChatResponse generateWithSources(
+            String message,
+            String personaKey,
+            Map<String, String> personaOverride,
+            String knowledgeContext,
+            String sources,
+            UUID locationId,
+            List<Map<String, String>> history,
+            Integer userLevel,
+            long artifactsUnlockedCount,
+            long discoveriesCount,
+            Map<String, Object> playerContext,
+            StationChatContext stationContext,
+            ChatKnowledgeRoute knowledgeRoute) {
         Map<String, Object> body = new HashMap<>();
         body.put("message", message);
         body.put("persona_key", personaKey != null ? personaKey : "");
@@ -146,6 +168,16 @@ public class RagAiChatClient {
                     "stationCode", stationContext.stationCode(),
                     "stationName", stationContext.stationName(),
                     "summary", stationContext.summary() == null ? "" : stationContext.summary()));
+        }
+        if (knowledgeRoute != null) {
+            body.put("knowledge_intent", knowledgeRoute.intent().name());
+            body.put("knowledge_scopes", knowledgeRoute.scopes().stream()
+                    .sorted(java.util.Comparator.comparingInt(Enum::ordinal))
+                    .map(Enum::name)
+                    .toList());
+            if (knowledgeRoute.pageContext() != null) {
+                body.put("page_context", pageContextPayload(knowledgeRoute.pageContext()));
+            }
         }
         String requestId = MDC.get("requestId");
         if (requestId == null || requestId.isBlank()) requestId = UUID.randomUUID().toString();
@@ -171,6 +203,15 @@ public class RagAiChatClient {
                     correlationId, failure.getErrorCode().getCode(), failure.isRetryable());
             throw failure;
         }
+    }
+
+    private static Map<String, Object> pageContextPayload(ChatPageContext context) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (context.featureKey() != null) payload.put("featureKey", context.featureKey());
+        if (context.route() != null) payload.put("route", context.route());
+        if (context.siteCode() != null) payload.put("siteCode", context.siteCode());
+        if (context.stationCode() != null) payload.put("stationCode", context.stationCode());
+        return payload;
     }
 
     @SuppressWarnings("unchecked")
@@ -259,12 +300,14 @@ public class RagAiChatClient {
             Object title = map.get("title");
             Object excerpt = map.get("excerpt");
             Object url = map.get("url");
+            Object scope = map.get("scope");
             if (!(title instanceof String titleStr) || titleStr.isBlank()) {
                 continue;
             }
             String excerptStr = excerpt instanceof String s && !s.isBlank() ? s : titleStr;
             String urlStr = url instanceof String u && !u.isBlank() ? u : null;
-            out.add(new ChatSource(titleStr.trim(), excerptStr.trim(), urlStr));
+            String scopeStr = scope instanceof String s && !s.isBlank() ? s.trim() : null;
+            out.add(new ChatSource(titleStr.trim(), excerptStr.trim(), urlStr, scopeStr));
         }
         return out;
     }

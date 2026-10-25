@@ -59,7 +59,7 @@ public class RagChatService {
     }
 
     public Optional<RagChatAnswer> tryAnswer(RagChatRequest request) {
-        if (!ragProperties.isEnabled()) {
+        if (!ragProperties.isEnabled() || !request.isHeritageOnly()) {
             return Optional.empty();
         }
         long startNanos = System.nanoTime();
@@ -110,7 +110,7 @@ public class RagChatService {
      * Consequently an uncited/hallucinated answer never reaches the browser before soft refusal.
      */
     public Optional<RagChatAnswer> tryAnswerStreaming(RagChatRequest request, Consumer<RagStreamChunk> publisher) {
-        if (!ragProperties.isEnabled()) return Optional.empty();
+        if (!ragProperties.isEnabled() || !request.isHeritageOnly()) return Optional.empty();
         RetrievalResult retrieval;
         try {
             retrieval = ragService.retrieve(request.question(), blankToNull(request.stationCode()), request.siteCode());

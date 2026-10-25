@@ -10,8 +10,13 @@ import com.histar.be.billing.service.UsageQuotaService;
 import com.histar.be.character.entity.CharacterEntity;
 import com.histar.be.character.service.CharacterService;
 import com.histar.be.chat.dto.*;
+import com.histar.be.chat.knowledge.ChatKnowledgeIntent;
+import com.histar.be.chat.knowledge.ChatKnowledgeRoute;
+import com.histar.be.chat.knowledge.ChatPageContext;
 import com.histar.be.chat.service.*;
+import com.histar.be.common.exception.BaseException;
 import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.common.exception.ErrorCode;
 import com.histar.be.conversation.entity.Conversation;
 import com.histar.be.conversation.repository.ConversationRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
@@ -23,6 +28,7 @@ import com.histar.be.observability.ProductionMetrics;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.narrative.NarrativeInvestigationService;
 import com.histar.be.rag.service.RagChatService;
+import com.histar.be.rag.dto.RagChatAnswer;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +53,7 @@ class RagOrchestrationRegressionTest {
     @Mock RagChatService semantic;
     @Mock ProductionMetrics metrics;
     @Mock NarrativeInvestigationService quests;
+    @Mock StationChatContextResolver stationContexts;
     @InjectMocks ChatServiceImpl service;
     final UUID user = UUID.randomUUID(), character = UUID.randomUUID(), location = UUID.randomUUID(), conversation = UUID.randomUUID();
 
@@ -60,7 +67,8 @@ class RagOrchestrationRegressionTest {
     }
 
     private void answer(RagChatResponse response) {
-        when(ai.generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+        when(ai.generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                any(), any(), any()))
                 .thenReturn(response);
     }
 
@@ -68,7 +76,8 @@ class RagOrchestrationRegressionTest {
         when(messages.findByConversationIdOrderByCreatedAt(conversation)).thenReturn(List.of(
                 Message.builder().role("user").content("previous question").build()));
         when(ai.generateWithSources(eq("current question"), any(), any(), any(), any(), any(),
-                eq(List.of(Map.of("role", "user", "content", "previous question"))), anyInt(), anyLong(), anyLong(), any()))
+                eq(List.of(Map.of("role", "user", "content", "previous question"))), anyInt(), anyLong(), anyLong(),
+                any(), any(), any()))
                 .thenAnswer(invocation -> {
                     verify(messages, never()).save(any());
                     return new RagChatResponse("grounded answer", List.of());
@@ -83,7 +92,8 @@ class RagOrchestrationRegressionTest {
     }
 
     @Test void ragFailureNeverFallsBackPersistsOrAwardsQuestSuccess() {
-        when(ai.generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(), any()))
+        when(ai.generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                any(), any(), any()))
                 .thenThrow(new BusinessRuleException("rag unavailable"));
         assertThatThrownBy(() -> service.sendOrchestrated(user, new ChatMessageRequest(character, "question", conversation,
                 null, "cu-chi", UUID.randomUUID(), "interview", 1))).hasMessage("rag unavailable");
@@ -105,5 +115,120 @@ class RagOrchestrationRegressionTest {
         answer(new RagChatResponse("answer", List.of(), outcome));
         service.sendOrchestrated(user, new ChatMessageRequest(character, "question", conversation));
         verify(metrics).recordChat(any(), eq(outcome), eq(true));
+    }
+
+    @Test void productHelpBypassesHeritagePgvectorAndKeepsPlatformSourcesVisibleWithoutSubscription() {
+        answer(new RagChatResponse("Mở bộ sưu tập để xem cổ vật.", List.of(
+                new ChatSource("Hướng dẫn sử dụng TimeLens · Cổ vật", "Cách dùng", null, "PLATFORM"))));
+        var result = service.sendOrchestrated(
+                user, new ChatMessageRequest(character, "Cổ vật dùng để làm gì?", conversation));
+
+        assertThat(result.sources()).singleElement().extracting(ChatSource::scope).isEqualTo("PLATFORM");
+        verifyNoInteractions(semantic);
+        var route = ArgumentCaptor.forClass(ChatKnowledgeRoute.class);
+        verify(ai).generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                any(), any(), route.capture());
+        assertThat(route.getValue().intent()).isEqualTo(ChatKnowledgeIntent.PRODUCT_HELP);
+        assertThat(route.getValue().scopes()).containsExactly(ChatKnowledgeRoute.KnowledgeScope.PLATFORM);
+    }
+
+    @Test void heritageFactKeepsPgvectorFirstAndDoesNotCallAiWhenGrounded() {
+        when(semantic.tryAnswer(any())).thenReturn(Optional.of(new RagChatAnswer(
+                "Địa đạo được xây dựng qua nhiều giai đoạn [1].",
+                List.of(new ChatSource("Tư liệu lịch sử", "Trích đoạn", null)), false, false)));
+        when(quota.shouldIncludeChatSources(user, "cu-chi")).thenReturn(true);
+
+        var result = service.sendOrchestrated(
+                user, new ChatMessageRequest(character, "Địa đạo được xây dựng năm nào?", conversation));
+
+        assertThat(result.reply()).contains("[1]");
+        verify(semantic).tryAnswer(any());
+        verifyNoInteractions(ai);
+    }
+
+    @Test void mixedQuestionBypassesPgvectorAndSendsBothKnowledgeScopes() {
+        answer(new RagChatResponse("answer", List.of()));
+        var pageContext = new ChatPageContext(
+                "HISTORICAL_REENACTMENT", "/sites/cu-chi/stations/ST01/media", "cu-chi", "ST01");
+        var verifiedStation = new StationChatContext("cu-chi", "ST01", "Phòng họp", "verified");
+        when(stationContexts.resolve("cu-chi", "ST01")).thenReturn(Optional.of(verifiedStation));
+
+        service.sendOrchestrated(user, new ChatMessageRequest(
+                character,
+                "Cách xem phim 3D về trận Cedar Falls diễn ra thế nào?",
+                conversation,
+                "ST01",
+                "cu-chi",
+                null,
+                null,
+                null,
+                pageContext));
+
+        verifyNoInteractions(semantic);
+        var station = ArgumentCaptor.forClass(StationChatContext.class);
+        var route = ArgumentCaptor.forClass(ChatKnowledgeRoute.class);
+        verify(ai).generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                any(), station.capture(), route.capture());
+        assertThat(station.getValue()).isEqualTo(verifiedStation);
+        assertThat(route.getValue().intent()).isEqualTo(ChatKnowledgeIntent.MIXED);
+        assertThat(route.getValue().scopes()).containsExactlyInAnyOrder(
+                ChatKnowledgeRoute.KnowledgeScope.PLATFORM,
+                ChatKnowledgeRoute.KnowledgeScope.HERITAGE);
+        assertThat(route.getValue().pageContext()).isEqualTo(pageContext.normalized());
+    }
+
+    @Test void userProgressBypassesPgvectorAndForwardsLivePlayerContext() {
+        var liveState = Map.<String, Object>of("remainingQuests", 2, "checkedInStations", List.of("ST01"));
+        when(context.build(user, location)).thenReturn(liveState);
+        answer(new RagChatResponse("Bạn còn 2 nhiệm vụ.", List.of()));
+
+        service.sendOrchestrated(
+                user, new ChatMessageRequest(character, "Tôi còn nhiệm vụ nào?", conversation));
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        ArgumentCaptor<Map<String, Object>> player = ArgumentCaptor.forClass((Class) Map.class);
+        var route = ArgumentCaptor.forClass(ChatKnowledgeRoute.class);
+        verify(ai).generateWithSources(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyLong(), anyLong(),
+                player.capture(), any(), route.capture());
+        assertThat(player.getValue()).isEqualTo(liveState);
+        assertThat(route.getValue().intent()).isEqualTo(ChatKnowledgeIntent.USER_PROGRESS);
+        assertThat(route.getValue().scopes()).containsExactly(ChatKnowledgeRoute.KnowledgeScope.USER_STATE);
+        verifyNoInteractions(semantic);
+    }
+
+    @Test void invalidStationFailsBeforeEitherRetrievalPath() {
+        when(stationContexts.resolve("cu-chi", "ST99")).thenThrow(new BaseException(
+                ErrorCode.INVALID_STATION_CONTEXT, "invalid station"));
+
+        assertThatThrownBy(() -> service.sendOrchestrated(
+                user, new ChatMessageRequest(character, "Cổ vật dùng để làm gì?", conversation, "ST99", "cu-chi")))
+                .isInstanceOfSatisfying(BaseException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.INVALID_STATION_CONTEXT));
+
+        verifyNoInteractions(semantic, ai);
+    }
+
+    @Test void mixedSourcesExposePlatformButKeepHistoricalSourcesBehindSubscription() {
+        answer(new RagChatResponse("answer", List.of(
+                new ChatSource("Hướng dẫn sử dụng TimeLens", "product", null, "PLATFORM"),
+                new ChatSource("Tư liệu lịch sử", "history", null, "HERITAGE"))));
+        when(quota.shouldIncludeChatSources(user, "cu-chi")).thenReturn(false);
+
+        var result = service.sendOrchestrated(user, new ChatMessageRequest(
+                character, "Cách xem phim 3D về trận Cedar Falls diễn ra thế nào?", conversation));
+
+        assertThat(result.sources()).extracting(ChatSource::scope).containsExactly("PLATFORM");
+    }
+
+    @Test void streamingProductHelpAlsoBypassesHeritagePgvector() {
+        answer(new RagChatResponse("answer", List.of()));
+        List<ChatStreamChunk> streamed = new ArrayList<>();
+
+        var prepared = service.prepareOrchestratedStreaming(
+                user, new ChatMessageRequest(character, "Tour 360 dùng để làm gì?", conversation), streamed::add);
+
+        assertThat(prepared.reply()).isEqualTo("answer");
+        assertThat(streamed).isEmpty();
+        verifyNoInteractions(semantic);
     }
 }

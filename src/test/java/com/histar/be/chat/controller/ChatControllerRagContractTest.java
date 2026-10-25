@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.histar.be.chat.guided.GuidedChatStreamService;
+import com.histar.be.chat.dto.ChatMessageRequest;
 import com.histar.be.chat.service.ChatService;
 import com.histar.be.chat.service.RagServiceException;
 import com.histar.be.common.exception.GlobalExceptionHandler;
@@ -83,6 +84,41 @@ class ChatControllerRagContractTest {
         result.getAsyncResult(5000);
         String content = mvc.perform(asyncDispatch(result)).andReturn().getResponse().getContentAsString();
         assertThat(content).contains("QUOTA_EXCEEDED", "B2C_DAILY", "/upgrade", "PREMIUM").doesNotContain("event:complete");
+    }
+
+    @Test void messageRequestAcceptsLegacyJsonWithoutPageContext() throws Exception {
+        mvc.perform(post("/api/chat/messages").contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ChatMessageRequest.class);
+        verify(chat).sendOrchestrated(any(), captor.capture());
+        assertThat(captor.getValue().pageContext()).isNull();
+    }
+
+    @Test void messageRequestBindsBoundedPageContext() throws Exception {
+        String body = """
+                {"characterId":"%s","message":"question","pageContext":{
+                  "featureKey":"ARTIFACTS","route":"/collection","siteCode":"cu-chi","stationCode":"ST01"}}
+                """.formatted(UUID.randomUUID());
+
+        mvc.perform(post("/api/chat/messages").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ChatMessageRequest.class);
+        verify(chat).sendOrchestrated(any(), captor.capture());
+        assertThat(captor.getValue().pageContext().featureKey()).isEqualTo("ARTIFACTS");
+        assertThat(captor.getValue().pageContext().stationCode()).isEqualTo("ST01");
+    }
+
+    @Test void messageRequestRejectsOversizedPageContext() throws Exception {
+        String body = """
+                {"characterId":"%s","message":"question","pageContext":{
+                  "featureKey":"%s","route":"/collection"}}
+                """.formatted(UUID.randomUUID(), "A".repeat(65));
+
+        mvc.perform(post("/api/chat/messages").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnprocessableEntity());
+        verifyNoInteractions(chat);
     }
 
     @Test void servletTimeoutRejectsLateStreamEventsWithoutFalseCompletion() throws Exception {
