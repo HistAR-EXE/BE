@@ -101,6 +101,9 @@ visit:
 demo:
   enabled: ${DEMO_ENABLED:false}
   secret: ${DEMO_SECRET:}
+  admin-bridge-secret: "${DEMO_ADMIN_BRIDGE_SECRET:}"
+  frontend-url: "${DEMO_FRONTEND_URL:}"
+  admin-email: "${DEMO_ADMIN_EMAIL:}"
 
 payment:
   sepay:

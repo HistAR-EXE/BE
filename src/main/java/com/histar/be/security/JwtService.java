@@ -35,6 +35,11 @@ public class JwtService {
         return generateToken(email, userId, role, orgId, orgSubscription, expiration);
     }
 
+    public String generateAccessTokenForDuration(
+            UUID userId, String email, String role, UUID orgId, String orgSubscription, long ttlMillis) {
+        return generateToken(email, userId, role, orgId, orgSubscription, ttlMillis);
+    }
+
     /** @deprecated use {@link #generateAccessToken(UUID, String, String, UUID, String)} */
     public String generateAccessToken(UUID userId, String email, String role) {
         return generateAccessToken(userId, email, role, null, null);
