@@ -51,6 +51,14 @@ class LeaderboardReadRepositoryTest {
         assertThat(jdbc.queryForObject("SELECT SUM(total_points) FROM profiles", Integer.class)).isEqualTo(sum);
         assertThat(repository.badgeCount(viewer)).isEqualTo(1);
     }
+    @Test void adminIsExcludedBeforeRankingAndParticipantCountRegardlessOfStoredCasing() {
+        UUID admin = UUID.randomUUID();
+        insert(admin, 999999, " admin ", "administrator@example.test");
+        var rows = repository.read(admin, null, null, null, 10);
+        assertThat(rows).noneMatch(row -> row.userId().equals(admin));
+        assertThat(rows.get(0).participants()).isEqualTo(15);
+        assertThat(rows.get(0).rank()).isEqualTo(1);
+    }
     @Test void cityFiltersAreBoundNotInterpolated() {
         assertThat(repository.read(viewer, "x' OR 1=1 --", null, null, 3)).isEmpty();
     }

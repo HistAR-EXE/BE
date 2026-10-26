@@ -49,6 +49,7 @@ class AdminUserServiceTest {
     @Mock private HistarAppProperties appProperties;
     @Mock private HistarMailProperties mailProperties;
     @Mock private EmailVerificationService emailVerificationService;
+    @Mock private com.histar.be.billing.service.AdminEntitlementService adminEntitlements;
 
     private AdminUserService service;
 
@@ -62,7 +63,8 @@ class AdminUserServiceTest {
                 emailService,
                 appProperties,
                 mailProperties,
-                emailVerificationService);
+                emailVerificationService,
+                adminEntitlements);
     }
 
     @Test
@@ -120,6 +122,7 @@ class AdminUserServiceTest {
         assertThat(created.accountCreated()).isTrue();
         assertThat(created.credentialsEmailed()).isFalse();
         assertThat(created.temporaryPassword()).isNotBlank();
+        assertThat(created.temporaryPassword()).hasSizeGreaterThanOrEqualTo(20);
         assertThat(created.role()).isEqualTo("USER");
         verify(audit).append(any());
     }
@@ -186,7 +189,6 @@ class AdminUserServiceTest {
         when(currentUser.getUserId()).thenReturn(Optional.of(actor));
         when(profiles.findByIdForUpdate(target)).thenReturn(Optional.of(profile));
         when(profiles.save(profile)).thenReturn(profile);
-
         service.updateRole(
                 target, new UpdateUserRoleRequest("TEACHER", "Assigned to classroom review duties", "USER"));
 
@@ -231,6 +233,10 @@ class AdminUserServiceTest {
         when(currentUser.getUserId()).thenReturn(Optional.of(actor));
         when(profiles.findByIdForUpdate(target)).thenReturn(Optional.of(profile));
         when(profiles.save(profile)).thenReturn(profile);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            profile.setTier(invocation.getArgument(1).toString());
+            return null;
+        }).when(adminEntitlements).changeTier(eq(profile), any());
 
         var updated = service.updateTier(
                 target, new UpdateUserTierRequest("PREMIUM", "Bù Premium sau lỗi SePay webhook", "FREE"));

@@ -43,7 +43,7 @@ public class LeaderboardReadRepository {
                     COUNT(*) OVER (PARTITION BY p.total_points) xp_peers, COALESCE(b.badge_count, 0) badge_count
                   FROM profiles p
                   LEFT JOIN (SELECT user_id, COUNT(DISTINCT badge_id) badge_count FROM user_badges GROUP BY user_id) b ON b.user_id=p.id
-                  WHERE p.total_points > 0 AND COALESCE(p.role, 'USER') <> 'ADMIN'
+                  WHERE p.total_points > 0 AND UPPER(TRIM(COALESCE(p.role, 'USER'))) <> 'ADMIN'
                 -- AccountStatus.fromStored: trim ASCII controls/spaces, ignore case; unknown values remain active.
                 AND UPPER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(p.account_status,''), '^[\\x01-\\x20]+', ''), '[\\x01-\\x20]+$', '')) <> 'SUSPENDED'
                     AND NOT (CAST(p.id AS VARCHAR) LIKE 'a1000000-0000-4000-8000-%'

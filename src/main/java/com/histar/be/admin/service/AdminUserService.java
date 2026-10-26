@@ -65,6 +65,7 @@ public class AdminUserService {
     private final HistarAppProperties appProperties;
     private final HistarMailProperties mailProperties;
     private final EmailVerificationService emailVerificationService;
+    private final com.histar.be.billing.service.AdminEntitlementService adminEntitlements;
 
     public PageResponse<AdminUserSummaryResponse> listUsers(int page, int size) {
         return listUsers(page, size, null, null, null, null, null);
@@ -106,7 +107,7 @@ public class AdminUserService {
                 : UserRole.valueOf(request.role().trim().toUpperCase(Locale.ROOT));
         String displayName = resolveDisplayName(request.displayName(), email);
         boolean sendEmail = request.sendCredentialsEmail() == null || request.sendCredentialsEmail();
-        String tempPassword = randomPassword(12);
+        String tempPassword = randomPassword(24);
 
         Profile profile = Profile.builder()
                 .email(email)
@@ -240,7 +241,7 @@ public class AdminUserService {
         if (current == next) {
             return AdminUserSummaryResponse.from(profile);
         }
-        profile.setTier(next.name());
+        adminEntitlements.changeTier(profile, next);
         Profile saved = profileRepository.save(profile);
         audit.append(new AdminAuditCommand(
                 actorId,

@@ -21,6 +21,44 @@ CREATE TABLE profiles (
     created_at    TIMESTAMPTZ DEFAULT now()
 );
 
+-- Organization tables are part of the non-empty baseline. Flyway V1 extends
+-- organizations before Hibernate runs, so an empty VPS database must create
+-- this minimal shape up front.
+CREATE TABLE organizations (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug       VARCHAR(120) UNIQUE NOT NULL,
+    name       VARCHAR(255) NOT NULL,
+    plan       VARCHAR(50) DEFAULT 'micro',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE organization_members (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    org_role        VARCHAR(50) NOT NULL,
+    invited_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    accepted_at     TIMESTAMPTZ,
+    CONSTRAINT uq_organization_members_org_user UNIQUE (organization_id, user_id)
+);
+
+CREATE TABLE study_groups (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       VARCHAR(255),
+    code       VARCHAR(6) UNIQUE NOT NULL,
+    created_by UUID NOT NULL REFERENCES profiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE study_group_members (
+    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id  UUID NOT NULL REFERENCES study_groups(id) ON DELETE CASCADE,
+    user_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_study_group_member UNIQUE (group_id, user_id)
+);
+
 -- ---------- 2. locations ----------
 CREATE TABLE locations (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

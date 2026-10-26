@@ -21,7 +21,9 @@ spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: true
-    baseline-version: 13
+    # The checked-in bootstrap schema is treated as version 0. Clean VPS/demo
+    # databases must still run V0.5 and every monetization/content migration.
+    baseline-version: 0
     encoding: UTF-8
     placeholder-replacement: false
     locations: classpath:db/migration
