@@ -10,6 +10,8 @@ public class DemoProperties {
     private String adminBridgeSecret = "";
     private String frontendUrl = "";
     private String adminEmail = "";
+    private String controlSecret = "";
+    private String controlUrl = "";
 
     public boolean isEnabled() {
         return enabled;
@@ -33,4 +35,8 @@ public class DemoProperties {
     public void setFrontendUrl(String value) { this.frontendUrl = value; }
     public String getAdminEmail() { return adminEmail; }
     public void setAdminEmail(String value) { this.adminEmail = value; }
+    public String getControlSecret() { return controlSecret; }
+    public void setControlSecret(String value) { this.controlSecret = value; }
+    public String getControlUrl() { return controlUrl; }
+    public void setControlUrl(String value) { this.controlUrl = value; }
 }

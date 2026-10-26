@@ -104,6 +104,8 @@ demo:
   admin-bridge-secret: "${DEMO_ADMIN_BRIDGE_SECRET:}"
   frontend-url: "${DEMO_FRONTEND_URL:}"
   admin-email: "${DEMO_ADMIN_EMAIL:}"
+  control-secret: "${DEMO_CONTROL_SECRET:}"
+  control-url: "${DEMO_CONTROL_URL:}"
 
 payment:
   sepay:

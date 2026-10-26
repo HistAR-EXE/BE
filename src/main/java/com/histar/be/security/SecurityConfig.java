@@ -77,6 +77,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
                                 "/api/demo/admin-session/exchange",
+                                "/api/internal/demo/activity",
                                 "/api/auth/verify-email/confirm",
                                 "/api/auth/password-reset/request",
                                 "/api/auth/password-reset/verify-otp",
