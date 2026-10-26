@@ -1,5 +1,5 @@
--- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V92.
+﻿-- HistAR full local bootstrap SQL
+-- Generated from schema, seed manifest, and Flyway migrations through V94.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -30,6 +30,44 @@ CREATE TABLE profiles (
     total_points  INT DEFAULT 0,
     city          VARCHAR(100),
     created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+-- Organization tables are part of the non-empty baseline. Flyway V1 extends
+-- organizations before Hibernate runs, so an empty VPS database must create
+-- this minimal shape up front.
+CREATE TABLE organizations (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug       VARCHAR(120) UNIQUE NOT NULL,
+    name       VARCHAR(255) NOT NULL,
+    plan       VARCHAR(50) DEFAULT 'micro',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE organization_members (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    org_role        VARCHAR(50) NOT NULL,
+    invited_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    accepted_at     TIMESTAMPTZ,
+    CONSTRAINT uq_organization_members_org_user UNIQUE (organization_id, user_id)
+);
+
+CREATE TABLE study_groups (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       VARCHAR(255),
+    code       VARCHAR(6) UNIQUE NOT NULL,
+    created_by UUID NOT NULL REFERENCES profiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE study_group_members (
+    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id  UUID NOT NULL REFERENCES study_groups(id) ON DELETE CASCADE,
+    user_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_study_group_member UNIQUE (group_id, user_id)
 );
 
 -- ---------- 2. locations ----------
@@ -3336,6 +3374,83 @@ WHERE organization_id = (SELECT id FROM organizations WHERE slug = 'demo-standar
 COMMIT;
 
 -- END seed: 2026-07-10_demo_billing_accounts.sql
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V0_5__hibernate_baseline_dependencies.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V0_5__hibernate_baseline_dependencies.sql
+-- ============================================================================
+-- Tables that historically came from Hibernate ddl-auto before Flyway ran.
+-- Production databases already have these tables. A brand-new database needs
+-- them before V13, V44 and V72 can extend/seed them.
+
+CREATE TABLE IF NOT EXISTS visit_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
+    mode VARCHAR(64),
+    status VARCHAR(64),
+    started_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ,
+    last_activity_at TIMESTAMPTZ,
+    ended_reason VARCHAR(255),
+    checkin_id UUID REFERENCES checkins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS visit_session_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    visit_session_id UUID NOT NULL REFERENCES visit_sessions(id) ON DELETE CASCADE,
+    event_type VARCHAR(100),
+    event_key VARCHAR(255),
+    source VARCHAR(100),
+    poi_name_snapshot VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
+    visit_session_id UUID REFERENCES visit_sessions(id) ON DELETE CASCADE,
+    event_type VARCHAR(100),
+    event_key VARCHAR(255),
+    source VARCHAR(100),
+    content_type VARCHAR(100),
+    metadata TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS artifacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    image_url TEXT,
+    description TEXT,
+    story TEXT,
+    unlock_key VARCHAR(255),
+    reliability VARCHAR(64),
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_discoveries (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+    discovery_key VARCHAR(255) NOT NULL,
+    discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, location_id, discovery_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_visit_sessions_user_id
+    ON visit_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_visit_session_events_session_id
+    ON visit_session_events(visit_session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_created_at
+    ON analytics_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_artifacts_location_id
+    ON artifacts(location_id);
+
+-- END migration: V0_5__hibernate_baseline_dependencies.sql
+COMMIT;
 BEGIN;
 
 -- ============================================================================
@@ -7010,6 +7125,56 @@ COMMIT;
 BEGIN;
 
 -- ============================================================================
+-- BEGIN migration: V71_5__cu_chi_analytics_seed_prerequisites.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V71_5__cu_chi_analytics_seed_prerequisites.sql
+-- ============================================================================
+-- V72 is a historical analytics seed that references quests 334 and 335.
+-- Older databases received those quests through a manual seed, while a clean
+-- database did not get them until V84. Create the approved content early so a
+-- clean Flyway run remains valid without changing V72's production checksum.
+
+INSERT INTO quests (
+    id, location_id, title, description, story, points_reward, cover_image,
+    completion_trigger, steps_total, step_discovery_keys
+)
+SELECT
+    v.id::uuid,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    v.title,
+    v.description,
+    v.story,
+    v.points,
+    '/media/heritage/dia-dao-cu-chi/cover.jpeg',
+    'discovery',
+    3,
+    NULL
+FROM (VALUES
+    (
+        '33333333-3333-3333-3333-333333333334',
+        'Mật mã Sa bàn Tác chiến',
+        'Tìm hiểu cấu trúc 3 tầng ngầm và nghệ thuật du kích bẫy chông qua sa bàn quân sự.',
+        'Tại Củ Chi, vũ khí thô sơ đã chiến thắng khí tài hiện đại. Hệ thống 3 tầng ngầm với bẫy chông kẹp nách và chiến thuật đánh du kích đã biến Củ Chi thành "Đất Thép thành đồng".',
+        150
+    ),
+    (
+        '33333333-3333-3333-3333-333333333335',
+        'Ánh sáng Đèn Mù U',
+        'Giải mã cuộc sống sinh hoạt, y tế và giáo dục dưới lòng đất của quân dân Củ Chi.',
+        'Dưới những lớp đất tối tăm, cuộc sống vẫn nảy mầm. Ánh sáng le lói từ chiếc đèn dầu mù u đã soi sáng những lớp học bình dân và trạm xá dã chiến.',
+        120
+    )
+) AS v(id, title, description, story, points)
+WHERE EXISTS (
+    SELECT 1 FROM locations
+    WHERE id = '11111111-1111-1111-1111-111111111111'::uuid
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- END migration: V71_5__cu_chi_analytics_seed_prerequisites.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
 -- BEGIN migration: V72__admin_analytics_cu_chi_demo_seed.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V72__admin_analytics_cu_chi_demo_seed.sql
 -- ============================================================================
@@ -7636,6 +7801,21 @@ COMMIT;
 BEGIN;
 
 -- ============================================================================
+-- BEGIN migration: V80_5__badge_location_baseline.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V80_5__badge_location_baseline.sql
+-- ============================================================================
+-- Badge.locationId historically came from Hibernate ddl-auto. V81 seeds
+-- location-scoped badges, so clean Flyway-only databases need the column first.
+ALTER TABLE badges
+    ADD COLUMN IF NOT EXISTS location_id UUID REFERENCES locations(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_badges_location_id ON badges(location_id);
+
+-- END migration: V80_5__badge_location_baseline.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
 -- BEGIN migration: V81__reward_integrity.sql
 -- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V81__reward_integrity.sql
 -- ============================================================================
@@ -7730,6 +7910,32 @@ INSERT INTO badges(id, name, description, icon_url, condition_type, condition_va
 ON CONFLICT (id) DO NOTHING;
 
 -- END migration: V81__reward_integrity.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V81_5__organization_invite_baseline.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V81_5__organization_invite_baseline.sql
+-- ============================================================================
+-- Organization invite fields historically came from Hibernate ddl-auto.
+-- V82 seeds organizations using them, so Flyway-only databases need an
+-- explicit baseline without modifying the historical V82 checksum.
+ALTER TABLE organizations
+    ADD COLUMN IF NOT EXISTS invite_code VARCHAR(8),
+    ADD COLUMN IF NOT EXISTS invite_code_expires_at TIMESTAMPTZ;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_organizations_invite_code
+    ON organizations(invite_code)
+    WHERE invite_code IS NOT NULL;
+
+-- Profile organization linkage was also previously created by Hibernate.
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS org_subscription VARCHAR(32);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_org_id ON profiles(org_id);
+
+-- END migration: V81_5__organization_invite_baseline.sql
 COMMIT;
 BEGIN;
 
@@ -7970,6 +8176,34 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_quests_location_track_sort ON quests (location_id, track, sort_order);
 
 -- END migration: V83__quest_tracks_v2_schema.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V83_5__discovery_content_binding_baseline.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V83_5__discovery_content_binding_baseline.sql
+-- ============================================================================
+-- DiscoveryContentBinding used to be created by Hibernate. V84 updates and
+-- populates it, therefore a clean Flyway-only database needs the base table.
+CREATE TABLE IF NOT EXISTS discovery_content_bindings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+    unlock_key VARCHAR(255) NOT NULL,
+    record_key VARCHAR(255),
+    engagement VARCHAR(64),
+    href_template TEXT,
+    sort_order INTEGER DEFAULT 0,
+    artifact_id UUID REFERENCES artifacts(id) ON DELETE SET NULL,
+    xp_bonus INTEGER DEFAULT 0,
+    quest_step_id UUID
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_content_bindings_location
+    ON discovery_content_bindings(location_id, sort_order);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_discovery_content_bindings_location_key
+    ON discovery_content_bindings(location_id, unlock_key);
+
+-- END migration: V83_5__discovery_content_binding_baseline.sql
 COMMIT;
 BEGIN;
 
@@ -8767,6 +9001,20 @@ CREATE INDEX IF NOT EXISTS idx_passport_mail_user_created
     ON passport_mail_attempts(user_id, created_at DESC);
 
 -- END migration: V87__passport_mail_attempts.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V87_5__artifact_unlock_key_integrity.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V87_5__artifact_unlock_key_integrity.sql
+-- ============================================================================
+-- V88 performs idempotent artifact upserts by (location_id, unlock_key).
+-- Make that business key explicit for clean databases that did not previously
+-- receive Hibernate-generated constraints.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_artifacts_location_unlock_key
+    ON artifacts(location_id, unlock_key);
+
+-- END migration: V87_5__artifact_unlock_key_integrity.sql
 COMMIT;
 BEGIN;
 
@@ -9887,6 +10135,377 @@ CREATE TABLE field_trip_report_snapshots (
 
 -- END migration: V92__field_trip_workflow.sql
 COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V93__demo_dataset_lifecycle.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V93__demo_dataset_lifecycle.sql
+-- ============================================================================
+-- Demo lifecycle metadata deliberately lives in the demo database only at runtime.
+-- The functions below refuse arbitrary profile IDs: targets must be active rows in
+-- demo_account_registry, and the actor must be an active ADMIN profile.
+
+CREATE TABLE demo_dataset_state (
+    id VARCHAR(50) PRIMARY KEY,
+    admin_id UUID,
+    generation INTEGER NOT NULL DEFAULT 1,
+    initialized_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
+    CONSTRAINT chk_demo_dataset_id CHECK (id = 'timelens-demo-v1')
+);
+
+CREATE TABLE demo_account_registry (
+    user_id UUID PRIMARY KEY,
+    dataset_id VARCHAR(50) NOT NULL REFERENCES demo_dataset_state(id),
+    persona SMALLINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
+    CONSTRAINT chk_demo_persona CHECK (persona BETWEEN 1 AND 10),
+    CONSTRAINT uq_demo_dataset_persona UNIQUE (dataset_id, persona)
+);
+
+CREATE TABLE demo_organization_registry (
+    organization_id UUID PRIMARY KEY,
+    dataset_id VARCHAR(50) NOT NULL REFERENCES demo_dataset_state(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE demo_management_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id UUID NOT NULL,
+    action VARCHAR(64) NOT NULL,
+    target_user_id UUID,
+    reason VARCHAR(500) NOT NULL DEFAULT 'System demo lifecycle operation',
+    detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION demo_delete_by_ids(
+    p_table TEXT,
+    p_column TEXT,
+    p_ids UUID[]
+) RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected BIGINT := 0;
+BEGIN
+    IF to_regclass('public.' || p_table) IS NULL OR NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = p_table AND column_name = p_column
+    ) THEN
+        RETURN 0;
+    END IF;
+    EXECUTE format('DELETE FROM %I WHERE %I = ANY ($1)', p_table, p_column)
+        USING p_ids;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN affected;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION demo_delete_children(
+    p_child_table TEXT,
+    p_child_fk TEXT,
+    p_parent_table TEXT,
+    p_parent_pk TEXT,
+    p_parent_user_column TEXT,
+    p_ids UUID[]
+) RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected BIGINT := 0;
+BEGIN
+    IF to_regclass('public.' || p_child_table) IS NULL
+       OR to_regclass('public.' || p_parent_table) IS NULL THEN
+        RETURN 0;
+    END IF;
+    EXECUTE format(
+        'DELETE FROM %I child USING %I parent '
+        || 'WHERE child.%I = parent.%I AND parent.%I = ANY ($1)',
+        p_child_table, p_parent_table, p_child_fk, p_parent_pk, p_parent_user_column)
+        USING p_ids;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    RETURN affected;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION demo_operational_row_count(p_target_user_id UUID DEFAULT NULL)
+RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    ids UUID[];
+    total BIGINT := 0;
+    item RECORD;
+    amount BIGINT;
+BEGIN
+    SELECT array_agg(user_id ORDER BY persona) INTO ids
+    FROM demo_account_registry
+    WHERE deleted_at IS NULL
+      AND (p_target_user_id IS NULL OR user_id = p_target_user_id);
+    IF ids IS NULL THEN
+        RETURN 0;
+    END IF;
+
+    FOR item IN SELECT * FROM (VALUES
+        ('profiles', 'id'),
+        ('checkins', 'user_id'),
+        ('user_discoveries', 'user_id'),
+        ('user_artifacts', 'user_id'),
+        ('user_badges', 'user_id'),
+        ('user_quest_progress', 'user_id'),
+        ('conversations', 'user_id'),
+        ('visit_sessions', 'user_id'),
+        ('analytics_events', 'user_id'),
+        ('xp_ledger', 'user_id'),
+        ('b2c_payment_transactions', 'user_id'),
+        ('org_payment_transactions', 'requester_user_id'),
+        ('assignments', 'teacher_id'),
+        ('assignment_submissions', 'student_id')
+    ) AS rows(table_name, column_name)
+    LOOP
+        IF to_regclass('public.' || item.table_name) IS NOT NULL AND EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = item.table_name
+              AND column_name = item.column_name
+        ) THEN
+            EXECUTE format('SELECT count(*) FROM %I WHERE %I = ANY ($1)',
+                           item.table_name, item.column_name)
+                INTO amount USING ids;
+            total := total + amount;
+        END IF;
+    END LOOP;
+    RETURN total;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION purge_demo_dataset(
+    p_actor_id UUID,
+    p_target_user_id UUID,
+    p_reason TEXT
+) RETURNS TABLE(deleted_accounts INTEGER, deleted_rows BIGINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    ids UUID[];
+    org_ids UUID[];
+    expected_count INTEGER;
+    affected BIGINT := 0;
+BEGIN
+    IF COALESCE(length(trim(p_reason)), 0) < 10 THEN
+        RAISE EXCEPTION 'A purge reason of at least 10 characters is required';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = p_actor_id
+          AND UPPER(TRIM(COALESCE(role, ''))) = 'ADMIN'
+          AND COALESCE(account_status, 'ACTIVE') = 'ACTIVE'
+    ) THEN
+        RAISE EXCEPTION 'Only an active admin may purge demo data';
+    END IF;
+
+    SELECT array_agg(user_id ORDER BY persona), count(*)
+      INTO ids, expected_count
+    FROM demo_account_registry
+    WHERE deleted_at IS NULL
+      AND (p_target_user_id IS NULL OR user_id = p_target_user_id);
+    IF ids IS NULL OR expected_count = 0 THEN
+        RAISE EXCEPTION 'No active demo account matched the requested target';
+    END IF;
+
+    -- Organizations are removed only for a full dataset purge. Deleting one
+    -- persona must not remove a shared classroom or institution.
+    IF p_target_user_id IS NULL THEN
+        SELECT array_agg(organization_id) INTO org_ids
+        FROM demo_organization_registry
+        WHERE dataset_id = 'timelens-demo-v1' AND deleted_at IS NULL;
+    END IF;
+
+    -- Children that do not carry a direct user_id must go first.
+    affected := affected + demo_delete_children('messages', 'conversation_id', 'conversations', 'id', 'user_id', ids);
+    affected := affected + demo_delete_children('visit_session_events', 'visit_session_id', 'visit_sessions', 'id', 'user_id', ids);
+    affected := affected + demo_delete_children('assignment_submissions', 'assignment_id', 'assignments', 'id', 'teacher_id', ids);
+    affected := affected + demo_delete_children('field_trip_report_snapshots', 'field_trip_id', 'field_trips', 'id', 'created_by', ids);
+    affected := affected + demo_delete_children('study_group_members', 'group_id', 'study_groups', 'id', 'created_by', ids);
+    affected := affected + demo_delete_children('squad_members', 'squad_id', 'squads', 'id', 'leader_user_id', ids);
+
+    -- Direct operational ownership columns. Missing optional tables/columns are safe.
+    affected := affected + demo_delete_by_ids('assignment_submissions', 'student_id', ids);
+    affected := affected + demo_delete_by_ids('assignments', 'teacher_id', ids);
+    affected := affected + demo_delete_by_ids('study_group_members', 'user_id', ids);
+    affected := affected + demo_delete_by_ids('study_groups', 'created_by', ids);
+    affected := affected + demo_delete_by_ids('squad_members', 'user_id', ids);
+    affected := affected + demo_delete_by_ids('squads', 'leader_user_id', ids);
+    affected := affected + demo_delete_by_ids('field_trips', 'created_by', ids);
+
+    FOR deleted_rows IN SELECT sum(demo_delete_by_ids(table_name, column_name, ids))
+    FROM (VALUES
+        ('refresh_tokens', 'user_id'), ('email_verification_tokens', 'user_id'),
+        ('password_reset_challenges', 'user_id'), ('device_push_tokens', 'user_id'),
+        ('ar_card_mail_attempts', 'user_id'), ('passport_mail_attempts', 'user_id'),
+        ('analytics_events', 'user_id'), ('visit_sessions', 'user_id'),
+        ('checkins', 'user_id'), ('user_discoveries', 'user_id'),
+        ('user_artifacts', 'user_id'), ('user_badges', 'user_id'),
+        ('user_quest_progress', 'user_id'), ('user_creations', 'user_id'),
+        ('user_secret_unlocks', 'user_id'), ('user_heritage_onsite_bonus', 'user_id'),
+        ('xp_ledger', 'user_id'), ('explore_attempts', 'user_id'),
+        ('station_minigame_scores', 'user_id'), ('user_game_results', 'user_id'),
+        ('quest_reward_ledger', 'user_id'), ('journey_memories', 'user_id'),
+        ('user_narrative_investigation_progress', 'user_id'),
+        ('org_active_sessions', 'user_id'), ('organization_members', 'user_id'),
+        ('site_memberships', 'user_id'), ('site_onboarding_requests', 'requester_id'),
+        ('organization_ar_cards', 'user_id'), ('organization_certificates', 'user_id'),
+        ('teacher_ai_drafts', 'teacher_id'), ('pilot_events', 'user_id'),
+        ('referral_visits', 'user_id'), ('referral_codes', 'user_id'),
+        ('cooperative_leaderboard_access_audit', 'user_id'),
+        ('content_report_cases', 'created_by'), ('narrative_investigation_reviews', 'reviewer_id'),
+        ('usage_quotas', 'user_id'), ('b2c_renewal_reminders', 'user_id'),
+        ('b2c_payment_transactions', 'user_id'), ('b2c_visit_entitlements', 'user_id'),
+        ('b2c_subscriptions', 'user_id'), ('subscriptions', 'user_id'),
+        ('org_payment_transactions', 'requester_user_id'),
+        ('conversations', 'user_id')
+    ) AS direct_rows(table_name, column_name)
+    LOOP
+        affected := affected + COALESCE(deleted_rows, 0);
+    END LOOP;
+
+    -- Nullable audit ownership is retained without retaining a demo identity.
+    UPDATE media_transcode_jobs SET user_id = NULL WHERE user_id = ANY (ids);
+    GET DIAGNOSTICS deleted_rows = ROW_COUNT;
+    affected := affected + deleted_rows;
+    UPDATE site_content_versions SET submitted_by = NULL WHERE submitted_by = ANY (ids);
+    UPDATE site_content_versions SET reviewed_by = NULL WHERE reviewed_by = ANY (ids);
+    UPDATE site_content_versions SET published_by = NULL WHERE published_by = ANY (ids);
+    UPDATE site_workspace_settings SET updated_by = NULL WHERE updated_by = ANY (ids);
+
+    -- Demo-created drafts are isolated copies and may be removed; approved base content
+    -- is owned by the real admin during seeding and therefore is not selected here.
+    affected := affected + demo_delete_by_ids('site_content_versions', 'created_by', ids);
+
+    IF org_ids IS NOT NULL THEN
+        affected := affected + demo_delete_by_ids('field_trip_report_snapshots', 'field_trip_id',
+            ARRAY(SELECT id FROM field_trips WHERE org_id = ANY (org_ids)));
+        affected := affected + demo_delete_by_ids('assignment_submissions', 'assignment_id',
+            ARRAY(SELECT id FROM assignments WHERE org_id = ANY (org_ids)));
+        affected := affected + demo_delete_by_ids('assignments', 'org_id', org_ids);
+        affected := affected + demo_delete_by_ids('study_group_members', 'group_id',
+            ARRAY(SELECT id FROM study_groups WHERE org_id = ANY (org_ids)));
+        affected := affected + demo_delete_by_ids('study_groups', 'org_id', org_ids);
+        affected := affected + demo_delete_by_ids('field_trips', 'org_id', org_ids);
+        affected := affected + demo_delete_by_ids('org_active_sessions', 'org_id', org_ids);
+        affected := affected + demo_delete_by_ids('org_payment_transactions', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('organization_ar_cards', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('organization_certificates', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('organization_contracts', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('organization_members', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('subscriptions', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('usage_quotas', 'organization_id', org_ids);
+        affected := affected + demo_delete_by_ids('heritage_digitization_inquiries', 'organization_id', org_ids);
+    END IF;
+
+    DELETE FROM profiles WHERE id = ANY (ids);
+    GET DIAGNOSTICS deleted_rows = ROW_COUNT;
+    IF deleted_rows <> expected_count THEN
+        RAISE EXCEPTION 'Profile deletion count mismatch: expected %, got %', expected_count, deleted_rows;
+    END IF;
+    affected := affected + deleted_rows;
+
+    IF org_ids IS NOT NULL THEN
+        DELETE FROM organizations WHERE id = ANY (org_ids);
+        GET DIAGNOSTICS deleted_rows = ROW_COUNT;
+        affected := affected + deleted_rows;
+        UPDATE demo_organization_registry
+           SET deleted_at = NOW()
+         WHERE organization_id = ANY (org_ids) AND deleted_at IS NULL;
+    END IF;
+
+    UPDATE demo_account_registry
+       SET deleted_at = NOW()
+     WHERE user_id = ANY (ids) AND deleted_at IS NULL;
+
+    INSERT INTO demo_management_audit(actor_id, action, target_user_id, reason, detail)
+    VALUES (
+        p_actor_id,
+        CASE WHEN p_target_user_id IS NULL THEN 'PURGE_ALL' ELSE 'PURGE_ONE' END,
+        p_target_user_id,
+        trim(p_reason),
+        jsonb_build_object('deletedAccounts', expected_count, 'deletedRows', affected)
+    );
+
+    deleted_accounts := expected_count;
+    deleted_rows := affected;
+    RETURN NEXT;
+END;
+$$;
+
+-- END migration: V93__demo_dataset_lifecycle.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V94__remove_legacy_analytics_demo_seed.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V94__remove_legacy_analytics_demo_seed.sql
+-- ============================================================================
+-- Remove only the deterministic 120-account analytics seed introduced by V72.
+-- Heritage content is deliberately untouched. The older named platform/demo
+-- accounts are handled by the reviewed cleanup tool after a real admin exists,
+-- so ownership can be transferred safely instead of guessed during migration.
+
+CREATE TEMP TABLE legacy_analytics_seed_users ON COMMIT DROP AS
+SELECT id
+FROM profiles
+WHERE email LIKE 'seed-analytics-%@histar.vn';
+
+-- The June seed creates visit_sessions.user_id without ON DELETE CASCADE.
+-- V0_5 cannot replace that constraint, so these rows must be removed first.
+DELETE FROM visit_session_events
+WHERE visit_session_id IN (
+    SELECT vs.id
+    FROM visit_sessions vs
+    WHERE vs.user_id IN (SELECT id FROM legacy_analytics_seed_users)
+);
+
+DELETE FROM analytics_events
+WHERE metadata = 'seed-admin-analytics-cu-chi'
+   OR user_id IN (SELECT id FROM legacy_analytics_seed_users);
+
+DELETE FROM visit_sessions
+WHERE user_id IN (SELECT id FROM legacy_analytics_seed_users);
+
+DELETE FROM pilot_events
+WHERE user_id IN (SELECT id FROM legacy_analytics_seed_users)
+   OR payload_json LIKE '%"seed":"admin-analytics-cu-chi"%';
+
+DELETE FROM checkins
+WHERE user_id IN (SELECT id FROM legacy_analytics_seed_users);
+
+DELETE FROM user_discoveries
+WHERE user_id IN (SELECT id FROM legacy_analytics_seed_users);
+
+DELETE FROM user_quest_progress
+WHERE user_id IN (SELECT id FROM legacy_analytics_seed_users);
+
+-- Rows added after V72 are removed explicitly when their FK does not cascade.
+SELECT demo_delete_by_ids(
+    'quest_reward_ledger',
+    'user_id',
+    ARRAY(SELECT id FROM legacy_analytics_seed_users)
+);
+SELECT demo_delete_by_ids(
+    'user_narrative_investigation_progress',
+    'user_id',
+    ARRAY(SELECT id FROM legacy_analytics_seed_users)
+);
+
+DELETE FROM profiles
+WHERE id IN (SELECT id FROM legacy_analytics_seed_users);
+
+-- END migration: V94__remove_legacy_analytics_demo_seed.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -10058,7 +10677,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V92
+-- Flyway baseline after full bootstrap: V94
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -10085,7 +10704,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '92', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '94', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

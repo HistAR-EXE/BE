@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Get-FlywayMigrationVersion.ps1')
 
 function Assert-Contains([string]$Text, [string]$Needle) {
     if (-not $Text.Contains($Needle)) {
@@ -31,12 +32,12 @@ Get-Content $manifest | ForEach-Object {
     }
 }
 
-$migrations = Get-ChildItem (Join-Path $beRoot 'src\main\resources\db\migration') -Filter 'V*__*.sql' |
-    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
+$migrations = @(Get-ChildItem (Join-Path $beRoot 'src\main\resources\db\migration') -Filter 'V*__*.sql' |
+    Sort-Object { Get-FlywayMigrationSortKey $_.Name })
 
-$lastVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
-if ([int]$lastVersion -lt 92) {
-    throw "Bootstrap smoke check requires migrations through V92, found V$lastVersion."
+$lastVersion = Get-FlywayMigrationVersionText $migrations[-1].Name
+if ((Get-FlywayMigrationSortKey $migrations[-1].Name) -lt (Get-FlywayMigrationSortKey 'V94__minimum.sql')) {
+    throw "Bootstrap smoke check requires migrations through V94, found V$lastVersion."
 }
 Assert-Contains $bootstrap "'$lastVersion',"
 Assert-Contains $bootstrap 'CREATE TABLE IF NOT EXISTS passport_mail_attempts ('
@@ -68,7 +69,9 @@ foreach ($requiredMigration in @(
     'V89__ar_card_mail_attempts.sql',
     'V90__ar_card_mail_artifact.sql',
     'V91__site_workspaces_and_content_versions.sql',
-    'V92__field_trip_workflow.sql'
+    'V92__field_trip_workflow.sql',
+    'V93__demo_dataset_lifecycle.sql',
+    'V94__remove_legacy_analytics_demo_seed.sql'
 )) {
     Assert-Contains $bootstrap "BEGIN migration: $requiredMigration"
 }
@@ -79,6 +82,9 @@ Assert-Contains $bootstrap 'CREATE TABLE site_memberships ('
 Assert-Contains $bootstrap 'CREATE TABLE site_content_versions ('
 Assert-Contains $bootstrap 'CREATE TABLE field_trips ('
 Assert-Contains $bootstrap 'CREATE TABLE field_trip_report_snapshots ('
+Assert-Contains $bootstrap 'CREATE TABLE demo_dataset_state ('
+Assert-Contains $bootstrap 'CREATE OR REPLACE FUNCTION purge_demo_dataset('
+Assert-Contains $bootstrap 'legacy_analytics_seed_users'
 Assert-Contains $bootstrap 'ADD COLUMN field_trip_id UUID REFERENCES field_trips(id) ON DELETE SET NULL'
 Assert-Contains $bootstrap 'Địa đạo Củ Chi'
 Assert-Contains $bootstrap 'Hành trình dưới lòng đất'
@@ -105,6 +111,12 @@ $v3 = $bootstrap.IndexOf('BEGIN migration: V3__add_billing_settings.sql')
 $v16 = $bootstrap.IndexOf('BEGIN migration: V16__b2c_premium_price_79000.sql')
 if ($v3 -lt 0 -or $v16 -lt 0 -or $v3 -ge $v16) {
     throw 'Migration order is invalid: V3 must precede V16.'
+}
+$v81 = $bootstrap.IndexOf('BEGIN migration: V81__reward_integrity.sql')
+$v81Minor = $bootstrap.IndexOf('BEGIN migration: V81_5__organization_invite_baseline.sql')
+$v82 = $bootstrap.IndexOf('BEGIN migration: V82__seed_demo_segment_accounts.sql')
+if ($v81 -lt 0 -or $v81Minor -le $v81 -or $v82 -le $v81Minor) {
+    throw 'Migration order is invalid: V81 must precede V81.5, which must precede V82.'
 }
 
 Write-Host "Bootstrap SQL structure is valid: $BootstrapPath"

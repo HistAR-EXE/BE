@@ -34,23 +34,24 @@ $ErrorActionPreference = 'Stop'
 $beRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $beRoot
 . (Join-Path $PSScriptRoot 'Resolve-DockerPsqlHost.ps1')
-$ExpectedMinimumFlywayVersion = 92
+. (Join-Path $PSScriptRoot 'Get-FlywayMigrationVersion.ps1')
+$ExpectedMinimumFlywayVersion = 94
 
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
 $migrations = @(Get-ChildItem -LiteralPath $migrationDir -Filter 'V*__*.sql' |
-    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
+    Sort-Object { Get-FlywayMigrationSortKey $_.Name })
 if ($migrations.Count -eq 0) {
     throw "No Flyway migrations found in $migrationDir"
 }
 $duplicateVersions = @($migrations |
-    Group-Object { [regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value } |
+    Group-Object { Get-FlywayMigrationVersionText $_.Name } |
     Where-Object Count -gt 1)
 if ($duplicateVersions.Count -gt 0) {
     $duplicates = ($duplicateVersions | ForEach-Object { "V$($_.Name): $($_.Group.Name -join ', ')" }) -join '; '
     throw "Duplicate Flyway migration versions found: $duplicates"
 }
-$latestVersion = [regex]::Match($migrations[-1].Name, '^V(\d+)__').Groups[1].Value
-if ([int]$latestVersion -lt $ExpectedMinimumFlywayVersion) {
+$latestVersion = Get-FlywayMigrationVersionText $migrations[-1].Name
+if ((Get-FlywayMigrationSortKey $migrations[-1].Name) -lt (Get-FlywayMigrationSortKey "V${ExpectedMinimumFlywayVersion}__minimum.sql")) {
     throw "Expected migrations through at least V$ExpectedMinimumFlywayVersion, but the repository only contains V$latestVersion."
 }
 
@@ -301,6 +302,22 @@ try {
         throw "Flyway V92 field trip schema is incomplete ($fieldTripSchemaObjects/6)."
     }
     Write-Host 'V92 field trip schema is ready.'
+
+    $demoLifecycleTables = ConvertFrom-PsqlScalar (Invoke-Psql "SELECT COUNT(*)::text FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('demo_dataset_state','demo_account_registry','demo_organization_registry','demo_management_audit');")
+    if ($demoLifecycleTables -ne '4') {
+        throw "Flyway V93 demo lifecycle tables are incomplete ($demoLifecycleTables/4)."
+    }
+    $demoLifecycleFunctions = ConvertFrom-PsqlScalar (Invoke-Psql "SELECT COUNT(*)::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname IN ('demo_delete_by_ids','demo_delete_children','demo_operational_row_count','purge_demo_dataset');")
+    if ($demoLifecycleFunctions -ne '4') {
+        throw "Flyway V93 demo lifecycle functions are incomplete ($demoLifecycleFunctions/4)."
+    }
+    Write-Host 'V93 demo dataset lifecycle is ready.'
+
+    $legacyAnalyticsSeed = ConvertFrom-PsqlScalar (Invoke-Psql "SELECT COUNT(*)::text FROM profiles WHERE email LIKE 'seed-analytics-%@histar.vn';")
+    if ($legacyAnalyticsSeed -ne '0') {
+        throw "Flyway V94 left legacy analytics seed profiles ($legacyAnalyticsSeed)."
+    }
+    Write-Host 'V94 legacy analytics seed removal is ready.'
 
     if (-not $SkipSeeds) {
         Write-Host 'Applying ordered seed manifest...'

@@ -16,6 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Get-FlywayMigrationVersion.ps1')
 $beRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $bootstrapPath = Join-Path $beRoot 'docs\sql\bootstrap\TimeLens_full_bootstrap.sql'
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
@@ -27,23 +28,23 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 92
+$ExpectedMinFlywayVersion = 94
 
 $migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
-    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) })
+    Sort-Object { Get-FlywayMigrationSortKey $_.Name })
 if ($migrations.Count -eq 0) {
     throw "No Flyway migrations found in $migrationDir"
 }
 $duplicateVersions = @($migrations |
-    Group-Object { [regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value } |
+    Group-Object { Get-FlywayMigrationVersionText $_.Name } |
     Where-Object Count -gt 1)
 if ($duplicateVersions.Count -gt 0) {
     $duplicates = ($duplicateVersions | ForEach-Object { "V$($_.Name): $($_.Group.Name -join ', ')" }) -join '; '
     throw "Duplicate Flyway migration versions found: $duplicates"
 }
 $lastMigrationName = $migrations[-1].Name
-$lastVersion = [int]([regex]::Match($lastMigrationName, '^V(\d+)__').Groups[1].Value)
-if ($lastVersion -lt $ExpectedMinFlywayVersion) {
+$lastVersion = Get-FlywayMigrationVersionText $lastMigrationName
+if ((Get-FlywayMigrationSortKey $lastMigrationName) -lt (Get-FlywayMigrationSortKey "V${ExpectedMinFlywayVersion}__minimum.sql")) {
     throw "Expected Flyway migrations through at least V$ExpectedMinFlywayVersion, but latest file is $lastMigrationName (V$lastVersion)."
 }
 
@@ -130,9 +131,8 @@ if ($bootstrapExitCode -ne 0) {
 $historySql = "SELECT version || ':' || type || ':' || success FROM flyway_schema_history ORDER BY installed_rank;"
 $history = @(& docker exec $Container psql -U $DbUser -d $Database -tAc $historySql |
     ForEach-Object { $_.Trim() })
-$baselineFound = $history | Where-Object {
-    $_ -match "^${lastVersion}:BASELINE:(t|true)$"
-}
+$baselinePattern = '^{0}:BASELINE:(t|true)$' -f [regex]::Escape([string]$lastVersion)
+$baselineFound = $history | Where-Object { $_ -match $baselinePattern }
 if ($LASTEXITCODE -ne 0 -or -not $baselineFound) {
     throw "Bootstrap completed SQL execution but Flyway baseline V$lastVersion was not recorded (latest migration: $lastMigrationName)."
 }
@@ -180,7 +180,7 @@ try {
     & docker exec $Container rm -f $remoteV73 | Out-Null
 }
 
-# --- Smoke checks for recent Flyway chain (V70–V92) ---
+# --- Smoke checks for recent Flyway chain (V70–V94) ---
 # V70: organizations.ops_note for Admin org detail.
 $opsNoteReady = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'ops_note';") -join '').Trim()
@@ -197,10 +197,15 @@ if ([int]$crmSeeded -lt 1) {
     throw "Bootstrap baselined at V$lastVersion but V71 CRM seed rows are missing (seed-crm-* inquiries)."
 }
 
-# V72 / analytics demo: seeded analytics profiles (also applied via seed-admin-analytics.ps1).
+# V72 created the legacy analytics demo. V94 removes it. The optional UTF-8 seed
+# script may install a fresh copy after that migration.
 $analyticsUsers = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
     "SELECT COUNT(*)::text FROM profiles WHERE email LIKE 'seed-analytics-%@histar.vn';") -join '').Trim()
-if ([int]$analyticsUsers -lt 1) {
+if ($SkipAnalyticsSeed) {
+    if ([int]$analyticsUsers -ne 0) {
+        throw "Bootstrap baselined at V$lastVersion but V94 left legacy analytics profiles ($analyticsUsers)."
+    }
+} elseif ([int]$analyticsUsers -lt 1) {
     throw "Bootstrap baselined at V$lastVersion but analytics demo profiles are missing (seed-analytics-*@histar.vn)."
 }
 
@@ -316,6 +321,23 @@ if ($LASTEXITCODE -ne 0 -or $fieldTripSchemaObjects -ne '6') {
     throw "Bootstrap baselined at V$lastVersion but V92 field trip schema is incomplete ($fieldTripSchemaObjects/6)."
 }
 Write-Host 'V92 field trip schema: ready.'
+
+# V93: demo lifecycle tables and guarded purge functions.
+$demoLifecycleTables = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('demo_dataset_state','demo_account_registry','demo_organization_registry','demo_management_audit');") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $demoLifecycleTables -ne '4') {
+    throw "Bootstrap baselined at V$lastVersion but V93 demo lifecycle tables are incomplete ($demoLifecycleTables/4)."
+}
+$demoLifecycleFunctions = (@(& docker exec $Container psql -U $DbUser -d $Database -tAc `
+    "SELECT COUNT(*)::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname IN ('demo_delete_by_ids','demo_delete_children','demo_operational_row_count','purge_demo_dataset');") -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $demoLifecycleFunctions -ne '4') {
+    throw "Bootstrap baselined at V$lastVersion but V93 demo lifecycle functions are incomplete ($demoLifecycleFunctions/4)."
+}
+Write-Host 'V93 demo dataset lifecycle: ready.'
+
+# V94 deletes the legacy analytics seed inside the migration. A later local seed
+# may restore a fresh demo when -SkipAnalyticsSeed is not set.
+Write-Host 'V94 legacy analytics seed removal: ready.'
 
 Write-Host "Bootstrap completed successfully: $Database is seeded and baselined at Flyway V$lastVersion ($lastMigrationName)."
 Write-Host "V70 organizations.ops_note ready; orgs with seeded ops note: $opsNoteSeeded."

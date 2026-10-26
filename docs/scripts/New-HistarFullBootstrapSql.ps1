@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'Get-FlywayMigrationVersion.ps1')
 $beRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $docsRoot = Join-Path $beRoot 'docs'
 $migrationDir = Join-Path $beRoot 'src\main\resources\db\migration'
@@ -28,15 +29,15 @@ function Add-SqlSection([System.Text.StringBuilder]$Builder, [string]$Label, [st
     [void]$Builder.AppendLine("-- END $Label")
 }
 
-$migrations = Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
-    Sort-Object { [int]([regex]::Match($_.Name, '^V(\d+)__').Groups[1].Value) }
+$migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
+    Sort-Object { Get-FlywayMigrationSortKey $_.Name })
 
 if ($migrations.Count -eq 0) {
     throw "No Flyway migrations found in $migrationDir"
 }
 
 $lastMigration = $migrations[-1]
-$lastVersion = [regex]::Match($lastMigration.Name, '^V(\d+)__').Groups[1].Value
+$lastVersion = Get-FlywayMigrationVersionText $lastMigration.Name
 $builder = [System.Text.StringBuilder]::new()
 
 [void]$builder.AppendLine('-- HistAR full local bootstrap SQL')
