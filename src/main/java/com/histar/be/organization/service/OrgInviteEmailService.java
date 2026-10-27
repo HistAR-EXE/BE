@@ -9,6 +9,7 @@ import com.histar.be.mail.EmailDeliveryException;
 import com.histar.be.mail.HistarEmailService;
 import com.histar.be.organization.dto.OrgInviteCodeResponse;
 import com.histar.be.organization.dto.OrgInviteEmailRequest;
+import com.histar.be.organization.dto.OrgEmailInvitationResponse;
 import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
@@ -32,17 +33,21 @@ public class OrgInviteEmailService {
     private final HistarAppProperties appProperties;
     private final HistarMailProperties mailProperties;
     private final TestHookProperties testHookProperties;
+    private final OrgEmailInvitationService emailInvitations;
+    private final OrganizationEntitlementService entitlements;
+    private final jakarta.persistence.EntityManager entityManager;
 
     @Transactional
-    public void sendInviteEmail(UUID orgId, UUID teacherUserId, OrgInviteEmailRequest request) {
-        orgAccessService.requireOrgAccess(orgId);
-        Organization org = organizationRepository
-                .findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
-        Profile teacher = profileRepository
-                .findById(teacherUserId)
+    public OrgEmailInvitationResponse sendInviteEmail(UUID orgId, UUID teacherUserId, OrgInviteEmailRequest request) {
+        entityManager.flush();
+        Profile teacher = profileRepository.findByIdForUpdate(teacherUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
+        entityManager.refresh(teacher, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        orgAccessService.requireOrgAccess(orgId);
+        entitlements.requireCapability(teacherUserId, orgId, "manageMembers");
+        Organization org = organizationRepository
+                .findByIdForUpdate(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
         OrgInviteCodeResponse invite = org.getInviteCode() == null || org.getInviteCode().isBlank()
                 ? orgInviteService.generateInviteCode(orgId)
                 : orgInviteService.getInviteCode(orgId);
@@ -55,16 +60,17 @@ public class OrgInviteEmailService {
                 ? teacher.getDisplayName()
                 : "Giáo viên";
 
-        dispatchEmail(
+        String deliveryStatus = dispatchEmail(
                 request.studentEmail().trim(),
                 studentName,
                 teacherName,
                 org.getName(),
                 invite.inviteCode(),
                 inviteUrl);
+        return emailInvitations.record(orgId, teacherUserId, request.studentEmail(), deliveryStatus);
     }
 
-    private void dispatchEmail(
+    private String dispatchEmail(
             String to,
             String studentName,
             String teacherName,
@@ -76,14 +82,15 @@ public class OrgInviteEmailService {
 
         if (!mailProperties.isEnabled()) {
             log.info("Mail disabled — org invite for {}: code={} url={}", to, inviteCode, inviteUrl);
-            return;
+            return "LOCAL_ONLY";
         }
         if (testHookProperties.isEnabled()) {
             log.info("Test hooks enabled — skip mail; org invite for {}: code={} url={}", to, inviteCode, inviteUrl);
-            return;
+            return "LOCAL_ONLY";
         }
         try {
             histarEmailService.sendHtml(to, subject, html);
+            return "SENT";
         } catch (EmailDeliveryException ex) {
             throw new BusinessRuleException("Không gửi được email mời. Thử lại sau.");
         }
@@ -99,19 +106,24 @@ public class OrgInviteEmailService {
                   <p>Xin chào <strong>%s</strong>,</p>
                   <p><strong>%s</strong> mời bạn tham gia lớp <strong>%s</strong> trên TimeLens — nền tảng học lịch sử AR.</p>
                   <p style="margin:24px 0">
-                    <a href="%s" style="background:#fe951c;color:#000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+                    <a href="%s" style="background:#0877ff;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
                       Tham gia lớp ngay
                     </a>
                   </p>
                   <p>Mã mời 6 ký tự: <strong style="letter-spacing:2px">%s</strong></p>
                   <ol>
                     <li>Đăng ký tài khoản miễn phí tại TimeLens (nếu chưa có).</li>
-                    <li>Bấm nút trên hoặc vào Cài đặt → Lớp học và nhập mã.</li>
+                    <li>Đăng nhập bằng đúng email được mời và xác thực email để nhận quyền Premium theo tổ chức.</li>
+                    <li>Nếu có nhiều lời mời, bấm liên kết trên để chọn lớp.</li>
                     <li>Bắt đầu khám phá quest và chat AI cùng lớp.</li>
                   </ol>
                   <p style="color:#666;font-size:13px">Liên kết hết hạn sau 7 ngày. Nếu bạn không biết người gửi, hãy bỏ qua email này.</p>
                 </div>
                 """
-                .formatted(studentName, teacherName, orgName, link, inviteCode);
+                .formatted(escape(studentName), escape(teacherName), escape(orgName), escape(link), escape(inviteCode));
+    }
+
+    private static String escape(String value) {
+        return org.springframework.web.util.HtmlUtils.htmlEscape(value == null ? "" : value);
     }
 }

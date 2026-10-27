@@ -59,10 +59,10 @@ public class ProfileController {
             profile.setDisplayName(request.displayName().trim());
         }
         if (request.avatarUrl() != null) {
-            profile.setAvatarUrl(request.avatarUrl().trim());
+            profile.setAvatarUrl(request.avatarUrl().isEmpty() ? null : request.avatarUrl());
         }
         if (request.city() != null) {
-            profile.setCity(request.city().trim());
+            profile.setCity(request.city().isEmpty() ? null : request.city());
         }
         Profile saved = profileService.save(profile);
         return ApiResponse.ok(profileMeService.build(saved));

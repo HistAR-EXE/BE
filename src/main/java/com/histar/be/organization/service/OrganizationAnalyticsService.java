@@ -36,7 +36,8 @@ public class OrganizationAnalyticsService {
         Organization org = organizationRepository
                 .findById(orgId)
                 .orElseThrow(() -> new BusinessRuleException("Organization không tồn tại"));
-        List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(orgId);
+        List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(orgId).stream()
+                .filter(member -> "student".equalsIgnoreCase(member.getOrgRole())).toList();
         List<UUID> memberIds = members.stream().map(OrganizationMember::getUserId).toList();
         long memberCount = memberIds.size();
 

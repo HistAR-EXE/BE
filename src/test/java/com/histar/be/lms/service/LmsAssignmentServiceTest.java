@@ -81,7 +81,7 @@ class LmsAssignmentServiceTest {
     void listForTeacher_throwsWhenMemberRoleIsNotTeacher() {
         UUID teacherId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
-        Profile profile = Profile.builder().id(teacherId).orgId(orgId).build();
+        Profile profile = Profile.builder().id(teacherId).orgId(orgId).emailVerified(true).build();
         when(profileRepository.findById(teacherId)).thenReturn(Optional.of(profile));
         when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, teacherId))
                 .thenReturn(Optional.of(OrganizationMember.builder()
@@ -153,16 +153,17 @@ class LmsAssignmentServiceTest {
     void listForTeacher_allowsTeacherInPremiumOrg() {
         UUID teacherId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
-        Profile profile = Profile.builder().id(teacherId).orgId(orgId).build();
+        Profile profile = Profile.builder().id(teacherId).orgId(orgId).emailVerified(true).build();
         when(profileRepository.findById(teacherId)).thenReturn(Optional.of(profile));
         when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, teacherId))
                 .thenReturn(Optional.of(OrganizationMember.builder()
                         .organizationId(orgId)
                         .userId(teacherId)
                         .orgRole("teacher")
+                        .acceptedAt(Instant.now())
                         .build()));
         when(organizationRepository.findById(orgId))
-                .thenReturn(Optional.of(Organization.builder().id(orgId).planType("PREMIUM").build()));
+                .thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").planType("PREMIUM").build()));
         when(assignmentRepository.findByOrgIdOrderByCreatedAtDesc(orgId)).thenReturn(List.of());
 
         lmsAssignmentService.listForTeacher(teacherId);
@@ -171,20 +172,37 @@ class LmsAssignmentServiceTest {
     }
 
     @Test
-    void createAssignment_rejectsStandardTierWithLmsPremiumRequiredCode() {
+    void standardOwnerCanListAssignmentsButCannotUsePremiumOnlyTeacherOperations() {
+        UUID teacherId = UUID.randomUUID();
+        UUID orgId = UUID.randomUUID();
+        when(profileRepository.findById(teacherId)).thenReturn(Optional.of(Profile.builder()
+                .id(teacherId).orgId(orgId).emailVerified(true).build()));
+        when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, teacherId)).thenReturn(Optional.of(
+                OrganizationMember.builder().organizationId(orgId).userId(teacherId).orgRole("owner").acceptedAt(Instant.now()).build()));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder()
+                .id(orgId).status("ACTIVE").planType("STANDARD").build()));
+        when(assignmentRepository.findByOrgIdOrderByCreatedAtDesc(orgId)).thenReturn(List.of());
+        assertThat(lmsAssignmentService.listForTeacher(teacherId)).isEmpty();
+        assertThatThrownBy(() -> lmsAssignmentService.requirePremiumTeacher(teacherId))
+                .isInstanceOf(LmsPremiumRequiredException.class);
+    }
+
+    @Test
+    void createAssignment_rejectsMicroTierWithUpgradeCode() {
         UUID teacherId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
         UUID questId = UUID.randomUUID();
-        Profile profile = Profile.builder().id(teacherId).orgId(orgId).build();
+        Profile profile = Profile.builder().id(teacherId).orgId(orgId).emailVerified(true).build();
         when(profileRepository.findById(teacherId)).thenReturn(Optional.of(profile));
         when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, teacherId))
                 .thenReturn(Optional.of(OrganizationMember.builder()
                         .organizationId(orgId)
                         .userId(teacherId)
                         .orgRole("teacher")
+                        .acceptedAt(Instant.now())
                         .build()));
         when(organizationRepository.findById(orgId))
-                .thenReturn(Optional.of(Organization.builder().id(orgId).planType("STANDARD").build()));
+                .thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").planType("MICRO").build()));
 
         assertThatThrownBy(() ->
                         lmsAssignmentService.createAssignment(

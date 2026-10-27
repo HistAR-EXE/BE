@@ -49,6 +49,8 @@ public class AuthServiceImpl implements AuthService {
     private final FirebaseAuthService firebaseAuthService;
     private final HistarMailProperties mailProperties;
     private final ReferralService referralService;
+    private final com.histar.be.organization.service.OrgEmailInvitationService emailInvitations;
+    private final com.histar.be.profile.service.TierAccessService tierAccessService;
 
     @Override
     @Transactional
@@ -216,6 +218,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthResponse issueTokens(Profile profile, String debugVerificationToken) {
+        emailInvitations.acceptPending(profile);
         String role = UserRole.fromStored(profile.getRole()).name();
         String orgSub = OrgSubscription.fromStored(profile.getOrgSubscription()).name();
         String accessToken = jwtService.generateAccessToken(
@@ -238,7 +241,8 @@ public class AuthServiceImpl implements AuthService {
                 profile.getDisplayName(),
                 profile.getEmail(),
                 role,
-                UserTier.fromStored(profile.getTier()).name(),
+                (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())
+                        || tierAccessService.hasPremiumAccess(profile.getId())) ? "PREMIUM" : "FREE",
                 profile.getOrgId(),
                 orgSub,
                 Boolean.TRUE.equals(profile.getEmailVerified()),

@@ -15,6 +15,7 @@ import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.entity.OrganizationMember;
 import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.quest.entity.Quest;
@@ -60,7 +61,7 @@ public class LmsAssignmentService {
 
     @Transactional
     public AssignmentResponse createAssignment(UUID teacherId, CreateAssignmentRequest request) {
-        Profile teacher = requirePremiumTeacher(teacherId);
+        Profile teacher = requireAssignmentTeacher(teacherId);
         Quest quest = questRepository
                 .findById(request.questId())
                 .orElseThrow(() -> new ResourceNotFoundException("Quest not found"));
@@ -122,7 +123,7 @@ public class LmsAssignmentService {
 
     @Transactional(readOnly = true)
     public List<AssignmentResponse> listForTeacher(UUID teacherId) {
-        Profile teacher = requirePremiumTeacher(teacherId);
+        Profile teacher = requireAssignmentTeacher(teacherId);
         return assignmentRepository.findByOrgIdOrderByCreatedAtDesc(teacher.getOrgId()).stream()
                 .map(this::toResponseWithSubmissions)
                 .toList();
@@ -210,29 +211,43 @@ public class LmsAssignmentService {
 
     @Transactional(readOnly = true)
     public Profile requirePremiumTeacher(UUID teacherId) {
-        Profile teacher = profileRepository
-                .findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found"));
-        assertPremiumLms(teacher);
+        Profile teacher = requireAssignmentTeacher(teacherId);
+        Organization org = organizationRepository.findById(teacher.getOrgId()).orElseThrow();
+        String plan = org.getPlanType() != null ? org.getPlanType() : org.getPlan();
+        if (!"PREMIUM".equalsIgnoreCase(plan)) {
+            throw new LmsPremiumRequiredException("Chức năng này chỉ có ở gói Premium B2B");
+        }
         return teacher;
     }
 
-    private void assertPremiumLms(Profile teacher) {
+    @Transactional(readOnly = true)
+    public Profile requireAssignmentTeacher(UUID teacherId) {
+        Profile teacher = profileRepository
+                .findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found"));
+        assertAssignmentAccess(teacher);
+        return teacher;
+    }
+
+    private void assertAssignmentAccess(Profile teacher) {
         if (teacher.getOrgId() == null) {
-            throw new BusinessRuleException("LMS chỉ dành cho tổ chức B2B Premium");
+            throw new BusinessRuleException("Bài tập chỉ dành cho tổ chức B2B Standard/Premium");
         }
         OrganizationMember member = organizationMemberRepository
                 .findByOrganizationIdAndUserId(teacher.getOrgId(), teacher.getId())
                 .orElseThrow(() -> new BusinessRuleException("Bạn không thuộc tổ chức này"));
-        if (!"teacher".equalsIgnoreCase(member.getOrgRole())) {
+        if (!"teacher".equalsIgnoreCase(member.getOrgRole()) && !"owner".equalsIgnoreCase(member.getOrgRole())) {
             throw new BusinessRuleException("Chỉ giáo viên mới có quyền dùng LMS");
         }
         Organization org = organizationRepository
                 .findById(teacher.getOrgId())
                 .orElseThrow(() -> new BusinessRuleException("Tổ chức không tồn tại"));
+        if (!OrganizationEntitlementService.isActive(org) || !Boolean.TRUE.equals(teacher.getEmailVerified()) || member.getAcceptedAt() == null) {
+            throw new BusinessRuleException("Thành viên hoặc gói tổ chức không còn hiệu lực");
+        }
         String plan = org.getPlanType() != null ? org.getPlanType() : org.getPlan();
-        if (plan == null || !"PREMIUM".equalsIgnoreCase(plan.trim())) {
-            throw new LmsPremiumRequiredException("LMS đầy đủ chỉ có ở gói Premium B2B");
+        if (plan == null || !("PREMIUM".equalsIgnoreCase(plan.trim()) || "STANDARD".equalsIgnoreCase(plan.trim()))) {
+            throw new LmsPremiumRequiredException("Tạo và giao bài tập cần gói Standard hoặc Premium B2B");
         }
     }
 }

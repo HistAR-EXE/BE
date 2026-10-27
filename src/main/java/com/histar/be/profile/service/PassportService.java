@@ -39,10 +39,10 @@ public class PassportService {
         Map<UUID, Instant> stampTimes = new HashMap<>();
 
         for (Checkin checkin : checkinRepository.findByUserIdOrderByCreatedAtDesc(userId)) {
-            if (checkin.getLocationId() == null || checkin.getCreatedAt() == null) {
+            if (checkin.getLocationId() == null) {
                 continue;
             }
-            stampTimes.merge(checkin.getLocationId(), checkin.getCreatedAt(), this::latest);
+            recordStampTime(stampTimes, checkin.getLocationId(), checkin.getCreatedAt());
         }
 
         List<UserQuestProgress> completed =
@@ -68,11 +68,8 @@ public class PassportService {
             if (locationId == null) {
                 continue;
             }
-            Instant at = progress.getCompletedAt() != null ? progress.getCompletedAt() : progress.getStartedAt();
-            if (at == null) {
-                continue;
-            }
-            stampTimes.merge(locationId, at, this::latest);
+            // A task start is not evidence of its completion time. Keep an unknown date unknown.
+            recordStampTime(stampTimes, locationId, progress.getCompletedAt());
         }
 
         Set<UUID> locationIds = stampTimes.keySet();
@@ -96,5 +93,13 @@ public class PassportService {
 
     private Instant latest(Instant a, Instant b) {
         return a.isAfter(b) ? a : b;
+    }
+
+    private void recordStampTime(Map<UUID, Instant> stampTimes, UUID locationId, Instant at) {
+        if (at == null) {
+            stampTimes.putIfAbsent(locationId, null);
+        } else {
+            stampTimes.merge(locationId, at, this::latest);
+        }
     }
 }

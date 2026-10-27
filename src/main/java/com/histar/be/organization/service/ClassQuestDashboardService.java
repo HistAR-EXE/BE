@@ -25,9 +25,7 @@ public class ClassQuestDashboardService {
 
     @Transactional(readOnly = true)
     public ClassQuestDashboardResponse summary(UUID actorId, UUID orgId, UUID campaignId) {
-        if (!orgAccessService.isPlatformAdmin() && !orgAccessService.isOrgTeacher(actorId, orgId)) {
-            throw new BusinessRuleException("Không có quyền truy cập organization này");
-        }
+        orgAccessService.requireOrgAccess(actorId, orgId);
         QuestCampaign campaign = campaigns.findById(campaignId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quest campaign not found"));
         UUID questId = campaign.getQuestId();

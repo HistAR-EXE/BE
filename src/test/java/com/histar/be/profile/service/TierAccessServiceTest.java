@@ -8,6 +8,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,9 @@ class TierAccessServiceTest {
 
     @Mock
     private B2cVisitEntitlementRepository visitEntitlementRepository;
+
+    @Mock
+    private OrganizationEntitlementService organizationEntitlements;
 
     @InjectMocks
     private TierAccessService tierAccessService;
@@ -60,6 +64,21 @@ class TierAccessServiceTest {
                         .role(UserRole.ORG_MEMBER.name())
                         .tier(UserTier.FREE.name())
                         .build()));
+        when(organizationEntitlements.hasActiveMembership(profileRepository.findById(memberId).orElseThrow())).thenReturn(true);
         assertThat(tierAccessService.hasPremiumAccess(memberId)).isTrue();
+    }
+
+    @Test
+    void teacherWithoutOrganizationDoesNotKeepOrganizationPremium() {
+        UUID id = UUID.randomUUID();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(Profile.builder().id(id).role("TEACHER").tier("FREE").build()));
+        assertThat(tierAccessService.hasPremiumAccess(id)).isFalse();
+    }
+
+    @Test
+    void expiredOrganizationDoesNotRemovePurchasedPersonalPremium() {
+        UUID id = UUID.randomUUID();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(Profile.builder().id(id).orgId(UUID.randomUUID()).tier("PREMIUM").build()));
+        assertThat(tierAccessService.hasPremiumAccess(id)).isTrue();
     }
 }

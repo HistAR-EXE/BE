@@ -12,6 +12,7 @@ import com.histar.be.liveboard.dto.RallyResponse;
 import com.histar.be.organization.entity.OrganizationMember;
 import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import java.io.IOException;
@@ -59,11 +60,13 @@ public class LiveBoardService {
     private final ProfileRepository profileRepository;
     private final CheckinRepository checkinRepository;
     private final PilotEventRepository pilotEventRepository;
+    private final OrganizationEntitlementService entitlements;
 
     private final Map<UUID, OrgChannel> channels = new ConcurrentHashMap<>();
 
     private static final class OrgChannel {
         final Set<SseEmitter> emitters = ConcurrentHashMap.newKeySet();
+        final Map<SseEmitter, UUID> actors = new ConcurrentHashMap<>();
         volatile LiveBoardSnapshot last;
     }
 
@@ -78,7 +81,7 @@ public class LiveBoardService {
         Instant since = now.minus(WINDOW);
 
         List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(orgId).stream()
-                .filter(m -> !"teacher".equalsIgnoreCase(m.getOrgRole()))
+                .filter(m -> "student".equalsIgnoreCase(m.getOrgRole()))
                 .toList();
         List<UUID> userIds = members.stream().map(OrganizationMember::getUserId).toList();
         Instant lastRally = lastRallyAt(orgId);
@@ -210,6 +213,10 @@ public class LiveBoardService {
     // --------------------------------------------------------------------- SSE
 
     public SseEmitter subscribe(UUID orgId) {
+        return subscribe(orgId, null);
+    }
+
+    public SseEmitter subscribe(UUID orgId, UUID actorId) {
         int total = channels.values().stream().mapToInt(c -> c.emitters.size()).sum();
         OrgChannel existing = channels.get(orgId);
         if (total >= MAX_STREAMS_TOTAL || (existing != null && existing.emitters.size() >= MAX_STREAMS_PER_ORG)) {
@@ -224,6 +231,7 @@ public class LiveBoardService {
         emitter.onTimeout(emitter::complete);
         emitter.onError(t -> cleanup.run());
         channel.emitters.add(emitter);
+        if (actorId != null) channel.actors.put(emitter, actorId);
         if (channel.last == null) channel.last = initial;
         send(orgId, channel, emitter, "snapshot", initial);
         return emitter;
@@ -231,6 +239,7 @@ public class LiveBoardService {
 
     private void remove(UUID orgId, OrgChannel channel, SseEmitter emitter) {
         channel.emitters.remove(emitter);
+        channel.actors.remove(emitter);
         if (channel.emitters.isEmpty()) {
             channels.remove(orgId, channel);
         }
@@ -258,6 +267,18 @@ public class LiveBoardService {
             OrgChannel channel = entry.getValue();
             if (channel.emitters.isEmpty()) continue;
             try {
+                for (SseEmitter emitter : channel.emitters) {
+                    UUID actor = channel.actors.get(emitter);
+                    if (actor != null) {
+                        try {
+                            entitlements.requireCapability(actor, orgId, "liveBoard");
+                        } catch (BusinessRuleException denied) {
+                            remove(orgId, channel, emitter);
+                            emitter.complete();
+                        }
+                    }
+                }
+                if (channel.emitters.isEmpty()) continue;
                 LiveBoardSnapshot next = snapshot(orgId);
                 LiveBoardSnapshot prev = channel.last;
                 boolean changed = prev == null

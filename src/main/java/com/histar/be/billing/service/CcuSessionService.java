@@ -10,6 +10,7 @@ import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -26,6 +27,16 @@ public class CcuSessionService {
     private final OrgActiveSessionRepository orgActiveSessionRepository;
     private final OrganizationRepository organizationRepository;
     private final ProfileRepository profileRepository;
+    private final OrganizationEntitlementService organizationEntitlements;
+
+    /** Admission is enforced on authenticated API traffic, not just a client heartbeat. */
+    @Transactional
+    public void admitRequest(String email) {
+        Profile profile = profileRepository.findByEmail(email).orElse(null);
+        if (profile != null && organizationEntitlements.hasActiveMembership(profile)) {
+            assertCcuAvailable(profile.getId());
+        }
+    }
 
     @Transactional
     public void heartbeat(UUID userId) {
@@ -58,10 +69,9 @@ public class CcuSessionService {
             return;
         }
         UUID orgId = profile.getOrgId();
-        Organization org = organizationRepository.findById(orgId).orElse(null);
-        if (org == null) {
-            return;
-        }
+        organizationEntitlements.requireActiveMembership(profile);
+        Organization org = organizationRepository.findByIdForUpdate(orgId)
+                .orElseThrow(() -> new com.histar.be.common.exception.BusinessRuleException("Tổ chức không tồn tại"));
         int maxCcu = org.getMaxCcu() != null
                 ? org.getMaxCcu()
                 : OrgPlanLimits.forPlan(OrgSubscription.fromPlanType(

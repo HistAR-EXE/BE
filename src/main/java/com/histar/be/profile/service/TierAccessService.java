@@ -5,6 +5,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
@@ -18,6 +19,7 @@ public class TierAccessService {
 
     private final ProfileRepository profileRepository;
     private final B2cVisitEntitlementRepository visitEntitlementRepository;
+    private final OrganizationEntitlementService organizationEntitlements;
 
     /** National Premium / org / staff — unlocks all pilot sites. */
     @Transactional(readOnly = true)
@@ -26,14 +28,11 @@ public class TierAccessService {
         if (profile == null) {
             return false;
         }
-        if (profile.getOrgId() != null) {
-            return true;
-        }
         UserRole role = UserRole.fromStored(profile.getRole());
-        if (role == UserRole.ADMIN || role == UserRole.TEACHER) {
+        if (role == UserRole.ADMIN || UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
             return true;
         }
-        return UserTier.PREMIUM == UserTier.fromStored(profile.getTier());
+        return organizationEntitlements.hasActiveMembership(profile);
     }
 
     /**

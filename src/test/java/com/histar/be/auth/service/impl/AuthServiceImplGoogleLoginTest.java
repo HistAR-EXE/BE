@@ -59,6 +59,9 @@ class AuthServiceImplGoogleLoginTest {
     @InjectMocks
     private AuthServiceImpl authService;
 
+    @Mock private com.histar.be.organization.service.OrgEmailInvitationService emailInvitations;
+    @Mock private com.histar.be.profile.service.TierAccessService tierAccessService;
+
     private VerifiedGoogleUser googleUser;
 
     @BeforeEach

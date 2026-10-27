@@ -103,13 +103,12 @@ public class OrganizationRosterController {
     }
 
     @PostMapping("/{orgId}/invite-email")
-    public ApiResponse<Void> sendInviteEmail(
+    public ApiResponse<com.histar.be.organization.dto.OrgEmailInvitationResponse> sendInviteEmail(
             @PathVariable UUID orgId, @RequestBody @Valid OrgInviteEmailRequest request) {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        orgInviteEmailService.sendInviteEmail(orgId, userId, request);
-        return ApiResponse.ok("Đã gửi email mời tham gia lớp", null);
+        return ApiResponse.ok(orgInviteEmailService.sendInviteEmail(orgId, userId, request));
     }
 
     @PostMapping("/{orgId}/students/provision")

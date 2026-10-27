@@ -15,15 +15,14 @@ public class OrgAccessService {
 
     private final OrganizationMemberRepository organizationMemberRepository;
     private final CurrentUserAccessor currentUserAccessor;
+    private final OrganizationEntitlementService entitlements;
 
     public void requireOrgAccess(UUID orgId) {
         UUID userId = currentUserAccessor
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        if (isPlatformAdmin() || isOrgTeacher(userId, orgId)) {
-            return;
-        }
-        throw new BusinessRuleException("Không có quyền truy cập organization này");
+        if (isPlatformAdmin()) return;
+        entitlements.requireCapability(userId, orgId, "manageMembers");
     }
 
     public boolean isPlatformAdmin() {
@@ -38,13 +37,11 @@ public class OrgAccessService {
     public boolean isOrgTeacher(UUID userId, UUID orgId) {
         return organizationMemberRepository
                 .findByOrganizationIdAndUserId(orgId, userId)
-                .map(m -> "teacher".equalsIgnoreCase(m.getOrgRole()))
+                .map(m -> "teacher".equalsIgnoreCase(m.getOrgRole()) || "owner".equalsIgnoreCase(m.getOrgRole()))
                 .orElse(false);
     }
 
     public void requireOrgAccess(UUID userId, UUID orgId) {
-        if (!isPlatformAdmin() && !isOrgTeacher(userId, orgId)) {
-            throw new BusinessRuleException("Không có quyền truy cập organization này");
-        }
+        if (!isPlatformAdmin()) entitlements.requireCapability(userId, orgId, "manageMembers");
     }
 }

@@ -27,6 +27,7 @@ public class ProfileMeService {
     private final OrganizationRepository organizationRepository;
     private final GamificationProperties gamificationProperties;
     private final B2cVisitEntitlementRepository visitEntitlementRepository;
+    private final TierAccessService tierAccessService;
 
     @Transactional(readOnly = true)
     public ProfileMeResponse build(Profile profile) {
@@ -41,7 +42,7 @@ public class ProfileMeService {
             Organization org = organizationRepository.findById(orgId).orElse(null);
             if (org != null) {
                 orgName = org.getName();
-                orgSubscription = OrgSubscription.fromOrgPlan(org.getPlan()).name();
+                orgSubscription = OrgSubscription.fromPlanType(org.getPlanType() != null ? org.getPlanType() : org.getPlan()).name();
             }
             orgRole = organizationMemberRepository
                     .findByOrganizationIdAndUserId(orgId, profile.getId())
@@ -56,7 +57,7 @@ public class ProfileMeService {
                 Organization org = organizationRepository.findById(orgId).orElse(null);
                 if (org != null) {
                     orgName = org.getName();
-                    orgSubscription = OrgSubscription.fromOrgPlan(org.getPlan()).name();
+                    orgSubscription = OrgSubscription.fromPlanType(org.getPlanType() != null ? org.getPlanType() : org.getPlan()).name();
                 }
             }
         }
@@ -81,6 +82,7 @@ public class ProfileMeService {
                 orgName,
                 orgSubscription,
                 orgRole,
-                List.copyOf(bySite.values()));
+                List.copyOf(bySite.values()))
+                .withTier(tierAccessService.hasPremiumAccess(profile.getId()) ? "PREMIUM" : "FREE");
     }
 }

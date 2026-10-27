@@ -7,6 +7,7 @@ import com.histar.be.liveboard.dto.LiveBoardSnapshot;
 import com.histar.be.liveboard.dto.RallyResponse;
 import com.histar.be.liveboard.service.LiveBoardService;
 import com.histar.be.organization.service.OrgAccessService;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,25 +31,35 @@ public class LiveBoardController {
     private final LiveBoardService liveBoardService;
     private final OrgAccessService orgAccessService;
     private final CurrentUserAccessor currentUserAccessor;
+    private final OrganizationEntitlementService entitlements;
+
+    private void requireLiveBoard(UUID orgId) {
+        orgAccessService.requireOrgAccess(orgId);
+        if (!orgAccessService.isPlatformAdmin()) {
+            UUID userId = currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
+            entitlements.requireCapability(userId, orgId, "liveBoard");
+        }
+    }
 
     @GetMapping
     public ApiResponse<LiveBoardSnapshot> snapshot(@PathVariable UUID orgId) {
-        orgAccessService.requireOrgAccess(orgId);
+        requireLiveBoard(orgId);
         return ApiResponse.ok(liveBoardService.snapshot(orgId));
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> stream(@PathVariable UUID orgId) {
-        orgAccessService.requireOrgAccess(orgId);
+        requireLiveBoard(orgId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noCache())
                 .header("X-Accel-Buffering", "no")
-                .body(liveBoardService.subscribe(orgId));
+                .body(liveBoardService.subscribe(orgId, orgAccessService.isPlatformAdmin() ? null
+                        : currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"))));
     }
 
     @GetMapping(value = "/export.csv", produces = "text/csv")
     public ResponseEntity<byte[]> exportCsv(@PathVariable UUID orgId) {
-        orgAccessService.requireOrgAccess(orgId);
+        requireLiveBoard(orgId);
         byte[] body = liveBoardService.exportCsv(orgId).getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=utf-8")
@@ -58,7 +69,7 @@ public class LiveBoardController {
 
     @PostMapping("/rally")
     public ApiResponse<RallyResponse> rally(@PathVariable UUID orgId) {
-        orgAccessService.requireOrgAccess(orgId);
+        requireLiveBoard(orgId);
         UUID userId = currentUserAccessor.getUserId().orElseThrow(() -> new AuthException("Unauthorized"));
         return ApiResponse.ok(liveBoardService.rally(orgId, userId));
     }

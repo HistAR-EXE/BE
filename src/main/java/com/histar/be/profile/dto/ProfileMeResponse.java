@@ -29,6 +29,12 @@ public record ProfileMeResponse(
         boolean emailVerified,
         List<ActiveVisitSiteDto> activeVisitSites) {
 
+    public ProfileMeResponse withTier(String effectiveTier) {
+        return new ProfileMeResponse(id, email, displayName, avatarUrl, role, effectiveTier, orgId, orgName,
+                orgSubscription, orgRole, level, levelName, totalPoints, pointsToNextLevel, levelProgressPercent,
+                city, emailVerified, activeVisitSites);
+    }
+
     public static ProfileMeResponse from(
             Profile profile,
             GamificationProperties properties,
@@ -41,9 +47,9 @@ public record ProfileMeResponse(
         var levelInfo = LevelCalculator.info(
                 points, properties.parseLevelThresholds(), properties.parseLevelNames());
         UUID resolvedOrgId = profile.getOrgId() != null ? profile.getOrgId() : orgId;
-        String resolvedSub = profile.getOrgSubscription() != null
-                ? OrgSubscription.fromStored(profile.getOrgSubscription()).name()
-                : (orgSubscription != null ? orgSubscription : OrgSubscription.NONE.name());
+        String resolvedSub = orgSubscription != null ? orgSubscription
+                : (profile.getOrgSubscription() != null ? OrgSubscription.fromStored(profile.getOrgSubscription()).name()
+                : OrgSubscription.NONE.name());
         return new ProfileMeResponse(
                 profile.getId(),
                 profile.getEmail(),

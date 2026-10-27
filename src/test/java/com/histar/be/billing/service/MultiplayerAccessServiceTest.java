@@ -9,6 +9,7 @@ import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,9 @@ class MultiplayerAccessServiceTest {
 
     @Mock
     private OrganizationRepository organizationRepository;
+
+    @Mock
+    private OrganizationEntitlementService organizationEntitlements;
 
     @InjectMocks
     private MultiplayerAccessService multiplayerAccessService;

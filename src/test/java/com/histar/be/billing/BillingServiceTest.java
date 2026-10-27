@@ -67,6 +67,37 @@ class BillingServiceTest {
     private BillingService billingService;
 
     @Test
+    void newTrialCreatorGetsOwnerMembership() {
+        UUID userId = UUID.randomUUID();
+        UUID orgId = UUID.randomUUID();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(Profile.builder().id(userId).role("USER").build()));
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(call -> {
+            Organization org = call.getArgument(0);
+            org.setId(orgId);
+            return org;
+        });
+        billingService.createOrgTrial(userId, new com.histar.be.billing.dto.OrgTrialRequest("Local School", "owner@local.test"));
+        verify(organizationMemberRepository).save(argThat(member -> "owner".equals(member.getOrgRole())
+                && userId.equals(member.getUserId()) && orgId.equals(member.getOrganizationId())));
+    }
+
+    @Test
+    void existingTeacherCannotTakeOwnershipByUpgradingOrganization() {
+        UUID userId = UUID.randomUUID();
+        UUID orgId = UUID.randomUUID();
+        when(demoProperties.isEnabled()).thenReturn(true);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(Profile.builder().id(userId).orgId(orgId).role("TEACHER").build()));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").build()));
+        when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, userId)).thenReturn(Optional.of(
+                com.histar.be.organization.entity.OrganizationMember.builder().organizationId(orgId).userId(userId)
+                        .orgRole("teacher").acceptedAt(Instant.now()).build()));
+        assertThatThrownBy(() -> billingService.subscribeOrg(userId, new com.histar.be.billing.dto.OrgSubscribeRequest(
+                "School", "PREMIUM", "teacher@local.test", orgId), "DEMO"))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("chủ tổ chức");
+        verify(organizationMemberRepository, never()).save(any());
+    }
+
+    @Test
     void subscribeB2c_rejectsDemoWhenDemoDisabled() {
         UUID userId = UUID.randomUUID();
         when(demoProperties.isEnabled()).thenReturn(false);

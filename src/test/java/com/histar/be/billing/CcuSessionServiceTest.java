@@ -17,6 +17,7 @@ import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,9 @@ class CcuSessionServiceTest {
 
     @Mock
     private ProfileRepository profileRepository;
+
+    @Mock
+    private OrganizationEntitlementService organizationEntitlements;
 
     @InjectMocks
     private CcuSessionService ccuSessionService;
@@ -63,7 +67,7 @@ class CcuSessionServiceTest {
         Profile newUser = Profile.builder().id(newUserId).orgId(orgId).build();
 
         when(profileRepository.findById(newUserId)).thenReturn(Optional.of(newUser));
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(org));
+        when(organizationRepository.findByIdForUpdate(orgId)).thenReturn(Optional.of(org));
         when(orgActiveSessionRepository.countActiveByOrgId(eq(orgId), any(Instant.class))).thenReturn(1);
         when(orgActiveSessionRepository.findById(new OrgActiveSessionId(orgId, newUserId)))
                 .thenReturn(Optional.empty());
@@ -83,7 +87,7 @@ class CcuSessionServiceTest {
         Instant recent = Instant.now();
 
         when(profileRepository.findById(activeUserId)).thenReturn(Optional.of(activeUser));
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(org));
+        when(organizationRepository.findByIdForUpdate(orgId)).thenReturn(Optional.of(org));
         when(orgActiveSessionRepository.countActiveByOrgId(eq(orgId), any(Instant.class))).thenReturn(1);
         when(orgActiveSessionRepository.findById(new OrgActiveSessionId(orgId, activeUserId)))
                 .thenReturn(Optional.of(OrgActiveSession.builder()

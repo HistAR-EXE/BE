@@ -12,6 +12,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
 
+    @Query("select count(distinct c.locationId) from Checkin c where c.userId = :userId")
+    long countDistinctLocationsByUserId(@Param("userId") UUID userId);
+
     long countByCreatedAtGreaterThanEqual(Instant createdAt);
 
     long countByUserId(UUID userId);

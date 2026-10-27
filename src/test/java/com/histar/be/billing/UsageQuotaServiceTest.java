@@ -18,6 +18,7 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.profile.service.TierAccessService;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,9 @@ class UsageQuotaServiceTest {
 
     @Mock
     private TierAccessService tierAccessService;
+
+    @Mock
+    private OrganizationEntitlementService organizationEntitlements;
 
     @InjectMocks
     private UsageQuotaService usageQuotaService;
@@ -86,6 +90,7 @@ class UsageQuotaServiceTest {
                 .build();
         Organization org = Organization.builder()
                 .id(orgId)
+                .status("ACTIVE")
                 .maxAiQueriesPerMonth(5000)
                 .maxVerifiedAccounts(100)
                 .build();
@@ -120,6 +125,7 @@ class UsageQuotaServiceTest {
                 .build();
         Organization org = Organization.builder()
                 .id(orgId)
+                .status("ACTIVE")
                 .planType("STANDARD")
                 .maxAiQueriesPerMonth(30_000)
                 .build();
@@ -136,6 +142,30 @@ class UsageQuotaServiceTest {
                     assertThat(quota.getQuotaType()).isEqualTo("ORG_MONTHLY");
                     assertThat(quota.getUpgradePackage()).isEqualTo("PREMIUM");
                 });
+    }
+
+    @Test
+    void purchasedPremiumInsideMicroStillUsesSharedMonthlyPool() {
+        UUID userId = UUID.randomUUID(), orgId = UUID.randomUUID();
+        Profile profile = Profile.builder().id(userId).orgId(orgId).role("USER").tier("PREMIUM").build();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder()
+                .id(orgId).status("ACTIVE").planType("MICRO").maxAiQueriesPerMonth(5000).build()));
+        when(usageQuotaRepository.findByOrganizationIdAndYearAndMonth(any(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(UsageQuota.builder().usedAiQueries(5000).build()));
+        assertThatThrownBy(() -> usageQuotaService.assertCanSendChat(userId))
+                .isInstanceOf(QuotaExceededException.class);
+    }
+
+    @Test
+    void expiredPremiumOrganizationDoesNotGetUnlimitedChat() {
+        UUID userId = UUID.randomUUID(), orgId = UUID.randomUUID();
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(Profile.builder()
+                .id(userId).orgId(orgId).role("TEACHER").tier("FREE").build()));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder()
+                .id(orgId).status("EXPIRED").planType("PREMIUM").build()));
+        assertThatThrownBy(() -> usageQuotaService.assertCanSendChat(userId))
+                .isInstanceOf(QuotaExceededException.class);
     }
 
     @Test

@@ -23,6 +23,7 @@ import com.histar.be.organization.entity.OrganizationMember;
 import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
@@ -63,15 +64,7 @@ public class BillingService {
     private final DemoProperties demoProperties;
 
     public static boolean isOrgActive(Organization org) {
-        if (org == null) {
-            return false;
-        }
-        if (ORG_STATUS_EXPIRED.equalsIgnoreCase(org.getStatus())
-                || ORG_STATUS_TRIAL_EXPIRED.equalsIgnoreCase(org.getStatus())
-                || "SUSPENDED".equalsIgnoreCase(org.getStatus())) {
-            return false;
-        }
-        return org.getPlanEndDate() == null || !org.getPlanEndDate().isBefore(LocalDate.now(VN_ZONE));
+        return OrganizationEntitlementService.isActive(org);
     }
 
     /** Rejects the DEMO (free upgrade) payment method when {@code demo.enabled=false} (production default). */
@@ -156,10 +149,12 @@ public class BillingService {
             org = organizationRepository
                     .findById(request.organizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+            requireBillingOwner(profile, org.getId());
         } else if (profile.getOrgId() != null) {
             org = organizationRepository
                     .findById(profile.getOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+            requireBillingOwner(profile, org.getId());
         } else {
             String name = request.orgName() == null ? "Tổ chức mới" : request.orgName().trim();
             if (name.isBlank()) {
@@ -182,7 +177,7 @@ public class BillingService {
             organizationMemberRepository.save(OrganizationMember.builder()
                     .organizationId(org.getId())
                     .userId(userId)
-                    .orgRole("teacher")
+                    .orgRole("owner")
                     .invitedAt(Instant.now())
                     .acceptedAt(Instant.now())
                     .build());
@@ -238,7 +233,7 @@ public class BillingService {
             throw new BusinessRuleException("Bạn đã thuộc tổ chức. Không thể tạo trial mới.");
         }
         boolean hadTrialBefore = organizationMemberRepository.findByUserId(userId).stream()
-                .filter(m -> "teacher".equalsIgnoreCase(m.getOrgRole()))
+                .filter(m -> "teacher".equalsIgnoreCase(m.getOrgRole()) || "owner".equalsIgnoreCase(m.getOrgRole()))
                 .map(m -> organizationRepository.findById(m.getOrganizationId()).orElse(null))
                 .filter(org -> org != null)
                 .anyMatch(org -> ORG_STATUS_TRIAL_ACTIVE.equalsIgnoreCase(org.getStatus())
@@ -274,7 +269,7 @@ public class BillingService {
         organizationMemberRepository.save(OrganizationMember.builder()
                 .organizationId(org.getId())
                 .userId(userId)
-                .orgRole("teacher")
+                .orgRole("owner")
                 .invitedAt(Instant.now())
                 .acceptedAt(Instant.now())
                 .build());
@@ -315,8 +310,7 @@ public class BillingService {
             sub.setIsActive(false);
             b2cSubscriptionRepository.save(sub);
             profileRepository.findById(sub.getUserId()).ifPresent(profile -> {
-                if (profile.getOrgId() == null
-                        && UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
+                if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
                     profile.setTier(UserTier.FREE.name());
                     profileRepository.save(profile);
                 }
@@ -458,10 +452,8 @@ public class BillingService {
                 .orElseThrow(() -> new BusinessRuleException("Bạn chưa có gói B2C đang hoạt động"));
         active.setIsActive(false);
         b2cSubscriptionRepository.save(active);
-        if (profile.getOrgId() == null) {
-            profile.setTier(UserTier.FREE.name());
-            profileRepository.save(profile);
-        }
+        profile.setTier(UserTier.FREE.name());
+        profileRepository.save(profile);
         return new B2cBillingStatus(
                 profile.getTier() == null ? UserTier.FREE.name() : profile.getTier(),
                 active.getEndDate(),
@@ -520,10 +512,8 @@ public class BillingService {
             if (active.getEndDate() != null && active.getEndDate().isBefore(LocalDate.now(VN_ZONE))) {
                 active.setIsActive(false);
                 b2cSubscriptionRepository.save(active);
-                if (profile.getOrgId() == null) {
-                    profile.setTier(UserTier.FREE.name());
-                    profileRepository.save(profile);
-                }
+                profile.setTier(UserTier.FREE.name());
+                profileRepository.save(profile);
             }
         });
     }
@@ -557,6 +547,13 @@ public class BillingService {
                 limits.maxCcu(),
                 limits.maxVerifiedAccounts(),
                 limits.maxAiQueriesPerMonth());
+    }
+
+    private void requireBillingOwner(Profile profile, UUID orgId) {
+        if (UserRole.ADMIN == UserRole.fromStored(profile.getRole())) return;
+        boolean owner = organizationMemberRepository.findByOrganizationIdAndUserId(orgId, profile.getId())
+                .filter(member -> member.getAcceptedAt() != null && "owner".equalsIgnoreCase(member.getOrgRole())).isPresent();
+        if (!owner) throw new BusinessRuleException("Chỉ chủ tổ chức mới được thay đổi gói B2B");
     }
 
     private static String slugify(String name) {

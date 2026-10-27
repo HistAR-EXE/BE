@@ -5,8 +5,8 @@ import com.histar.be.billing.repository.UsageQuotaRepository;
 import com.histar.be.common.exception.QuotaExceededException;
 import com.histar.be.config.HistarOrgProperties;
 import com.histar.be.organization.entity.Organization;
-import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.organization.repository.OrganizationRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
 import com.histar.be.profile.entity.UserTier;
@@ -33,6 +33,7 @@ public class UsageQuotaService {
     private final HistarOrgProperties histarOrgProperties;
     private final BillingSettingsService billingSettingsService;
     private final TierAccessService tierAccessService;
+    private final OrganizationEntitlementService organizationEntitlements;
 
     @Value("${gemini.daily-message-limit:10}")
     private int legacyDailyLimit;
@@ -40,14 +41,16 @@ public class UsageQuotaService {
     @Transactional(readOnly = true)
     public void assertCanSendChat(UUID userId) {
         Profile profile = profileRepository.findById(userId).orElse(null);
-        if (profile == null || hasUnlimitedChat(profile)) {
+        if (profile == null) {
             return;
         }
 
         if (profile.getOrgId() != null) {
+            organizationEntitlements.requireActiveMembership(profile);
             assertOrgMonthlyQuota(profile.getOrgId());
             return;
         }
+        if (hasUnlimitedChat(profile)) return;
 
         int limit = resolveFreeDailyLimit();
         int used = getUserDailyUsage(userId);
@@ -72,7 +75,7 @@ public class UsageQuotaService {
     @Transactional(readOnly = true)
     public boolean shouldIncludeChatSources(UUID userId, String siteCode) {
         Profile profile = profileRepository.findById(userId).orElse(null);
-        if (profile != null && hasUnlimitedChat(profile)) {
+        if (profile != null && tierAccessService.hasPremiumAccess(userId)) {
             return true;
         }
         return tierAccessService.hasActiveJourneyPass(userId, siteCode);
@@ -81,15 +84,20 @@ public class UsageQuotaService {
     @Transactional
     public void recordChatSuccess(UUID userId) {
         Profile profile = profileRepository.findById(userId).orElse(null);
-        if (profile == null || hasUnlimitedChat(profile)) {
+        if (profile == null) {
             return;
         }
 
         LocalDate vnDay = LocalDate.now(VN_ZONE);
         if (profile.getOrgId() != null) {
+            organizationEntitlements.requireActiveMembership(profile);
+            organizationRepository.findByIdForUpdate(profile.getOrgId())
+                    .orElseThrow(() -> new QuotaExceededException("Tổ chức không tồn tại", UPGRADE_URL, "ORG_MONTHLY", null));
+            assertOrgMonthlyQuota(profile.getOrgId());
             incrementOrgMonthly(profile.getOrgId(), vnDay);
             return;
         }
+        if (hasUnlimitedChat(profile)) return;
 
         incrementUserDaily(userId, vnDay);
     }
@@ -125,9 +133,6 @@ public class UsageQuotaService {
 
     @Transactional(readOnly = true)
     public int getUserDailyLimit(Profile profile) {
-        if (hasUnlimitedChat(profile)) {
-            return -1;
-        }
         if (profile.getOrgId() != null) {
             Organization org = organizationRepository.findById(profile.getOrgId()).orElse(null);
             if (org != null && org.getMaxAiQueriesPerMonth() == null) {
@@ -135,6 +140,7 @@ public class UsageQuotaService {
             }
             return org != null && org.getMaxAiQueriesPerMonth() != null ? org.getMaxAiQueriesPerMonth() : 5_000;
         }
+        if (hasUnlimitedChat(profile)) return -1;
         return resolveFreeDailyLimit();
     }
 
@@ -155,7 +161,7 @@ public class UsageQuotaService {
 
     private void assertOrgMonthlyQuota(UUID orgId) {
         Organization org = organizationRepository.findById(orgId).orElse(null);
-        if (org == null || isOrgPlanExpired(org)) {
+        if (!OrganizationEntitlementService.isActive(org)) {
             throw new QuotaExceededException(
                     "Gói tổ chức đã hết hạn hoặc không hợp lệ. Liên hệ quản trị viên trường.",
                     UPGRADE_URL,
@@ -198,11 +204,8 @@ public class UsageQuotaService {
         if (role == UserRole.ADMIN) {
             return true;
         }
-        if (profile.getOrgId() != null) {
-            Organization org = organizationRepository.findById(profile.getOrgId()).orElse(null);
-            return org != null && !isOrgPlanExpired(org);
-        }
-        return UserTier.PREMIUM == UserTier.fromStored(profile.getTier());
+        return UserTier.PREMIUM == UserTier.fromStored(profile.getTier())
+                || organizationEntitlements.hasActiveMembership(profile);
     }
 
     private boolean hasUnlimitedChat(Profile profile) {
@@ -210,30 +213,10 @@ public class UsageQuotaService {
         if (role == UserRole.ADMIN) {
             return true;
         }
-        if (role == UserRole.TEACHER && profile.getOrgId() == null) {
-            return true;
-        }
         if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier()) && profile.getOrgId() == null) {
             return true;
         }
-        if (profile.getOrgId() != null) {
-            Organization org = organizationRepository.findById(profile.getOrgId()).orElse(null);
-            if (org != null && !isOrgPlanExpired(org)) {
-                OrgSubscription plan = OrgSubscription.fromPlanType(
-                        org.getPlanType() != null ? org.getPlanType() : org.getPlan());
-                if (plan == OrgSubscription.PREMIUM || org.getMaxAiQueriesPerMonth() == null) {
-                    return true;
-                }
-            }
-        }
         return false;
-    }
-
-    private static boolean isOrgPlanExpired(Organization org) {
-        if (org.getPlanEndDate() == null) {
-            return false;
-        }
-        return org.getPlanEndDate().isBefore(LocalDate.now(VN_ZONE));
     }
 
     private void incrementUserDaily(UUID userId, LocalDate vnDay) {

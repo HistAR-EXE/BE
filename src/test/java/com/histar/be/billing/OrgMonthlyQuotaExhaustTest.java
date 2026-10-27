@@ -40,6 +40,9 @@ class OrgMonthlyQuotaExhaustTest {
     private OrganizationRepository organizationRepository;
 
     @Autowired
+    private com.histar.be.organization.repository.OrganizationMemberRepository organizationMemberRepository;
+
+    @Autowired
     private ProfileRepository profileRepository;
 
     @Autowired
@@ -50,6 +53,7 @@ class OrgMonthlyQuotaExhaustTest {
         Organization org = organizationRepository.save(Organization.builder()
                 .name("Quota Test Org")
                 .planType("MICRO")
+                .status("ACTIVE")
                 .maxAiQueriesPerMonth(5)
                 .maxCcu(15)
                 .maxVerifiedAccounts(100)
@@ -71,6 +75,9 @@ class OrgMonthlyQuotaExhaustTest {
                 .createdAt(Instant.now())
                 .build());
 
+        organizationMemberRepository.save(com.histar.be.organization.entity.OrganizationMember.builder()
+                .organizationId(org.getId()).userId(student.getId()).orgRole("student")
+                .invitedAt(Instant.now()).acceptedAt(Instant.now()).build());
         LocalDate vnDay = LocalDate.now(VN_ZONE);
         usageQuotaRepository.save(UsageQuota.builder()
                 .organizationId(org.getId())

@@ -5,6 +5,7 @@ import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
+import com.histar.be.organization.service.OrganizationEntitlementService;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class MultiplayerAccessService {
 
     private final ProfileRepository profileRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrganizationEntitlementService organizationEntitlements;
 
     public void assertMultiplayerAccess(UUID userId) {
         Profile profile = profileRepository.findById(userId).orElseThrow(() -> new BusinessRuleException("User not found"));
@@ -33,6 +35,7 @@ public class MultiplayerAccessService {
             throw new BusinessRuleException(
                     "Multiplayer Experience cần gói Standard hoặc Premium. Gói hiện tại: " + (plan != null ? plan : "MICRO"));
         }
+        organizationEntitlements.requireActiveMembership(profile);
     }
 
     public boolean hasMultiplayerAccess(UUID userId) {

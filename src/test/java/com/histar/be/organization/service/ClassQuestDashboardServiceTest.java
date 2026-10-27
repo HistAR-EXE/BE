@@ -2,6 +2,7 @@ package com.histar.be.organization.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.organization.entity.OrganizationMember;
@@ -37,8 +38,8 @@ class ClassQuestDashboardServiceTest {
         UUID actor = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
         UUID campaignId = UUID.randomUUID();
-        when(orgAccessService.isPlatformAdmin()).thenReturn(false);
-        when(orgAccessService.isOrgTeacher(actor, orgId)).thenReturn(false);
+        doThrow(new BusinessRuleException("Không có quyền truy cập organization này"))
+                .when(orgAccessService).requireOrgAccess(actor, orgId);
 
         assertThatThrownBy(() -> service.summary(actor, orgId, campaignId))
                 .isInstanceOf(BusinessRuleException.class)
@@ -58,7 +59,6 @@ class ClassQuestDashboardServiceTest {
                 .thenReturn(Optional.empty());
         when(rewards.findByUserIdAndQuestId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(questId)))
                 .thenReturn(java.util.List.of());
-        when(orgAccessService.isPlatformAdmin()).thenReturn(true);
 
         service.summary(UUID.randomUUID(), orgId, campaignId);
     }

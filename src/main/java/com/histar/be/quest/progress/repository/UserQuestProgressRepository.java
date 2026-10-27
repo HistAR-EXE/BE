@@ -13,6 +13,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface UserQuestProgressRepository extends JpaRepository<UserQuestProgress, UUID> {
 
+    @Query("select count(distinct p.questId) from UserQuestProgress p where p.userId = :userId and lower(p.status) = 'completed'")
+    long countDistinctCompletedQuests(@Param("userId") UUID userId);
+
     Optional<UserQuestProgress> findByUserIdAndQuestId(UUID userId, UUID questId);
 
     List<UserQuestProgress>
