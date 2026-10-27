@@ -8,6 +8,7 @@ import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.GetObjectArgs;
 import io.minio.SetBucketPolicyArgs;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,26 @@ public class MinioMediaStorageService implements MediaStorageService {
             minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             String policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":\"arn:aws:s3:::" + bucket + "/*\"}]}";
             minioClient.setBucketPolicy(SetBucketPolicyArgs.builder().bucket(bucket).config(policy).build());
+        }
+    }
+
+    @Override
+    public byte[] downloadImage(String objectUrl) {
+        String prefix = minioProperties.getPublicUrl().replaceAll("/$", "") + "/" + minioProperties.getBucket() + "/";
+        if (objectUrl == null || !objectUrl.startsWith(prefix)) {
+            throw new BusinessRuleException("Đường dẫn ảnh không hợp lệ");
+        }
+        String objectKey = objectUrl.substring(prefix.length());
+        if (!objectKey.startsWith("creations/") || objectKey.contains("..") || objectKey.isBlank()) {
+            throw new BusinessRuleException("Đường dẫn ảnh không hợp lệ");
+        }
+        try (var stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(minioProperties.getBucket())
+                .object(objectKey)
+                .build())) {
+            return stream.readAllBytes();
+        } catch (Exception ex) {
+            throw new BusinessRuleException("Tải ảnh thất bại");
         }
     }
 

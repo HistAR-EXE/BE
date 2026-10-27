@@ -88,6 +88,7 @@ gamification:
   level-thresholds: ${GAMIFICATION_LEVEL_THRESHOLDS:0,100,300,600,1000}
   level-names: ${GAMIFICATION_LEVEL_NAMES:Lữ hành mới,Nhà khám phá,Sử học gia,Người gìn giữ di sản,Huyền thoại lịch sử}
   rules-engine-enabled: ${GAMIFICATION_RULES_ENGINE_ENABLED:false}
+  heritage-photo-bonus-points: ${GAMIFICATION_HERITAGE_PHOTO_BONUS_POINTS:10}
 
 presence:
   # Empty = accept unsigned station QR (DEMO only). Set in production to require HMAC-SHA256.

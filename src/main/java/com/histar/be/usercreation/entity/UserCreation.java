@@ -34,6 +34,13 @@ public class UserCreation {
     private String outputUrl;
 
     private String variant;
+    @Column(nullable = false, length = 16)
+    private String kind;
+    private String siteCode;
+    private String stationCode;
+    private String roleId;
+    private Integer era;
+    private String source;
     private Instant sharedAt;
     private Instant createdAt;
 }

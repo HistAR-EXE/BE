@@ -1,5 +1,5 @@
 ﻿-- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V94.
+-- Generated from schema, seed manifest, and Flyway migrations through V95.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -10506,6 +10506,25 @@ WHERE id IN (SELECT id FROM legacy_analytics_seed_users);
 
 -- END migration: V94__remove_legacy_analytics_demo_seed.sql
 COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V95__user_creations_heritage_context.sql
+-- Source: D:\FPT\SU26\EXE101\HistAR\BE\src\main\resources\db\migration\V95__user_creations_heritage_context.sql
+-- ============================================================================
+ALTER TABLE user_creations
+    ADD COLUMN IF NOT EXISTS kind varchar(16) NOT NULL DEFAULT 'original',
+    ADD COLUMN IF NOT EXISTS site_code varchar(64),
+    ADD COLUMN IF NOT EXISTS station_code varchar(16),
+    ADD COLUMN IF NOT EXISTS role_id varchar(128),
+    ADD COLUMN IF NOT EXISTS era smallint,
+    ADD COLUMN IF NOT EXISTS source varchar(32);
+
+CREATE INDEX IF NOT EXISTS idx_user_creations_station
+    ON user_creations (station_code, created_at DESC);
+
+-- END migration: V95__user_creations_heritage_context.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -10677,7 +10696,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V94
+-- Flyway baseline after full bootstrap: V95
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -10704,7 +10723,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '94', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '95', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 
