@@ -59,4 +59,7 @@ public interface CheckinRepository extends JpaRepository<Checkin, UUID> {
             @Param("userId") UUID userId, @Param("locationId") UUID locationId);
 
     boolean existsByUserIdAndLocationIdAndStationCodeIgnoreCase(UUID userId, UUID locationId, String stationCode);
+
+    boolean existsByUserIdAndLocationIdAndStationCodeIgnoreCaseAndPresenceMethodAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            UUID userId, UUID locationId, String stationCode, String presenceMethod, Instant from, Instant to);
 }

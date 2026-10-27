@@ -12,6 +12,7 @@ public class GamificationProperties {
     private String levelNames =
             "Lữ hành mới,Nhà khám phá,Sử học gia,Người gìn giữ di sản,Huyền thoại lịch sử";
     private boolean rulesEngineEnabled = false;
+    private int heritagePhotoBonusPoints = 10;
 
     public int getCheckinRadiusMeters() {
         return checkinRadiusMeters;
@@ -57,5 +58,13 @@ public class GamificationProperties {
 
     public void setRulesEngineEnabled(boolean rulesEngineEnabled) {
         this.rulesEngineEnabled = rulesEngineEnabled;
+    }
+
+    public int getHeritagePhotoBonusPoints() {
+        return heritagePhotoBonusPoints;
+    }
+
+    public void setHeritagePhotoBonusPoints(int heritagePhotoBonusPoints) {
+        this.heritagePhotoBonusPoints = heritagePhotoBonusPoints;
     }
 }

@@ -1,5 +1,5 @@
 -- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V96.
+-- Generated from schema, seed manifest, and Flyway migrations through V97.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -10509,8 +10509,27 @@ COMMIT;
 BEGIN;
 
 -- ============================================================================
--- BEGIN migration: V95__organization_email_invitations.sql
--- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V95__organization_email_invitations.sql
+-- BEGIN migration: V95__user_creations_heritage_context.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V95__user_creations_heritage_context.sql
+-- ============================================================================
+ALTER TABLE user_creations
+    ADD COLUMN IF NOT EXISTS kind varchar(16) NOT NULL DEFAULT 'original',
+    ADD COLUMN IF NOT EXISTS site_code varchar(64),
+    ADD COLUMN IF NOT EXISTS station_code varchar(16),
+    ADD COLUMN IF NOT EXISTS role_id varchar(128),
+    ADD COLUMN IF NOT EXISTS era smallint,
+    ADD COLUMN IF NOT EXISTS source varchar(32);
+
+CREATE INDEX IF NOT EXISTS idx_user_creations_station
+    ON user_creations (station_code, created_at DESC);
+
+-- END migration: V95__user_creations_heritage_context.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V96__organization_email_invitations.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V96__organization_email_invitations.sql
 -- ============================================================================
 -- Email-bound invitations: organization Premium is derived, never persisted as personal tier.
 CREATE TABLE organization_email_invitations (
@@ -10530,13 +10549,13 @@ CREATE TABLE organization_email_invitations (
 );
 CREATE INDEX idx_org_invitation_pending_email ON organization_email_invitations(email) WHERE status = 'PENDING';
 
--- END migration: V95__organization_email_invitations.sql
+-- END migration: V96__organization_email_invitations.sql
 COMMIT;
 BEGIN;
 
 -- ============================================================================
--- BEGIN migration: V96__org_report_snapshots.sql
--- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V96__org_report_snapshots.sql
+-- BEGIN migration: V97__org_report_snapshots.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V97__org_report_snapshots.sql
 -- ============================================================================
 -- Immutable teacher reports captured from the server's live board.
 CREATE TABLE org_report_snapshots (
@@ -10549,7 +10568,7 @@ CREATE TABLE org_report_snapshots (
 CREATE INDEX idx_org_report_snapshots_recent
     ON org_report_snapshots (organization_id, created_at DESC);
 
--- END migration: V96__org_report_snapshots.sql
+-- END migration: V97__org_report_snapshots.sql
 COMMIT;
 
 -- ============================================================================
@@ -10722,7 +10741,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V96
+-- Flyway baseline after full bootstrap: V97
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -10749,7 +10768,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '96', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '97', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 
