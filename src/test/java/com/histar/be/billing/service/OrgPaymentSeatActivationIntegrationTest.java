@@ -36,7 +36,7 @@ class OrgPaymentSeatActivationIntegrationTest {
  }
  void member(UUID user,String role){members.save(OrganizationMember.builder().organizationId(org).userId(user).orgRole(role).invitedAt(Instant.now()).acceptedAt(Instant.now()).build());}
  void fill(int total){while(members.countByOrganizationId(org)<total)member(profile().getId(),"student");}
- OrgPaymentTransaction pending(){return payments.save(OrgPaymentTransaction.builder().requesterUserId(owner).organizationId(org).orgName("Seat test").contactEmail("owner@seat.test").planType("MICRO").provider("SEPAY").orderCode("SEAT"+UUID.randomUUID()).transferContent("seat fixture").amountVnd(8000000L).licenseCount(1).grossAmountVnd(8000000L).discountAmountVnd(0L).status("PENDING").expiresAt(Instant.now().plusSeconds(600)).createdAt(Instant.now()).updatedAt(Instant.now()).build());}
+ OrgPaymentTransaction pending(){return payments.save(OrgPaymentTransaction.builder().requesterUserId(owner).organizationId(org).orgName("Seat test").contactEmail("owner@seat.test").planType("MICRO").provider("SEPAY").orderCode("SEAT"+UUID.randomUUID()).transferContent("seat fixture "+UUID.randomUUID()).amountVnd(8000000L).licenseCount(1).grossAmountVnd(8000000L).discountAmountVnd(0L).status("PENDING").expiresAt(Instant.now().plusSeconds(600)).createdAt(Instant.now()).updatedAt(Instant.now()).build());}
  @Test void downgradePaymentIsBlockedBeforeCollectingMoneyWhenRosterExceedsNewLimit(){
   fill(101);
   assertThatThrownBy(()->sepay.createPayment(owner,new OrgCreatePaymentRequest("Seat test","MICRO","owner@seat.test",org,null,1))).isInstanceOf(BusinessRuleException.class).hasMessageContaining("100");

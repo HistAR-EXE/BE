@@ -63,7 +63,7 @@ class ExploreRewardIntegrationTest {
 
     private UUID account(int xp) {
         return profiles.save(Profile.builder().email(UUID.randomUUID() + "@integrity.test")
-                .displayName("Integrity test").role("USER").tier("FREE").emailVerified(true)
+                .displayName("Integrity test").role("USER").tier("PREMIUM").emailVerified(true)
                 .totalPoints(xp).level(1).build()).getId();
     }
     private ExploreService.AttemptResponse submit(UUID who, String key, Integer answer) {

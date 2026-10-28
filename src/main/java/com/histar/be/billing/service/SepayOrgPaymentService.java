@@ -61,13 +61,19 @@ public class SepayOrgPaymentService {
         }
 
         Organization existingOrg = resolveOrganization(profile, request.organizationId());
+        if (existingOrg != null) {
+            organizationRepository.findByIdForUpdate(existingOrg.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+            com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(
+                    organizationMemberRepository.countByOrganizationId(existingOrg.getId()), plan);
+        }
         String orgName = resolveOrgName(request.orgName(), existingOrg);
         String contactEmail = resolveContactEmail(request.contactEmail(), profile.getEmail(), existingOrg);
         long unitPriceVnd = OrgPlanLimits.forPlan(plan).priceVnd();
         if (unitPriceVnd <= 0) {
             throw new BusinessRuleException("Giá gói B2B không hợp lệ.");
         }
-        int licenseCount = request.licenseCount() != null && request.licenseCount() > 0 ? request.licenseCount() : 1;
+        int licenseCount = com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireSingleLicense(request.licenseCount());
         BillingSettingsService.OrgVolumePricing pricing =
                 billingSettingsService.calculateOrgVolumePricing(unitPriceVnd, licenseCount);
         long amountVnd = pricing.totalVnd();
@@ -137,13 +143,19 @@ public class SepayOrgPaymentService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Organization not found: " + request.organizationId()));
         }
+        if (existingOrg != null) {
+            organizationRepository.findByIdForUpdate(existingOrg.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+            com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(
+                    organizationMemberRepository.countByOrganizationId(existingOrg.getId()), plan);
+        }
         String orgName = resolveOrgName(request.orgName(), existingOrg);
         String contactEmail = resolveContactEmail(request.contactEmail(), null, existingOrg);
         long unitPriceVnd = OrgPlanLimits.forPlan(plan).priceVnd();
         if (unitPriceVnd <= 0) {
             throw new BusinessRuleException("Giá gói B2B không hợp lệ.");
         }
-        int licenseCount = request.licenseCount() != null && request.licenseCount() > 0 ? request.licenseCount() : 1;
+        int licenseCount = com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireSingleLicense(request.licenseCount());
         BillingSettingsService.OrgVolumePricing pricing =
                 billingSettingsService.calculateOrgVolumePricing(unitPriceVnd, licenseCount);
         long amountVnd = pricing.totalVnd();

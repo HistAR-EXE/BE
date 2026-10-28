@@ -61,7 +61,7 @@ class RagOrchestrationRegressionTest {
     @BeforeEach void setup() {
         when(characters.findEnabledChatAgentById(character)).thenReturn(CharacterEntity.builder()
                 .id(character).locationId(location).name("Chrono").personaPrompt("persona").build());
-        when(locations.findById(location)).thenReturn(Location.builder().id(location).name("Cu Chi")
+        org.mockito.Mockito.lenient().when(locations.findById(location)).thenReturn(Location.builder().id(location).name("Cu Chi")
                 .siteCode("cu-chi").sources("Generic location source").build());
         when(conversations.findById(conversation)).thenReturn(Optional.of(Conversation.builder()
                 .id(conversation).userId(user).characterId(character).build()));
@@ -247,8 +247,8 @@ class RagOrchestrationRegressionTest {
     @Test void streamingPublisherCancellationReleasesReservationBeforePersistence() {
         UUID token=UUID.randomUUID();when(limiter.reserve(user)).thenReturn(token);
         when(semantic.tryAnswerStreaming(any(),any())).thenAnswer(invocation->{
-            java.util.function.Consumer<ChatStreamChunk> publisher=invocation.getArgument(1);
-            publisher.accept(new ChatStreamChunk("chunk",List.of(new ChatSource("source","evidence",null,"PLATFORM"))));
+            java.util.function.Consumer<com.histar.be.rag.dto.RagStreamChunk> publisher=invocation.getArgument(1);
+            publisher.accept(new com.histar.be.rag.dto.RagStreamChunk("chunk",List.of(new ChatSource("source","evidence",null,"PLATFORM"))));
             return Optional.empty();
         });
         assertThatThrownBy(()->service.prepareOrchestratedStreaming(user,new ChatMessageRequest(character,"Địa đạo được xây dựng năm nào?",conversation),chunk->{throw new IllegalStateException("disconnected");})).hasMessage("disconnected");
