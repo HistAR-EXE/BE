@@ -15,6 +15,6 @@ public interface OrgActiveSessionRepository extends JpaRepository<OrgActiveSessi
     int countActiveByOrgId(@Param("orgId") UUID orgId, @Param("since") Instant since);
 
     @Modifying
-    @Query("DELETE FROM OrgActiveSession s WHERE s.lastSeenAt < :cutoff")
-    int deleteStale(@Param("cutoff") Instant cutoff);
+    @Query("DELETE FROM OrgActiveSession s WHERE s.orgId = :orgId AND s.userId <> :userId AND s.lastSeenAt < :cutoff")
+    int deleteStaleOtherSessions(@Param("orgId") UUID orgId, @Param("userId") UUID userId, @Param("cutoff") Instant cutoff);
 }

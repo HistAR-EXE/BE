@@ -9,7 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.histar.be.billing.service.MultiplayerAccessService;
+
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.common.exception.ResourceNotFoundException;
 import com.histar.be.config.HistarOrgProperties;
@@ -26,7 +26,7 @@ import com.histar.be.group.entity.StudyGroup;
 import com.histar.be.group.entity.StudyGroupMember;
 import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.group.repository.StudyGroupRepository;
-import com.histar.be.group.service.GroupService;
+import com.histar.be.fieldtrip.service.TripGroupService;
 import com.histar.be.lms.service.LmsAssignmentService;
 import com.histar.be.organization.entity.Organization;
 import com.histar.be.organization.repository.OrganizationRepository;
@@ -79,10 +79,7 @@ class FieldTripJoinServiceTest {
     @Mock
     private QuestRepository questRepository;
 
-    @Mock
-    private MultiplayerAccessService multiplayerAccessService;
-
-    @Mock
+@Mock
     private LmsAssignmentService lmsAssignmentService;
 
     @Mock
@@ -99,15 +96,11 @@ class FieldTripJoinServiceTest {
         HistarOrgProperties orgProperties = new HistarOrgProperties();
         orgProperties.getGroup().setMaxGroupsPerUser(20);
         orgProperties.getGroup().setCodeTtlDays(30);
-        GroupService groupService = new GroupService(
+        TripGroupService groupService = new TripGroupService(
                 studyGroupRepository,
                 studyGroupMemberRepository,
-                profileRepository,
-                userQuestProgressRepository,
-                questRepository,
-                orgProperties,
-                multiplayerAccessService,
-                null);
+orgProperties,
+null);
         fieldTripJoinService = new FieldTripJoinService(
                 fieldTripRepository,
                 studyGroupRepository,
@@ -207,7 +200,6 @@ class FieldTripJoinServiceTest {
         verify(studyGroupMemberRepository, never()).save(any());
         verify(profileRepository, never()).findById(any());
         verify(profileRepository, never()).save(any());
-        verify(multiplayerAccessService, never()).assertMultiplayerAccess(any());
     }
 
     @Test
@@ -400,7 +392,6 @@ class FieldTripJoinServiceTest {
         assertThat(response.fieldTripId()).isEqualTo(trip.getId());
         verify(studyGroupRepository, never()).save(any());
         verify(profileRepository, never()).save(any());
-        verify(multiplayerAccessService, never()).assertMultiplayerAccess(any());
     }
 
     @Test

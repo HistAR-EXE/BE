@@ -61,7 +61,7 @@ public class OrganizationEntitlementService {
         boolean standard = plan == OrgSubscription.STANDARD || plan == OrgSubscription.PREMIUM;
         boolean premium = plan == OrgSubscription.PREMIUM;
         return new OrgCapabilities(manager, manager && owner, manager && standard, manager && standard,
-                manager && standard, eligible && standard, manager && premium, manager && premium, active, eligible);
+                manager && standard, manager && premium, manager && premium, active, eligible);
     }
 
     public void requireCapability(UUID userId, UUID orgId, String capability) {
@@ -72,7 +72,6 @@ public class OrganizationEntitlementService {
             case "assignments" -> rights.assignments();
             case "liveBoard" -> rights.liveBoard();
             case "reports" -> rights.reports();
-            case "groups" -> rights.groups();
             case "fieldTrips" -> rights.fieldTrips();
             case "contentDrafts" -> rights.contentDrafts();
             default -> false;
