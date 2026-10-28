@@ -66,6 +66,18 @@ class UsageQuotaServiceTest {
     }
 
     @Test
+    void validPersonalPremiumSurvivesExpiredOrganizationForChat() {
+        UUID id=UUID.randomUUID();
+        var profile=Profile.builder().id(id).orgId(UUID.randomUUID()).tier("PREMIUM").build();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(profile));
+        when(tierAccessService.hasPersonalPremiumAccess(profile)).thenReturn(true);
+        usageQuotaService.assertCanSendChat(id);
+        assertThat(usageQuotaService.getUserDailyLimit(profile)).isEqualTo(-1);
+        usageQuotaService.recordChatSuccess(id);
+        verify(usageQuotaRepository,never()).save(any());
+    }
+
+    @Test
     void assertCanSendChat_throwsWhenFreeUserExceedsDailyLimit() {
         stubDailyLimit();
         UUID userId = UUID.randomUUID();
@@ -107,6 +119,7 @@ class UsageQuotaServiceTest {
     void assertCanSendChat_allowsPremiumUser() {
         UUID userId = UUID.randomUUID();
         Profile profile = Profile.builder().id(userId).tier(UserTier.PREMIUM.name()).role("USER").build();
+        when(tierAccessService.hasPersonalPremiumAccess(profile)).thenReturn(true);
         when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
 
         usageQuotaService.assertCanSendChat(userId);

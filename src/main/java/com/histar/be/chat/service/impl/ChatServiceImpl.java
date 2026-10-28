@@ -77,6 +77,7 @@ public class ChatServiceImpl implements ChatService {
     private final RagAiChatClient ragAiChatClient;
     private final ChatRateLimiter chatRateLimiter;
     private final UsageQuotaService usageQuotaService;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
     private final ProfileRepository profileRepository;
     private final UserArtifactRepository userArtifactRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
@@ -92,7 +93,6 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    @Transactional
     public ChatResponse chat(UUID userId, ChatRequest request) {
         return sendOrchestrated(userId,
                 new ChatMessageRequest(request.characterId(), request.message(), request.conversationId()));
@@ -124,14 +124,19 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    @Transactional
     public ChatResponse sync(UUID userId, ChatSyncRequest request) {
         if (userId == null) {
             throw new AuthException("Unauthorized");
         }
         assertEmailVerified(userId);
-        chatRateLimiter.checkAndIncrement(userId);
+        UUID token = chatRateLimiter.reserve(userId);
+        try {
+            return new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                    .execute(status -> syncReserved(userId, request, token));
+        } finally { chatRateLimiter.release(userId, token); }
+    }
 
+    private ChatResponse syncReserved(UUID userId, ChatSyncRequest request, UUID token) {
         CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
         ChatRequest convRequest = new ChatRequest(request.characterId(), request.userMessage(), request.conversationId());
         Conversation conversation = resolveConversation(userId, convRequest, character.getId());
@@ -150,39 +155,41 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build());
 
-        chatRateLimiter.recordSuccess(userId);
+        chatRateLimiter.settle(userId, token);
         log.info("chat sync userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
         return new ChatResponse(request.assistantReply(), conversation.getId(), List.of());
     }
 
     @Override
-    @Transactional
     public ChatResponse sendOrchestrated(UUID userId, ChatMessageRequest request) {
         PreparedChatResponse prepared = prepareOrchestrated(userId, request);
-        return persistPrepared(userId, request, prepared);
+        try {
+            return new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                    .execute(status -> persistPrepared(userId, request, prepared));
+        } finally { cancelPrepared(userId, prepared); }
     }
 
     @Override
-    @Transactional
     public PreparedChatResponse prepareOrchestrated(UUID userId, ChatMessageRequest request) {
         return prepareOrchestrated(userId, request, null);
     }
 
     @Override
-    @Transactional
     public PreparedChatResponse prepareOrchestratedStreaming(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher) {
         return prepareOrchestrated(userId, request, publisher);
     }
 
     private PreparedChatResponse prepareOrchestrated(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher) {
-        if (userId == null) {
-            throw new AuthException("Unauthorized");
-        }
+        if (userId == null) throw new AuthException("Unauthorized");
         assertEmailVerified(userId);
         boolean questHint = com.histar.be.chat.service.QuestChatHints.isExempt(request.message());
-        if (!questHint) {
-            chatRateLimiter.checkAndIncrement(userId);
-        }
+        UUID token = questHint ? null : chatRateLimiter.reserve(userId);
+        try { return generateReserved(userId, request, publisher, questHint, token); }
+        catch (RuntimeException | Error failure) { chatRateLimiter.release(userId, token); throw failure; }
+    }
+
+    private PreparedChatResponse generateReserved(UUID userId, ChatMessageRequest request, Consumer<ChatStreamChunk> publisher,
+            boolean questHint, UUID token) {
         long startedNanos = System.nanoTime();
 
         CharacterEntity character = characterService.findEnabledChatAgentById(request.characterId());
@@ -308,15 +315,17 @@ public class ChatServiceImpl implements ChatService {
             reply = reply.replaceAll("\\s*\\[\\d{1,2}]", "");
         }
 
+        if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Chat cancelled");
         return new PreparedChatResponse(
                 conversation.getId(), reply, visibleSources, answerSource, questHint, startedNanos,
                 knowledgeRoute.intent(),
-                knowledgeRoute.scopes().contains(ChatKnowledgeRoute.KnowledgeScope.USER_STATE));
+                knowledgeRoute.scopes().contains(ChatKnowledgeRoute.KnowledgeScope.USER_STATE), token);
     }
 
     @Override
     @Transactional
     public ChatResponse persistPrepared(UUID userId, ChatMessageRequest request, PreparedChatResponse prepared) {
+        if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Chat cancelled");
         if (userId == null || prepared == null) {
             throw new AuthException("Unauthorized");
         }
@@ -336,11 +345,16 @@ public class ChatServiceImpl implements ChatService {
         log.info("chat orchestrated userId={} characterId={} conversationId={}", userId, request.characterId(), conversation.getId());
         recordChatAnswer(prepared.answerSource(), prepared.startedNanos(), true);
         if (!prepared.questHint()) {
-            chatRateLimiter.recordSuccess(userId);
+            chatRateLimiter.settle(userId, prepared.quotaReservationId());
         }
         return new ChatResponse(
                 prepared.reply(), conversation.getId(), prepared.sources(), prepared.knowledgeIntent(),
                 prepared.userStateGrounded());
+    }
+
+    @Override
+    public void cancelPrepared(UUID userId, PreparedChatResponse prepared) {
+        if (prepared != null) chatRateLimiter.release(userId, prepared.quotaReservationId());
     }
 
     private static String publicAnswerSource(String cache) {

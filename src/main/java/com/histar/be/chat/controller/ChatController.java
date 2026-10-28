@@ -88,7 +88,7 @@ public class ChatController {
         AtomicBoolean completed = new AtomicBoolean(false);
         Map<String, String> context = MDC.getCopyOfContextMap();
         String requestId = MDC.get("requestId");
-        CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
+        java.util.concurrent.FutureTask<Void> task = new java.util.concurrent.FutureTask<>(() -> {
             Map<String, String> previous = MDC.getCopyOfContextMap();
             try {
                 if (context == null) MDC.clear(); else MDC.setContextMap(context);
@@ -119,7 +119,8 @@ public class ChatController {
             } finally {
                 if (previous == null) MDC.clear(); else MDC.setContextMap(previous);
             }
-        });
+        }, null);
+        CompletableFuture.runAsync(task);
         emitter.onCompletion(() -> {
             if (completed.compareAndSet(false, true) && !task.isDone()) {
                 task.cancel(true);

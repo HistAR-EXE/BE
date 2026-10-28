@@ -134,7 +134,7 @@ public class AdminOrganizationService {
     public AdminOrganizationSummaryResponse update(UUID orgId, UpdateAdminOrganizationRequest request) {
         UUID actorId = requireActor();
         Organization org = organizationRepository
-                .findById(orgId)
+                .findByIdForUpdate(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found: " + orgId));
 
         if (request.name() != null && !request.name().isBlank()) {
@@ -142,6 +142,7 @@ public class AdminOrganizationService {
         }
         if (request.planType() != null && !request.planType().isBlank()) {
             OrgSubscription plan = resolvePlan(request.planType());
+            com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(organizationMemberRepository.countByOrganizationId(orgId),plan);
             OrgPlanLimits.Limits limits = OrgPlanLimits.forPlan(plan);
             org.setPlan(plan.name().toLowerCase(Locale.ROOT));
             org.setPlanType(plan.name());

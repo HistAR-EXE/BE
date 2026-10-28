@@ -188,6 +188,20 @@ class LmsAssignmentServiceTest {
     }
 
     @Test
+    void legacyStandardAliasesAllowAssignmentsWhileLegacyMicroDoesNot() {
+        UUID teacherId=UUID.randomUUID(), orgId=UUID.randomUUID();
+        when(profileRepository.findById(teacherId)).thenReturn(Optional.of(Profile.builder().id(teacherId).orgId(orgId).emailVerified(true).build()));
+        when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId,teacherId)).thenReturn(Optional.of(
+                OrganizationMember.builder().organizationId(orgId).userId(teacherId).orgRole("teacher").acceptedAt(Instant.now()).build()));
+        for(String plan : List.of("ORG_PRO", "pro")) {
+            when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").planType(plan).build()));
+            assertThat(lmsAssignmentService.requireAssignmentTeacher(teacherId).getOrgId()).isEqualTo(orgId);
+        }
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").planType("ORG_BASIC").build()));
+        assertThatThrownBy(()->lmsAssignmentService.requireAssignmentTeacher(teacherId)).isInstanceOf(LmsPremiumRequiredException.class);
+    }
+
+    @Test
     void createAssignment_rejectsMicroTierWithUpgradeCode() {
         UUID teacherId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();

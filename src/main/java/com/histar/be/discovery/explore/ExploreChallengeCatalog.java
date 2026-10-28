@@ -37,6 +37,8 @@ public final class ExploreChallengeCatalog {
     }
 
     public static int xp(String key) {
+        int videoXp = com.histar.be.discovery.explore.video.ExploreVideoCatalog.xp(key);
+        if (videoXp > 0) return videoXp;
         if (key == null) return 0;
         if (QUIZZES.containsKey(key)) return QUIZZES.get(key).xp();
         if (CLUES.contains(key)) return key.equals("clue:ev-04") ? 40 : 30;

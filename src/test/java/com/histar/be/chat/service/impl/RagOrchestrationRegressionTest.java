@@ -37,6 +37,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class RagOrchestrationRegressionTest {
+    @Mock org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Mock CharacterService characters;
     @Mock LocationService locations;
     @Mock ConversationRepository conversations;
@@ -86,8 +87,8 @@ class RagOrchestrationRegressionTest {
         assertThat(result.reply()).isEqualTo("grounded answer");
         verifyNoInteractions(directLlm);
         verify(email).assertEmailVerified(user);
-        verify(limiter).checkAndIncrement(user);
-        verify(limiter).recordSuccess(user);
+        verify(limiter).reserve(user);
+        verify(limiter).settle(user, null);
         verify(messages, times(2)).save(any());
     }
 
@@ -99,7 +100,7 @@ class RagOrchestrationRegressionTest {
                 null, "cu-chi", UUID.randomUUID(), "interview", 1))).hasMessage("rag unavailable");
         verifyNoInteractions(directLlm, quests);
         verify(messages, never()).save(any());
-        verify(limiter, never()).recordSuccess(any());
+        verify(limiter, never()).settle(any(), any());
         verify(metrics, never()).recordChat(any(), any(), eq(true));
     }
 
@@ -226,4 +227,32 @@ class RagOrchestrationRegressionTest {
         assertThat(streamed).isEmpty();
         verifyNoInteractions(semantic);
     }
+    @Test void providerFailureReleasesReservedCapacityWithoutCharge() {
+        UUID token=UUID.randomUUID();when(limiter.reserve(user)).thenReturn(token);
+        when(ai.generateWithSources(any(),any(),any(),any(),any(),any(),any(),anyInt(),anyLong(),anyLong(),any(),any(),any()))
+                .thenThrow(new BusinessRuleException("provider failed"));
+        assertThatThrownBy(()->service.sendOrchestrated(user,new ChatMessageRequest(character,"question",conversation))).hasMessage("provider failed");
+        verify(limiter).release(user,token);verify(limiter,never()).settle(any(),any());verify(messages,never()).save(any());
+    }
+    @Test void legacySyncSettlesReservationAndAlwaysReleasesTheLease() {
+        UUID token=UUID.randomUUID();when(limiter.reserve(user)).thenReturn(token);
+        service.sync(user,new ChatSyncRequest(character,conversation,"question","server response"));
+        verify(limiter).settle(user,token);verify(limiter).release(user,token);verify(messages,times(2)).save(any());
+    }
+    @Test void exemptQuestHintsNeverReserveOrChargeChatCapacity() {
+        answer(new RagChatResponse("hint",List.of()));
+        service.sendOrchestrated(user,new ChatMessageRequest(character,"Nắp hầm Củ Chi được ngụy trang thế nào?",conversation));
+        verify(limiter,never()).reserve(any());verify(limiter,never()).settle(any(),any());
+    }
+    @Test void streamingPublisherCancellationReleasesReservationBeforePersistence() {
+        UUID token=UUID.randomUUID();when(limiter.reserve(user)).thenReturn(token);
+        when(semantic.tryAnswerStreaming(any(),any())).thenAnswer(invocation->{
+            java.util.function.Consumer<ChatStreamChunk> publisher=invocation.getArgument(1);
+            publisher.accept(new ChatStreamChunk("chunk",List.of(new ChatSource("source","evidence",null,"PLATFORM"))));
+            return Optional.empty();
+        });
+        assertThatThrownBy(()->service.prepareOrchestratedStreaming(user,new ChatMessageRequest(character,"Địa đạo được xây dựng năm nào?",conversation),chunk->{throw new IllegalStateException("disconnected");})).hasMessage("disconnected");
+        verify(limiter).release(user,token);verify(limiter,never()).settle(any(),any());verify(messages,never()).save(any());
+    }
+
 }

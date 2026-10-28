@@ -26,6 +26,7 @@ public class OrgEmailInvitationService {
     private final ProfileRepository profiles;
     private final OrganizationMemberRepository members;
     private final EntityManager entityManager;
+    private final com.histar.be.billing.service.OrgPendingSeatLimitService pendingSeats;
 
     @Transactional
     public OrgEmailInvitationResponse record(UUID orgId, UUID inviterId, String email, String deliveryStatus) {
@@ -75,6 +76,8 @@ public class OrgEmailInvitationService {
                     || !invitation.getExpiresAt().isAfter(Instant.now())) continue;
             boolean alreadyMember = members.findByOrganizationIdAndUserId(org.getId(), current.getId()).isPresent();
             int limit = org.getMaxVerifiedAccounts() == null ? 100 : org.getMaxVerifiedAccounts();
+            Integer pendingLimit = pendingSeats.pendingLimit(org.getId());
+            if (pendingLimit != null) limit = Math.min(limit, pendingLimit);
             if (!alreadyMember && members.countByOrganizationId(org.getId()) >= limit) continue;
             memberships.enrollUserInOrganization(profile.getId(), invitation.getOrganizationId());
             profile.setOrgId(org.getId());

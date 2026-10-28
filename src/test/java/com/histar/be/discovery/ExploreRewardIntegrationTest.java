@@ -23,6 +23,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class ExploreRewardIntegrationTest {
     @Autowired ExploreService explore;
+    @Autowired com.histar.be.discovery.explore.video.ExploreVideoService videos;
+    @Autowired com.histar.be.discovery.explore.video.ExploreVideoCatalog videoCatalog;
+    @Autowired com.histar.be.discovery.explore.video.ExploreVideoProgressRepository videoProgress;
     @Autowired ProfilePointsService points;
     @Autowired ProfileRepository profiles;
     @Autowired DiscoveryPointRepository catalog;
@@ -42,6 +45,7 @@ class ExploreRewardIntegrationTest {
         keys.addAll(ExploreChallengeCatalog.CLUES);
         keys.add(ExploreChallengeCatalog.CONCLUSION);
         keys.add("feature:diorama");
+        com.histar.be.discovery.explore.video.ExploreVideoCatalog.IDS.forEach(id -> keys.add("video:" + id));
         for (String key : keys) {
             if (catalog.findByUnlockKeyAndLocationId(key, ExploreChallengeCatalog.LOCATION).isEmpty()) {
                 catalog.save(DiscoveryPoint.builder().locationId(ExploreChallengeCatalog.LOCATION).name(key)
@@ -132,6 +136,22 @@ class ExploreRewardIntegrationTest {
         assertEquals(30, explore.snapshot(user).profile().totalPoints());
     }
 
+    @Test void verifiedVideoCompletionIsConcurrentSafeAndSnapshotIncludesVideoXp() throws Exception {
+        String id = "tunnel-digging";
+        var video = videoCatalog.get(id);
+        videos.start(user, id);
+        assertThrows(BusinessRuleException.class, () -> videos.complete(user, id,
+                new com.histar.be.discovery.explore.video.ExploreVideoService.Answer(video.correctOption())));
+        var progress = videoProgress.findByUserIdAndVideoId(user,id).orElseThrow();
+        progress.setWatchedSeconds(video.durationSeconds()); videoProgress.save(progress);
+        concurrent(() -> videos.complete(user,id,new com.histar.be.discovery.explore.video.ExploreVideoService.Answer(video.correctOption())),
+                () -> videos.complete(user,id,new com.histar.be.discovery.explore.video.ExploreVideoService.Answer(video.correctOption())));
+        var result = explore.snapshot(user);
+        assertEquals(30,result.profile().totalPoints()); assertEquals(30,result.archiveXp());
+        assertTrue(result.discovery().keys().contains("video:"+id));
+        assertEquals(1,ledger.findAll().stream().filter(e -> e.getUserId().equals(user) && e.getEventKey().endsWith(":video:"+id)).count());
+        assertThrows(BusinessRuleException.class, () -> submit(user,"video:"+id,video.correctOption()));
+    }
     @Test void concurrentSameChallengeCannotDoubleAward() throws Exception {
         concurrent(() -> submit(user, "depth_quiz:surface", 1), () -> submit(user, "depth_quiz:surface", 1));
         assertEquals(15, explore.snapshot(user).profile().totalPoints());

@@ -14,6 +14,22 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class ProfileUpdateValidationTest {
+    @Test void optionalDetailsValidateAndNormalize() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var valid = new UpdateProfileRequest(null,null,null,"  Nguyễn An  ","2000-01-01","UNDISCLOSED","+84 901234567","Giới thiệu","Trường A","10A","Lịch sử");
+            assertThat(valid.fullName()).isEqualTo("Nguyễn An");
+            assertThat(factory.getValidator().validate(valid)).isEmpty();
+            assertThat(factory.getValidator().validate(new UpdateProfileRequest(null,null,null,null,"2999-01-01","INVALID","abc",null,null,null,null))).isNotEmpty();
+        }
+    }
+    @Test void explicitEmptyBirthDateClearsWhileOmittedDetailsStayUnchanged() {
+        UUID id=UUID.randomUUID();
+        var profile=Profile.builder().id(id).fullName("Existing").dateOfBirth(java.time.LocalDate.of(2000,1,1)).build();
+        var service=mock(ProfileService.class); var actor=mock(CurrentUserAccessor.class);
+        when(actor.getUserId()).thenReturn(Optional.of(id)); when(service.findById(id)).thenReturn(profile); when(service.save(profile)).thenReturn(profile);
+        new ProfileController(service,mock(ProfileMeService.class),mock(BillingService.class),actor).updateProfile(new UpdateProfileRequest(null,null,null,null,"",null,null,null,null,null,null));
+        assertThat(profile.getDateOfBirth()).isNull(); assertThat(profile.getFullName()).isEqualTo("Existing");
+    }
     @Test void whitespaceOnlyNameIsInvalidAfterNormalization() {
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             assertThat(factory.getValidator().validate(new UpdateProfileRequest("   ", null, null))).isNotEmpty();

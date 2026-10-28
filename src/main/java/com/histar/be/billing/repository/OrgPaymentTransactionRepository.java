@@ -25,6 +25,9 @@ public interface OrgPaymentTransactionRepository extends JpaRepository<OrgPaymen
     @Query("select t from OrgPaymentTransaction t where t.transferContent = :transferContent")
     Optional<OrgPaymentTransaction> findByTransferContentForUpdate(@Param("transferContent") String transferContent);
 
+    @Query("select t from OrgPaymentTransaction t where t.organizationId=:orgId and upper(t.status) in ('PENDING','UNDERPAID') and t.expiresAt>:cutoff")
+    java.util.List<OrgPaymentTransaction> findReservedPlans(@Param("orgId") UUID orgId,@Param("cutoff") Instant cutoff);
+
     Optional<OrgPaymentTransaction> findByOrderCode(String orderCode);
 
     Optional<OrgPaymentTransaction> findByTransferContent(String transferContent);

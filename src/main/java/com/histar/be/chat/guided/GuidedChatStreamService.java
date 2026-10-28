@@ -46,6 +46,7 @@ public class GuidedChatStreamService {
             }
             sink.accept(new GuidedChatStreamEvent("delta", block));
         });
+        try {
         GuidedChatResponse response = draft.response();
         List<ChatSource> sources = response.answer().blocks().stream()
                 .flatMap(block -> block.sources().stream()).distinct().toList();
@@ -65,5 +66,6 @@ public class GuidedChatStreamService {
         guidedChatService.complete(draft);
         sink.accept(new GuidedChatStreamEvent("complete", completion));
         productionMetrics.recordChatStream(true);
+        } finally { guidedChatService.cancel(draft); }
     }
 }

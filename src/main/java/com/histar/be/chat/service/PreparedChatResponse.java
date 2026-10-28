@@ -14,7 +14,13 @@ public record PreparedChatResponse(
         boolean questHint,
         long startedNanos,
         ChatKnowledgeIntent knowledgeIntent,
-        boolean userStateGrounded) {
+        boolean userStateGrounded,
+        UUID quotaReservationId) {
+
+    public PreparedChatResponse(UUID conversationId, String reply, List<ChatSource> sources, String answerSource,
+            boolean questHint, long startedNanos, ChatKnowledgeIntent knowledgeIntent, boolean userStateGrounded) {
+        this(conversationId,reply,sources,answerSource,questHint,startedNanos,knowledgeIntent,userStateGrounded,null);
+    }
 
     public PreparedChatResponse(
             UUID conversationId,

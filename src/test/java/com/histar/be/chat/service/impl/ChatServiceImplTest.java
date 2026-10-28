@@ -47,6 +47,7 @@ import tools.jackson.databind.json.JsonMapper;
 @ExtendWith(MockitoExtension.class)
 class ChatServiceImplTest {
 
+    @Mock org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Mock
     private CharacterService characterService;
     @Mock

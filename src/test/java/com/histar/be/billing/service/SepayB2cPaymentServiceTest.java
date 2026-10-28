@@ -61,6 +61,10 @@ class SepayB2cPaymentServiceTest {
     @Mock
     private HistarEmailService histarEmailService;
 
+    @Mock private com.histar.be.location.repository.LocationRepository locationRepository;
+    @Mock private com.histar.be.story.repository.StoryChapterRepository storyChapterRepository;
+    @Mock private com.histar.be.profile.service.TierAccessService tierAccessService;
+
     @InjectMocks
     private SepayB2cPaymentService sepayB2cPaymentService;
 
@@ -78,6 +82,44 @@ class SepayB2cPaymentServiceTest {
         props.setQrTemplate("compact");
         props.setQrShowInfo(true);
         ReflectionTestUtils.setField(sepayB2cPaymentService, "sepayProperties", props);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"cu-chi","hoang-thanh-thang-long","dai-noi-hue"})
+    void journeyPassAllowsImplementedPilotSite(String site) {
+        UUID id=UUID.randomUUID();
+        var tx=pendingTx(id,"PASS"+site);
+        tx.setPlanType("JOURNEY_PASS"); tx.setSiteCode(site); tx.setAmountVnd(29000);
+        when(profileRepository.findById(id)).thenReturn(Optional.of(Profile.builder().id(id).tier("FREE").build()));
+        when(locationRepository.findBySiteCodeIgnoreCase(site)).thenReturn(Optional.of(com.histar.be.location.entity.Location.builder().id(UUID.randomUUID()).siteCode(site).build()));
+        when(storyChapterRepository.findBySiteCodeOrderBySortOrderAscChapterNumberAsc(site)).thenReturn(java.util.List.of(com.histar.be.story.entity.StoryChapter.builder().requiresPremium(true).build()));
+        when(billingSettingsService.getB2cJourneyPassPriceVnd()).thenReturn(29000);
+        when(paymentTransactionRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(id,"PENDING")).thenReturn(Optional.of(tx));
+        assertThat(sepayB2cPaymentService.createPayment(id,"/explore","JOURNEY_PASS",site).orderCode()).isEqualTo(tx.getOrderCode());
+    }
+
+    @Test
+    void journeyPassDoesNotReusePendingOrderForAnotherSite() {
+        UUID id=UUID.randomUUID(); String site="dai-noi-hue";
+        var old=pendingTx(id,"OLD-CUCHI"); old.setPlanType("JOURNEY_PASS"); old.setSiteCode("cu-chi");
+        when(profileRepository.findById(id)).thenReturn(Optional.of(Profile.builder().id(id).tier("FREE").build()));
+        when(locationRepository.findBySiteCodeIgnoreCase(site)).thenReturn(Optional.of(com.histar.be.location.entity.Location.builder().id(UUID.randomUUID()).siteCode(site).build()));
+        when(storyChapterRepository.findBySiteCodeOrderBySortOrderAscChapterNumberAsc(site)).thenReturn(java.util.List.of(com.histar.be.story.entity.StoryChapter.builder().requiresPremium(true).build()));
+        when(billingSettingsService.getB2cJourneyPassPriceVnd()).thenReturn(29000);
+        when(paymentTransactionRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(id,"PENDING")).thenReturn(Optional.of(old));
+        when(paymentTransactionRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+        var intent=sepayB2cPaymentService.createPayment(id,"/explore","JOURNEY_PASS",site);
+        assertThat(intent.orderCode()).isNotEqualTo("OLD-CUCHI");
+        verify(paymentTransactionRepository).save(org.mockito.ArgumentMatchers.argThat(tx -> site.equals(tx.getSiteCode()) && tx.getAmountVnd()==29000));
+    }
+
+    @Test
+    void journeyPassRejectsUnsupportedSiteBeforeCreatingPayment() {
+        UUID id=UUID.randomUUID();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(Profile.builder().id(id).tier("FREE").build()));
+        assertThatThrownBy(() -> sepayB2cPaymentService.createPayment(id,"/explore","JOURNEY_PASS","invented-site"))
+            .isInstanceOf(BusinessRuleException.class).hasMessageContaining("hỗ trợ");
+        verify(paymentTransactionRepository, never()).save(any());
     }
 
     @Test
@@ -343,6 +385,7 @@ class SepayB2cPaymentServiceTest {
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).tier("PREMIUM").build()));
 
+        when(tierAccessService.hasPersonalPremiumAccess(any())).thenReturn(true);
         assertThat(sepayB2cPaymentService.getPaymentStatus(userId, "HSTPAID001").upgraded()).isTrue();
     }
 
@@ -353,12 +396,7 @@ class SepayB2cPaymentServiceTest {
         when(paymentTransactionRepository.findByOrderCode("HSTPAID002")).thenReturn(Optional.of(tx));
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).tier("FREE").build()));
-        when(b2cSubscriptionRepository.findByUserIdAndIsActiveTrue(userId))
-                .thenReturn(Optional.of(B2cSubscription.builder()
-                        .userId(userId)
-                        .isActive(true)
-                        .endDate(LocalDate.now().plusDays(10))
-                        .build()));
+        when(tierAccessService.hasPersonalPremiumAccess(any())).thenReturn(true);
 
         assertThat(sepayB2cPaymentService.getPaymentStatus(userId, "HSTPAID002").upgraded()).isTrue();
     }
@@ -370,7 +408,6 @@ class SepayB2cPaymentServiceTest {
         when(paymentTransactionRepository.findByOrderCode("HSTPAID003")).thenReturn(Optional.of(tx));
         when(profileRepository.findById(userId))
                 .thenReturn(Optional.of(Profile.builder().id(userId).tier("FREE").build()));
-        when(b2cSubscriptionRepository.findByUserIdAndIsActiveTrue(userId)).thenReturn(Optional.empty());
 
         var response = sepayB2cPaymentService.getPaymentStatus(userId, "HSTPAID003");
 

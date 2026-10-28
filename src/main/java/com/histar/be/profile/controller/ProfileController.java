@@ -51,6 +51,14 @@ public class ProfileController {
         if (request.city() != null) {
             profile.setCity(request.city().isEmpty() ? null : request.city());
         }
+        if (request.fullName() != null) profile.setFullName(request.fullName().isEmpty() ? null : request.fullName());
+        if (request.dateOfBirth() != null) profile.setDateOfBirth(request.dateOfBirth().isEmpty() ? null : java.time.LocalDate.parse(request.dateOfBirth()));
+        if (request.gender() != null) profile.setGender(request.gender().isEmpty() ? null : request.gender());
+        if (request.phone() != null) profile.setPhone(request.phone().isEmpty() ? null : request.phone());
+        if (request.bio() != null) profile.setBio(request.bio().isEmpty() ? null : request.bio());
+        if (request.school() != null) profile.setSchool(request.school().isEmpty() ? null : request.school());
+        if (request.className() != null) profile.setClassName(request.className().isEmpty() ? null : request.className());
+        if (request.specialty() != null) profile.setSpecialty(request.specialty().isEmpty() ? null : request.specialty());
         Profile saved = profileService.save(profile);
         return ApiResponse.ok(profileMeService.build(saved));
     }

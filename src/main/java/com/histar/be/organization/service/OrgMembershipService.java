@@ -28,6 +28,8 @@ public class OrgMembershipService {
     private final OrganizationMemberRepository organizationMemberRepository;
     private final ProfileRepository profileRepository;
     private final EntityManager entityManager;
+    private final OrganizationEntitlementService entitlements;
+    private final com.histar.be.billing.service.OrgPendingSeatLimitService pendingSeats;
 
     private Profile lockProfile(UUID userId) {
         // Provisioning can save a new UUID-backed profile in this same transaction.
@@ -78,6 +80,8 @@ public class OrgMembershipService {
 
     private void assertOrgHasSeatOnOrg(Organization org) {
         int maxAccounts = org.getMaxVerifiedAccounts() != null ? org.getMaxVerifiedAccounts() : 100;
+        Integer pendingLimit = pendingSeats.pendingLimit(org.getId());
+        if (pendingLimit != null) maxAccounts = Math.min(maxAccounts, pendingLimit);
         long currentMembers = organizationMemberRepository.countByOrganizationId(org.getId());
         if (currentMembers >= maxAccounts) {
             throw new BusinessRuleException(
@@ -175,6 +179,7 @@ public class OrgMembershipService {
             throw new BusinessRuleException("Không thể tự xoá chính mình khỏi roster bằng chức năng này");
         }
 
+        entitlements.requireCapability(teacherUserId, orgId, "manageMembers");
         Profile targetProfile = lockProfile(targetUserId);
         lockOrganization(orgId);
         if (!orgId.equals(targetProfile.getOrgId())) {

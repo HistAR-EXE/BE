@@ -27,12 +27,20 @@ public record ProfileMeResponse(
         Integer levelProgressPercent,
         String city,
         boolean emailVerified,
-        List<ActiveVisitSiteDto> activeVisitSites) {
+        List<ActiveVisitSiteDto> activeVisitSites,
+        String fullName,
+        java.time.LocalDate dateOfBirth,
+        String gender,
+        String phone,
+        String bio,
+        String school,
+        String className,
+        String specialty) {
 
     public ProfileMeResponse withTier(String effectiveTier) {
         return new ProfileMeResponse(id, email, displayName, avatarUrl, role, effectiveTier, orgId, orgName,
                 orgSubscription, orgRole, level, levelName, totalPoints, pointsToNextLevel, levelProgressPercent,
-                city, emailVerified, activeVisitSites);
+                city, emailVerified, activeVisitSites, fullName, dateOfBirth, gender, phone, bio, school, className, specialty);
     }
 
     public static ProfileMeResponse from(
@@ -68,6 +76,7 @@ public record ProfileMeResponse(
                 levelInfo.levelProgressPercent(),
                 profile.getCity(),
                 Boolean.TRUE.equals(profile.getEmailVerified()),
-                activeVisitSites != null ? activeVisitSites : List.of());
+                activeVisitSites != null ? activeVisitSites : List.of(),
+                profile.getFullName(), profile.getDateOfBirth(), profile.getGender(), profile.getPhone(), profile.getBio(), profile.getSchool(), profile.getClassName(), profile.getSpecialty());
     }
 }

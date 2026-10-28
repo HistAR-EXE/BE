@@ -241,8 +241,7 @@ public class AuthServiceImpl implements AuthService {
                 profile.getDisplayName(),
                 profile.getEmail(),
                 role,
-                (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())
-                        || tierAccessService.hasPremiumAccess(profile.getId())) ? "PREMIUM" : "FREE",
+                (tierAccessService.hasPremiumAccess(profile.getId())) ? "PREMIUM" : "FREE",
                 profile.getOrgId(),
                 orgSub,
                 Boolean.TRUE.equals(profile.getEmailVerified()),

@@ -27,6 +27,7 @@ public final class ExploreBadgeRules {
         boolean conclusion = keys.contains(ExploreChallengeCatalog.CONCLUSION);
         boolean tour = keys.stream().anyMatch(k -> k.startsWith("scene:") || k.equals("tour:tram-xa"));
         boolean diorama = keys.contains("feature:diorama");
+        int videos = (int) com.histar.be.discovery.explore.video.ExploreVideoCatalog.IDS.stream().filter(id -> keys.contains("video:" + id)).count();
         int xp = c.totalPoints();
         return List.of(
                 p(0, xp >= 50 || depths >= 1, Math.max(r(xp, 50), r(depths, 1)), xp + "/50 XP hoặc " + depths + "/1 thử thách tầng"),
@@ -35,9 +36,9 @@ public final class ExploreBadgeRules {
                 p(3, clues == 4 && conclusion, (clues + (conclusion ? 1 : 0)) / 5.0, clues + "/4 chứng cứ · " + (conclusion ? "Đã kết luận" : "Chưa kết luận")),
                 p(4, c.chat() && xp >= 300 && dossiers >= 2, ((c.chat() ? 1 : 0) + r(xp, 300) + r(dossiers, 2)) / 3, (c.chat() ? "Đã chat" : "Chưa chat") + " · " + dossiers + "/2 hồ sơ · " + xp + "/300 XP"),
                 p(5, c.artifacts() && xp >= 500 && ciphers == 3, ((c.artifacts() ? 1 : 0) + r(xp, 500) + r(ciphers, 3)) / 3, (c.artifacts() ? "Đã mở cổ vật" : "Chưa mở cổ vật") + " · " + ciphers + "/3 mật thư · " + xp + "/500 XP"),
-                p(6, dossiers == 6, r(dossiers, 6), dossiers + "/6 hồ sơ"),
+                p(6, dossiers == 6 && videos == 7, (r(dossiers, 6) + r(videos, 7)) / 2, dossiers + "/6 hồ sơ · " + videos + "/7 video"),
                 p(7, tour && diorama && xp >= 600, ((tour ? 1 : 0) + (diorama ? 1 : 0) + r(xp, 600)) / 3, "360°: " + tour + " · Sa bàn: " + diorama + " · " + xp + "/600 XP"),
-                p(8, xp >= 1130 && tour && diorama && c.chat() && c.artifacts(), (r(xp, 1130) + (tour ? 1 : 0) + (diorama ? 1 : 0) + (c.chat() ? 1 : 0) + (c.artifacts() ? 1 : 0)) / 5, xp + "/1.130 XP · 360°: " + tour + " · Sa bàn: " + diorama + " · Chat: " + c.chat() + " · Cổ vật: " + c.artifacts()));
+                p(8, xp >= 1340 && videos == 7 && tour && diorama && c.chat() && c.artifacts(), (r(xp, 1340) + r(videos, 7) + (tour ? 1 : 0) + (diorama ? 1 : 0) + (c.chat() ? 1 : 0) + (c.artifacts() ? 1 : 0)) / 6, xp + "/1.340 XP · " + videos + "/7 video · 360°: " + tour + " · Sa bàn: " + diorama + " · Chat: " + c.chat() + " · Cổ vật: " + c.artifacts()));
     }
 
     private static double r(long value, int target) { return Math.min(1, Math.max(0, value / (double) target)); }

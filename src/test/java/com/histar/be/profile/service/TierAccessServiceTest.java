@@ -27,10 +27,35 @@ class TierAccessServiceTest {
     private B2cVisitEntitlementRepository visitEntitlementRepository;
 
     @Mock
+    private com.histar.be.billing.repository.B2cSubscriptionRepository b2cSubscriptionRepository;
+
+    @Mock
     private OrganizationEntitlementService organizationEntitlements;
 
     @InjectMocks
     private TierAccessService tierAccessService;
+
+    @Test
+    void stalePremiumTierWithExpiredOrCanceledSubscriptionCannotAccessPremium() {
+        UUID id=UUID.randomUUID();
+        var profile=Profile.builder().id(id).role("USER").tier("PREMIUM").build();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(profile));
+        var today=java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        var expired=com.histar.be.billing.entity.B2cSubscription.builder().userId(id).isActive(true).startDate(today.minusMonths(2)).endDate(today.minusDays(1)).build();
+        when(b2cSubscriptionRepository.findAllByUserIdOrderByCreatedAtDesc(id)).thenReturn(java.util.List.of(expired));
+        assertThat(tierAccessService.hasPremiumAccess(id)).isFalse();
+        expired.setIsActive(false); expired.setEndDate(today.plusDays(10));
+        assertThat(tierAccessService.hasPremiumAccess(id)).isFalse();
+    }
+    @Test
+    void activeSubscriptionIncludesEndDateAndSurvivesStaleFreeTierAndExpiredOrg() {
+        UUID id=UUID.randomUUID();
+        var profile=Profile.builder().id(id).orgId(UUID.randomUUID()).tier("FREE").build();
+        when(profileRepository.findById(id)).thenReturn(Optional.of(profile));
+        var today=java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        when(b2cSubscriptionRepository.findAllByUserIdOrderByCreatedAtDesc(id)).thenReturn(java.util.List.of(com.histar.be.billing.entity.B2cSubscription.builder().userId(id).isActive(true).startDate(today.minusMonths(1)).endDate(today).build()));
+        assertThat(tierAccessService.hasPremiumAccess(id)).isTrue();
+    }
 
     @Test
     void freeUser_noPremium() {

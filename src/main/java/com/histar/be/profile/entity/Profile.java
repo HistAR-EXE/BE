@@ -43,6 +43,22 @@ public class Profile {
     private Integer level;
     private Integer totalPoints;
     private String city;
+    @Column(length = 255)
+    private String fullName;
+    private java.time.LocalDate dateOfBirth;
+    @Column(length = 255)
+    private String gender;
+    @Column(length = 255)
+    private String phone;
+    @Column(length = 1000)
+    private String bio;
+    @Column(length = 255)
+    private String school;
+    @Column(length = 255)
+    private String className;
+    @Column(length = 255)
+    private String specialty;
+
 
     @Column(name = "org_id")
     private UUID orgId;

@@ -57,7 +57,7 @@ class HonorsStoriesTest {
   for(String key:ExploreChallengeCatalog.QUIZZES.keySet()) if(key.startsWith("cipher:")) discovery(viewer,key,null);
   discovery(viewer,"depth_quiz:bogus",null);
   var paths=service.read("all",null,viewer,null).paths();
-  assertThat(paths).extracting(p->p.total()).containsExactly(4,3,5,6);
+  assertThat(paths).extracting(p->p.total()).containsExactly(4,3,5,6,7);
   assertThat(paths.get(0).href()).isEqualTo("/explore?honorsPath=depths&target=layer2");
   assertThat(paths.get(0).percent()).isEqualTo(50);
   assertThat(paths.get(1).complete()).isTrue(); assertThat(paths.get(1).href()).isEqualTo("/explore?honorsPath=ciphers");
@@ -99,14 +99,14 @@ class HonorsStoriesTest {
   assertThat(service.read("all",null,viewer,group).spotlights().get(0).totalAchievers()).isEqualTo(1);
   assertThat(service.read("school",null,viewer,null).spotlights().get(0).totalAchievers()).isEqualTo(1);
  }
- @Test void allFourCompleteCatalogSetsCountOnceAndForeignOrUnknownChallengesCannotCompletePaths() {
+ @Test void allFiveCompleteCatalogSetsCountOnceAndForeignOrUnknownChallengesCannotCompletePaths() {
   for(String key:HonorsStoriesRepository.catalogKeys())discovery(viewer,key,null);
   var result=service.read("all",null,viewer,null);
   assertThat(result.paths()).allSatisfy(p->{assertThat(p.complete()).isTrue();assertThat(p.percent()).isEqualTo(100);assertThat(p.actionLabel()).isEqualTo("Đã hoàn thành");});
-  assertThat(result.spotlights().get(2).viewerCount()).isEqualTo(4);
+  assertThat(result.spotlights().get(2).viewerCount()).isEqualTo(5);
   jdbc.update("DELETE FROM user_discoveries WHERE discovery_key=?",ExploreChallengeCatalog.CONCLUSION);
   assertThat(service.read("all",null,viewer,null).paths().get(2).href()).endsWith("target=conclusion");
-  assertThat(service.read("all",null,viewer,null).spotlights().get(2).viewerCount()).isEqualTo(3);
+  assertThat(service.read("all",null,viewer,null).spotlights().get(2).viewerCount()).isEqualTo(4);
   jdbc.update("UPDATE user_discoveries SET location_id=?",UUID.randomUUID());
   var foreign=service.read("all",null,viewer,null);
   assertThat(foreign.paths()).allSatisfy(p->assertThat(p.completed()).isZero());
@@ -156,4 +156,3 @@ class HonorsStoriesTest {
   });
  }
 }
-

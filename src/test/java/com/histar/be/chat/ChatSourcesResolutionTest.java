@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @ContextConfiguration(classes = ChatSourcesResolutionTest.RagStubConfiguration.class)
 class ChatSourcesResolutionTest {
 

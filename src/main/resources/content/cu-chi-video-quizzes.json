@@ -1,0 +1,93 @@
+[
+  {
+    "id": "tunnel-digging",
+    "title": "Địa đạo Củ Chi đã được đào như thế nào?",
+    "durationSeconds": 77.21,
+    "question": "Trong video, đất đào từ đường hầm được đưa lên mặt đất bằng cách nào?",
+    "options": [
+      "Băng chuyền công nghiệp",
+      "Thúng/giỏ được kéo lên miệng giếng",
+      "Xe tải chạy trong đường hầm"
+    ],
+    "correctOption": 1,
+    "explanation": "Cảnh tái hiện cho thấy thúng/giỏ đất được kéo lên qua giếng, bên cạnh người đào bằng dụng cụ thủ công."
+  },
+  {
+    "id": "liberation-gate",
+    "title": "Cổng làng vùng giải phóng",
+    "durationSeconds": 65.78,
+    "question": "Cổng làng vùng giải phóng trong video sử dụng nổi bật vật liệu nào?",
+    "options": [
+      "Bê tông và kính",
+      "Thép và tấm nhựa",
+      "Tre"
+    ],
+    "correctOption": 2,
+    "explanation": "Cảnh cận cổng làng cho thấy các thân tre tạo thành hai trụ và thanh ngang của cổng."
+  },
+  {
+    "id": "communication-station",
+    "title": "Trạm thông tin",
+    "durationSeconds": 66.71,
+    "question": "Bảng thông tin trong video ghi lại nội dung nào?",
+    "options": [
+      "Lịch chiếu phim thương mại",
+      "Giá vé tham quan",
+      "Kết quả đào địa đạo của các địa phương"
+    ],
+    "correctOption": 2,
+    "explanation": "Cảnh cận bảng ghi tên các xã và chiều dài địa đạo đã đào, dưới tiêu đề Bảng thông tin / Đào địa đạo."
+  },
+  {
+    "id": "guerrilla-house",
+    "title": "Nhà du kích",
+    "durationSeconds": 65.55,
+    "question": "Tấm bảng nào xuất hiện trong cảnh tái hiện tại Nhà du kích?",
+    "options": [
+      "Điểm đăng ký tòng quân",
+      "Quầy bán vé máy bay",
+      "Trạm kiểm soát hộ chiếu"
+    ],
+    "correctOption": 0,
+    "explanation": "Video cận cảnh tấm bảng Điểm đăng ký tòng quân, sau đó cho thấy hoạt cảnh người dân bên bàn đăng ký."
+  },
+  {
+    "id": "women-house",
+    "title": "Nhà phụ nữ",
+    "durationSeconds": 60.77,
+    "question": "Hoạt động mưu sinh nào được nhắc và minh họa trong video Nhà phụ nữ?",
+    "options": [
+      "Nấu rượu và chăn nuôi",
+      "Chế tạo máy bay",
+      "Khai thác dầu khí"
+    ],
+    "correctOption": 0,
+    "explanation": "Các cảnh dụng cụ nấu và chứa rượu đi cùng phụ đề nấu rượu, chăn nuôi heo gà vịt."
+  },
+  {
+    "id": "war-artifacts",
+    "title": "Nhà trưng bày hiện vật chiến tranh",
+    "durationSeconds": 54.27,
+    "question": "Nhóm hiện vật, tư liệu nào xuất hiện trong nhà trưng bày ở video?",
+    "options": [
+      "Đồ trang sức và trang phục cung đình",
+      "Vũ khí, vỏ đạn và ảnh tư liệu lịch sử",
+      "Thiết bị hàng không dân dụng"
+    ],
+    "correctOption": 1,
+    "explanation": "Video lần lượt quay các giá súng, đạn và vỏ bom, sau đó chuyển sang ảnh tư liệu lịch sử."
+  },
+  {
+    "id": "ho-chi-minh-space",
+    "title": "Không gian văn hóa và tượng đài Chủ tịch Hồ Chí Minh",
+    "durationSeconds": 50.18,
+    "question": "Cặp mô hình nào được giới thiệu trong không gian văn hóa ở video?",
+    "options": [
+      "Chợ Bến Thành và Nhà hát Thành phố",
+      "Lăng Chủ tịch Hồ Chí Minh và nhà sàn",
+      "Cầu Long Biên và Chùa Cầu"
+    ],
+    "correctOption": 1,
+    "explanation": "Video quay biển Mô hình Lăng Chủ tịch Hồ Chí Minh và mô hình nhà sàn giữa khu trưng bày ngoài trời."
+  }
+]

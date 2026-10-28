@@ -136,7 +136,7 @@ public class BillingService {
         assertDemoPaymentAllowed(paymentMethod);
         emailVerifiedGuard.assertEmailVerified(userId);
         Profile profile = profileRepository
-                .findById(userId)
+                .findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         OrgSubscription plan = OrgSubscription.fromPlanType(request.planType());
         if (plan == OrgSubscription.NONE) {
@@ -147,12 +147,12 @@ public class BillingService {
         Organization org;
         if (request.organizationId() != null) {
             org = organizationRepository
-                    .findById(request.organizationId())
+                    .findByIdForUpdate(request.organizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
             requireBillingOwner(profile, org.getId());
         } else if (profile.getOrgId() != null) {
             org = organizationRepository
-                    .findById(profile.getOrgId())
+                    .findByIdForUpdate(profile.getOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
             requireBillingOwner(profile, org.getId());
         } else {
@@ -187,6 +187,7 @@ public class BillingService {
             }
         }
 
+        com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(organizationMemberRepository.countByOrganizationId(org.getId()),plan);
         org.setPlanType(plan.name());
         org.setPlan(plan.name().toLowerCase());
         org.setContactEmail(request.contactEmail());

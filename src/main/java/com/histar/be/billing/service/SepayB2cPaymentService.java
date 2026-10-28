@@ -58,6 +58,9 @@ public class SepayB2cPaymentService {
     private final SepayProperties sepayProperties;
     private final EmailVerifiedGuard emailVerifiedGuard;
     private final B2cSubscriptionRepository b2cSubscriptionRepository;
+    private final com.histar.be.location.repository.LocationRepository locationRepository;
+    private final com.histar.be.story.repository.StoryChapterRepository storyChapterRepository;
+    private final com.histar.be.profile.service.TierAccessService tierAccessService;
     private final B2cVisitEntitlementRepository visitEntitlementRepository;
     private final HistarEmailService histarEmailService;
 
@@ -84,7 +87,13 @@ public class SepayB2cPaymentService {
         String siteCode = null;
         if (PLAN_JOURNEY_PASS.equals(planType)) {
             siteCode = StationQrService.normalizeSiteCode(siteCodeRaw);
-        } else if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
+            if (!java.util.Set.of("cu-chi", "hoang-thanh-thang-long", "dai-noi-hue").contains(siteCode)
+                    || locationRepository.findBySiteCodeIgnoreCase(siteCode).isEmpty()
+                    || storyChapterRepository.findBySiteCodeOrderBySortOrderAscChapterNumberAsc(siteCode).stream()
+                            .noneMatch(com.histar.be.story.entity.StoryChapter::isRequiresPremium)) {
+                throw new BusinessRuleException("Di tích chưa hỗ trợ Journey Pass.");
+            }
+        } else if (tierAccessService.hasPersonalPremiumAccess(profile)) {
             throw new BusinessRuleException("Tài khoản đang là Premium.");
         }
         int priceVnd = PLAN_JOURNEY_PASS.equals(planType)
@@ -94,11 +103,13 @@ public class SepayB2cPaymentService {
             throw new BusinessRuleException("Giá gói B2C chưa được cấu hình hợp lệ.");
         }
 
+        final String requestedSite = siteCode;
         Instant now = Instant.now();
         B2cPaymentTransaction pending = paymentTransactionRepository
                 .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
                 .filter(tx -> tx.getExpiresAt() != null && tx.getExpiresAt().isAfter(now))
                 .filter(tx -> planType.equalsIgnoreCase(tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType()))
+                .filter(tx -> !PLAN_JOURNEY_PASS.equals(planType) || java.util.Objects.equals(requestedSite, tx.getSiteCode()))
                 .orElse(null);
         if (pending != null) {
             return toIntentResponse(pending);
@@ -108,6 +119,7 @@ public class SepayB2cPaymentService {
                 .findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, STATUS_UNDERPAID)
                 .filter(tx -> !isPastGrace(tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes()))
                 .filter(tx -> planType.equalsIgnoreCase(tx.getPlanType() == null ? PLAN_PREMIUM : tx.getPlanType()))
+                .filter(tx -> !PLAN_JOURNEY_PASS.equals(planType) || java.util.Objects.equals(requestedSite, tx.getSiteCode()))
                 .orElse(null);
         if (underpaid != null) {
             return toIntentResponse(underpaid);
@@ -164,19 +176,7 @@ public class SepayB2cPaymentService {
 
     /** PAID alone is not enough: the profile must be PREMIUM or hold an active, unexpired b2c_subscription. */
     private boolean hasPremiumEntitlement(UUID userId) {
-        boolean premiumTier = profileRepository
-                .findById(userId)
-                .map(p -> UserTier.PREMIUM == UserTier.fromStored(p.getTier()))
-                .orElse(false);
-        if (premiumTier) {
-            return true;
-        }
-        LocalDate today = LocalDate.now(VN_ZONE);
-        return b2cSubscriptionRepository
-                .findByUserIdAndIsActiveTrue(userId)
-                .filter(sub -> Boolean.TRUE.equals(sub.getIsActive()))
-                .filter(sub -> sub.getEndDate() == null || !sub.getEndDate().isBefore(today))
-                .isPresent();
+        return profileRepository.findById(userId).map(tierAccessService::hasPersonalPremiumAccess).orElse(false);
     }
 
     @Transactional

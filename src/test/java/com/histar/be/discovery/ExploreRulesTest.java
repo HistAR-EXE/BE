@@ -36,15 +36,24 @@ class ExploreRulesTest {
         int total = ExploreChallengeCatalog.QUIZZES.values().stream().mapToInt(ExploreChallengeCatalog.Challenge::xp).sum()
                 + ExploreChallengeCatalog.CLUES.stream().mapToInt(ExploreChallengeCatalog::xp).sum()
                 + ExploreChallengeCatalog.xp(ExploreChallengeCatalog.CONCLUSION);
-        assertEquals(1130, total);
+        assertEquals(1340, total + 7 * 30);
+        assertEquals(30, ExploreChallengeCatalog.xp("video:tunnel-digging"));
+        assertEquals(0, ExploreChallengeCatalog.xp("video:cedar-falls"));
     }
 
+    @Test void videosAreRequiredForUpdatedScholarAndUltimateBadge() {
+        var keys = new java.util.HashSet<>(ExploreChallengeCatalog.QUIZZES.keySet());
+        keys.add("scene:verified"); keys.add("feature:diorama");
+        var missing = ExploreBadgeRules.evaluate(new ExploreBadgeRules.Context(1340, keys, true, true));
+        assertFalse(missing.get(6).eligible()); assertFalse(missing.get(8).eligible());
+    }
     @Test void allNineBadgesRequireTheirPersistedEvidence() {
         var keys = new java.util.HashSet<>(ExploreChallengeCatalog.QUIZZES.keySet());
         keys.addAll(ExploreChallengeCatalog.CLUES);
         keys.add(ExploreChallengeCatalog.CONCLUSION);
         keys.add("scene:verified"); keys.add("feature:diorama");
-        var complete = ExploreBadgeRules.evaluate(new ExploreBadgeRules.Context(1130, keys, true, true));
+        for (String video : java.util.List.of("tunnel-digging","liberation-gate","communication-station","guerrilla-house","women-house","war-artifacts","ho-chi-minh-space")) keys.add("video:" + video);
+        var complete = ExploreBadgeRules.evaluate(new ExploreBadgeRules.Context(1340, keys, true, true));
         assertEquals(9, complete.size());
         assertTrue(complete.stream().allMatch(p -> p.eligible() && p.percent() == 100));
         var missingExperiences = ExploreBadgeRules.evaluate(new ExploreBadgeRules.Context(1130, Set.of(), false, false));

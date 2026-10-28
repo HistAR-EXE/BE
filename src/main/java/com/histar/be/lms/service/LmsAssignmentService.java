@@ -12,6 +12,7 @@ import com.histar.be.lms.entity.AssignmentSubmission;
 import com.histar.be.lms.repository.AssignmentRepository;
 import com.histar.be.lms.repository.AssignmentSubmissionRepository;
 import com.histar.be.organization.entity.Organization;
+import com.histar.be.organization.entity.OrgSubscription;
 import com.histar.be.organization.entity.OrganizationMember;
 import com.histar.be.organization.repository.OrganizationMemberRepository;
 import com.histar.be.organization.repository.OrganizationRepository;
@@ -213,8 +214,8 @@ public class LmsAssignmentService {
     public Profile requirePremiumTeacher(UUID teacherId) {
         Profile teacher = requireAssignmentTeacher(teacherId);
         Organization org = organizationRepository.findById(teacher.getOrgId()).orElseThrow();
-        String plan = org.getPlanType() != null ? org.getPlanType() : org.getPlan();
-        if (!"PREMIUM".equalsIgnoreCase(plan)) {
+        OrgSubscription plan = OrgSubscription.fromPlanType(org.getPlanType() != null ? org.getPlanType() : org.getPlan());
+        if (plan != OrgSubscription.PREMIUM) {
             throw new LmsPremiumRequiredException("Chức năng này chỉ có ở gói Premium B2B");
         }
         return teacher;
@@ -245,8 +246,8 @@ public class LmsAssignmentService {
         if (!OrganizationEntitlementService.isActive(org) || !Boolean.TRUE.equals(teacher.getEmailVerified()) || member.getAcceptedAt() == null) {
             throw new BusinessRuleException("Thành viên hoặc gói tổ chức không còn hiệu lực");
         }
-        String plan = org.getPlanType() != null ? org.getPlanType() : org.getPlan();
-        if (plan == null || !("PREMIUM".equalsIgnoreCase(plan.trim()) || "STANDARD".equalsIgnoreCase(plan.trim()))) {
+        OrgSubscription plan = OrgSubscription.fromPlanType(org.getPlanType() != null ? org.getPlanType() : org.getPlan());
+        if (plan != OrgSubscription.PREMIUM && plan != OrgSubscription.STANDARD) {
             throw new LmsPremiumRequiredException("Tạo và giao bài tập cần gói Standard hoặc Premium B2B");
         }
     }

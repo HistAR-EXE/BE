@@ -9,7 +9,6 @@ import com.histar.be.organization.repository.OrganizationRepository;
 import com.histar.be.organization.service.OrganizationEntitlementService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.entity.UserRole;
-import com.histar.be.profile.entity.UserTier;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.profile.service.TierAccessService;
 import java.time.LocalDate;
@@ -45,12 +44,12 @@ public class UsageQuotaService {
             return;
         }
 
+        if (hasUnlimitedChat(profile)) return;
         if (profile.getOrgId() != null) {
             organizationEntitlements.requireActiveMembership(profile);
             assertOrgMonthlyQuota(profile.getOrgId());
             return;
         }
-        if (hasUnlimitedChat(profile)) return;
 
         int limit = resolveFreeDailyLimit();
         int used = getUserDailyUsage(userId);
@@ -89,6 +88,7 @@ public class UsageQuotaService {
         }
 
         LocalDate vnDay = LocalDate.now(VN_ZONE);
+        if (hasUnlimitedChat(profile)) return;
         if (profile.getOrgId() != null) {
             organizationEntitlements.requireActiveMembership(profile);
             organizationRepository.findByIdForUpdate(profile.getOrgId())
@@ -97,7 +97,6 @@ public class UsageQuotaService {
             incrementOrgMonthly(profile.getOrgId(), vnDay);
             return;
         }
-        if (hasUnlimitedChat(profile)) return;
 
         incrementUserDaily(userId, vnDay);
     }
@@ -133,6 +132,7 @@ public class UsageQuotaService {
 
     @Transactional(readOnly = true)
     public int getUserDailyLimit(Profile profile) {
+        if (hasUnlimitedChat(profile)) return -1;
         if (profile.getOrgId() != null) {
             Organization org = organizationRepository.findById(profile.getOrgId()).orElse(null);
             if (org != null && org.getMaxAiQueriesPerMonth() == null) {
@@ -140,7 +140,6 @@ public class UsageQuotaService {
             }
             return org != null && org.getMaxAiQueriesPerMonth() != null ? org.getMaxAiQueriesPerMonth() : 5_000;
         }
-        if (hasUnlimitedChat(profile)) return -1;
         return resolveFreeDailyLimit();
     }
 
@@ -196,27 +195,15 @@ public class UsageQuotaService {
 
     @Transactional(readOnly = true)
     public boolean hasPremiumEntitlement(UUID userId) {
-        Profile profile = profileRepository.findById(userId).orElse(null);
-        if (profile == null) {
-            return false;
-        }
-        UserRole role = UserRole.fromStored(profile.getRole());
-        if (role == UserRole.ADMIN) {
-            return true;
-        }
-        return UserTier.PREMIUM == UserTier.fromStored(profile.getTier())
-                || organizationEntitlements.hasActiveMembership(profile);
+        return tierAccessService.hasPremiumAccess(userId);
     }
 
     private boolean hasUnlimitedChat(Profile profile) {
-        UserRole role = UserRole.fromStored(profile.getRole());
-        if (role == UserRole.ADMIN) {
-            return true;
-        }
-        if (UserTier.PREMIUM == UserTier.fromStored(profile.getTier()) && profile.getOrgId() == null) {
-            return true;
-        }
-        return false;
+        if (UserRole.fromStored(profile.getRole()) == UserRole.ADMIN) return true;
+        // Active organization members retain the advertised shared pool. A purchased
+        // personal entitlement remains usable after their organization expires.
+        return tierAccessService.hasPersonalPremiumAccess(profile)
+                && (profile.getOrgId() == null || !organizationEntitlements.hasActiveMembership(profile));
     }
 
     private void incrementUserDaily(UUID userId, LocalDate vnDay) {

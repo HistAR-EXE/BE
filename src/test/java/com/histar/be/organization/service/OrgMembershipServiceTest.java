@@ -44,6 +44,12 @@ class OrgMembershipServiceTest {
     @Mock
     private EntityManager entityManager;
 
+    @Mock
+    private OrganizationEntitlementService entitlements;
+
+    @Mock
+    private com.histar.be.billing.service.OrgPendingSeatLimitService pendingSeats;
+
     @InjectMocks
     private OrgMembershipService orgMembershipService;
 

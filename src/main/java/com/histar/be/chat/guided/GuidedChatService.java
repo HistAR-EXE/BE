@@ -30,8 +30,8 @@ public class GuidedChatService {
 
     public GuidedChatResponse respond(UUID userId, GuidedChatRequest request) {
         GuidedChatDraft draft = prepare(userId, request);
-        complete(draft);
-        return draft.response();
+        try { complete(draft); return draft.response(); }
+        finally { cancel(draft); }
     }
 
     GuidedChatDraft prepare(UUID userId, GuidedChatRequest request) {
@@ -65,6 +65,7 @@ public class GuidedChatService {
                 : chatService.prepareOrchestratedStreaming(userId, messageRequest, chunk -> publisher.accept(
                         new GuidedAnswerBlock(GuidedAnswerType.VERIFIED_FACT, GuidedConfidence.VERIFIED,
                                 chunk.content(), chunk.sources())));
+        try {
         ChatContextResponse context = chatService.getContext(userId, request.characterId(), prepared.conversationId());
         Map<String, Object> journeyContext = context.playerContext() == null ? Map.of() : context.playerContext();
         GuidedAnswer answer = answerFormatter.format(prepared.reply(), prepared.sources(), effectiveMode(request));
@@ -73,6 +74,9 @@ public class GuidedChatService {
                 prepared.conversationId(), answer, suggestionService.suggest(journeyContext), false);
         return new GuidedChatDraft(userId, request, messageRequest, prepared, response, context.locationId(),
                 asText(journeyContext.get("lastVisitedPoi")), asText(journeyContext.get("questState")));
+        } catch (RuntimeException | Error failure) {
+            chatService.cancelPrepared(userId, prepared); throw failure;
+        }
     }
 
     void complete(GuidedChatDraft draft) {
@@ -81,9 +85,17 @@ public class GuidedChatService {
         }
         chatService.persistPrepared(draft.userId(), draft.messageRequest(), draft.prepared());
         if (pilotFeatures.isJourneyMemory() && draft.locationId() != null) {
-            journeyMemoryService.observe(draft.userId(), draft.locationId(), draft.lastVisitedPoi(), draft.questState(),
-                    "vi", effectiveMode(draft.request()).name());
+            try {
+                journeyMemoryService.observe(draft.userId(), draft.locationId(), draft.lastVisitedPoi(), draft.questState(),
+                        "vi", effectiveMode(draft.request()).name());
+            } catch (RuntimeException trackingFailure) {
+                org.slf4j.LoggerFactory.getLogger(GuidedChatService.class).warn("Journey memory update failed after saved answer", trackingFailure);
+            }
         }
+    }
+
+    void cancel(GuidedChatDraft draft) {
+        if (draft != null && draft.prepared() != null) chatService.cancelPrepared(draft.userId(), draft.prepared());
     }
 
     private static String asText(Object value) {

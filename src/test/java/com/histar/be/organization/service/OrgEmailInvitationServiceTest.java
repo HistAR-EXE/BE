@@ -26,13 +26,14 @@ class OrgEmailInvitationServiceTest {
     @Mock com.histar.be.profile.repository.ProfileRepository profiles;
     @Mock com.histar.be.organization.repository.OrganizationMemberRepository members;
     @Mock jakarta.persistence.EntityManager entityManager;
+    @Mock com.histar.be.billing.service.OrgPendingSeatLimitService pendingSeats;
     OrgEmailInvitationService service;
     final UUID orgId = UUID.randomUUID();
     Profile profile;
     OrgEmailInvitation invite;
 
     @BeforeEach void setup() {
-        service = new OrgEmailInvitationService(invitations, organizations, memberships, profiles, members, entityManager);
+        service = new OrgEmailInvitationService(invitations, organizations, memberships, profiles, members, entityManager, pendingSeats);
         profile = Profile.builder().id(UUID.randomUUID()).email("student@example.test")
                 .emailVerified(true).tier("FREE").build();
         invite = OrgEmailInvitation.builder().id(UUID.randomUUID()).organizationId(orgId)

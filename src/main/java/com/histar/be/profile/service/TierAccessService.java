@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TierAccessService {
 
     private final ProfileRepository profileRepository;
+    private final com.histar.be.billing.repository.B2cSubscriptionRepository b2cSubscriptionRepository;
     private final B2cVisitEntitlementRepository visitEntitlementRepository;
     private final OrganizationEntitlementService organizationEntitlements;
 
@@ -29,10 +30,22 @@ public class TierAccessService {
             return false;
         }
         UserRole role = UserRole.fromStored(profile.getRole());
-        if (role == UserRole.ADMIN || UserTier.PREMIUM == UserTier.fromStored(profile.getTier())) {
+        if (role == UserRole.ADMIN || hasPersonalPremiumAccess(profile)) {
             return true;
         }
         return organizationEntitlements.hasActiveMembership(profile);
+    }
+
+    /** Paid history is authoritative; no-history legacy grants retain their existing tier. */
+    @Transactional(readOnly = true)
+    public boolean hasPersonalPremiumAccess(Profile profile) {
+        if (profile == null || profile.getId() == null) return false;
+        var history = b2cSubscriptionRepository.findAllByUserIdOrderByCreatedAtDesc(profile.getId());
+        if (history.isEmpty()) return UserTier.PREMIUM == UserTier.fromStored(profile.getTier());
+        var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        return history.stream().anyMatch(subscription -> Boolean.TRUE.equals(subscription.getIsActive())
+                && subscription.getStartDate() != null && !subscription.getStartDate().isAfter(today)
+                && subscription.getEndDate() != null && !subscription.getEndDate().isBefore(today));
     }
 
     /**

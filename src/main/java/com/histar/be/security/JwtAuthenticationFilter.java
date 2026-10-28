@@ -41,6 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(auth);
                         String path = request.getRequestURI();
                         boolean identityOrExit = path.startsWith("/api/auth/") || path.equals("/api/profile/me")
+                                || path.equals("/api/profile/me/avatar")
                                 || path.equals("/api/profile/overview")
                                 || path.equals("/api/org/mine") || path.equals("/api/org/leave")
                                 || path.matches("/api/org/[^/]+/capabilities");

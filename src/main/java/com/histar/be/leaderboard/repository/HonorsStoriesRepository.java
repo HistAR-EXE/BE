@@ -18,7 +18,7 @@ public class HonorsStoriesRepository {
     .addValue("legacySeedEmails",LeaderboardReadRepository.LEGACY_SEED_EMAILS);
  }
  public static List<String> catalogKeys() {
-  var keys=new ArrayList<>(ExploreChallengeCatalog.QUIZZES.keySet());keys.addAll(ExploreChallengeCatalog.CLUES);keys.add(ExploreChallengeCatalog.CONCLUSION);return keys;
+  var keys=new ArrayList<>(ExploreChallengeCatalog.QUIZZES.keySet());keys.addAll(ExploreChallengeCatalog.CLUES);keys.add(ExploreChallengeCatalog.CONCLUSION);com.histar.be.discovery.explore.video.ExploreVideoCatalog.IDS.forEach(id -> keys.add("video:"+id));return keys;
  }
  public Map<String,java.time.Instant> completionDates(UUID viewer) {
   Map<String,java.time.Instant> dates = new HashMap<>();
@@ -62,12 +62,13 @@ public class HonorsStoriesRepository {
      COUNT(DISTINCT CASE WHEN l.id IS NOT NULL THEN d.location_id END) locations,
      COUNT(DISTINCT CASE WHEN d.location_id=:location AND d.discovery_key IN ('depth_quiz:surface','depth_quiz:layer1','depth_quiz:layer2','depth_quiz:layer3') THEN d.discovery_key END) depths,
      COUNT(DISTINCT CASE WHEN d.location_id=:location AND d.discovery_key IN ('clue:ev-01','clue:ev-02','clue:ev-03','clue:ev-04','investigation:cu-chi-conclusion') THEN d.discovery_key END) evidence,
-     COUNT(DISTINCT CASE WHEN d.location_id=:location AND d.discovery_key IN ('dossier:architecture','dossier:trap-warfare','dossier:underground-life','dossier:command-center','dossier:tunnel-rats','dossier:ben-duoc') THEN d.discovery_key END) dossiers
+     COUNT(DISTINCT CASE WHEN d.location_id=:location AND d.discovery_key IN ('dossier:architecture','dossier:trap-warfare','dossier:underground-life','dossier:command-center','dossier:tunnel-rats','dossier:ben-duoc') THEN d.discovery_key END) dossiers,
+     COUNT(DISTINCT CASE WHEN d.location_id=:location AND d.discovery_key IN ('video:tunnel-digging','video:liberation-gate','video:communication-station','video:guerrilla-house','video:women-house','video:war-artifacts','video:ho-chi-minh-space') THEN d.discovery_key END) videos
     FROM user_discoveries d JOIN eligible e ON e.id=d.user_id LEFT JOIN locations l ON l.id=d.location_id GROUP BY d.user_id
    ), badge_counts AS (SELECT b.user_id,COUNT(DISTINCT b.badge_id) badges FROM user_badges b JOIN eligible e ON e.id=b.user_id GROUP BY b.user_id),
    counts AS (
     SELECT e.*,COALESCE(d.ciphers,0) ciphers,COALESCE(d.locations,0) locations,COALESCE(b.badges,0) badges,
-     (CASE WHEN d.depths=4 THEN 1 ELSE 0 END + CASE WHEN d.ciphers=3 THEN 1 ELSE 0 END + CASE WHEN d.evidence=5 THEN 1 ELSE 0 END + CASE WHEN d.dossiers=6 THEN 1 ELSE 0 END) sets
+     (CASE WHEN d.depths=4 THEN 1 ELSE 0 END + CASE WHEN d.ciphers=3 THEN 1 ELSE 0 END + CASE WHEN d.evidence=5 THEN 1 ELSE 0 END + CASE WHEN d.dossiers=6 THEN 1 ELSE 0 END + CASE WHEN d.videos=7 THEN 1 ELSE 0 END) sets
     FROM eligible e LEFT JOIN discovery_counts d ON d.user_id=e.id LEFT JOIN badge_counts b ON b.user_id=e.id
    ), metrics AS (
     SELECT id,display_name,avatar_url,'ciphers' category,ciphers metric_count FROM counts UNION ALL

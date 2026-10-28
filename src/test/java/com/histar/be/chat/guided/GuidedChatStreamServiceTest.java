@@ -36,6 +36,7 @@ class GuidedChatStreamServiceTest {
                 .hasMessage("persist failed");
         assertThat(events).extracting(GuidedChatStreamEvent::name).doesNotContain("complete");
         verify(metrics, never()).recordChatStream(true);
+        verify(guidedChatService).cancel(draft);
     }
 
     @Test
@@ -110,5 +111,6 @@ class GuidedChatStreamServiceTest {
                 .isInstanceOf(IllegalStateException.class);
 
         verify(guidedChatService, never()).complete(org.mockito.ArgumentMatchers.any());
+        verify(guidedChatService).cancel(org.mockito.ArgumentMatchers.any());
     }
 }

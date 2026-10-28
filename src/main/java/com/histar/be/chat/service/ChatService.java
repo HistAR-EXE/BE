@@ -27,5 +27,7 @@ public interface ChatService {
 
     ChatResponse persistPrepared(UUID userId, ChatMessageRequest request, PreparedChatResponse prepared);
 
+    void cancelPrepared(UUID userId, PreparedChatResponse prepared);
+
     Page<MessageResponse> getMessages(UUID userId, UUID conversationId, Pageable pageable);
 }
