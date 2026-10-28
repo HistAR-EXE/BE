@@ -49,7 +49,6 @@ class OrganizationEntitlementServiceTest {
         assertThat(access.assignments()).isTrue();
         assertThat(access.liveBoard()).isTrue();
         assertThat(access.reports()).isTrue();
-        assertThat(access.groups()).isTrue();
         assertThat(access.manageTeachers()).isFalse();
         assertThat(access.fieldTrips()).isFalse();
         assertThat(access.contentDrafts()).isFalse();

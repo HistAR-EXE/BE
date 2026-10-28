@@ -12,7 +12,7 @@ import com.histar.be.group.dto.GroupSummaryResponse;
 import com.histar.be.group.entity.StudyGroup;
 import com.histar.be.group.repository.StudyGroupMemberRepository;
 import com.histar.be.group.repository.StudyGroupRepository;
-import com.histar.be.group.service.GroupService;
+import com.histar.be.fieldtrip.service.TripGroupService;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
@@ -27,7 +27,7 @@ public class FieldTripJoinService {
     private final FieldTripRepository fieldTripRepository;
     private final StudyGroupRepository studyGroupRepository;
     private final StudyGroupMemberRepository studyGroupMemberRepository;
-    private final GroupService groupService;
+    private final TripGroupService groupService;
     private final FieldTripAccessService fieldTripAccessService;
 
     @Transactional

@@ -3,11 +3,9 @@ package com.histar.be.profile.controller;
 import com.histar.be.common.response.ApiResponse;
 import com.histar.be.common.security.CurrentUserAccessor;
 import com.histar.be.billing.service.BillingService;
-import com.histar.be.profile.dto.JourneySummaryResponse;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.dto.UpdateProfileRequest;
 import com.histar.be.profile.entity.Profile;
-import com.histar.be.profile.service.JourneySummaryService;
 import com.histar.be.profile.service.ProfileMeService;
 import com.histar.be.profile.service.ProfileService;
 import jakarta.validation.Valid;
@@ -18,7 +16,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,7 +26,6 @@ public class ProfileController {
     private final ProfileService profileService;
     private final ProfileMeService profileMeService;
     private final BillingService billingService;
-    private final JourneySummaryService journeySummaryService;
     private final CurrentUserAccessor currentUserAccessor;
 
     @GetMapping("/me")
@@ -38,15 +34,6 @@ public class ProfileController {
                 .getUserId()
                 .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
         return ApiResponse.ok(profileMeService.build(profileService.findById(userId)));
-    }
-
-    @GetMapping("/journey-summary")
-    public ApiResponse<JourneySummaryResponse> journeySummary(
-            @RequestParam(required = false, defaultValue = "cu-chi") String siteCode) {
-        UUID userId = currentUserAccessor
-                .getUserId()
-                .orElseThrow(() -> new com.histar.be.common.exception.AuthException("Unauthorized"));
-        return ApiResponse.ok(journeySummaryService.summarize(userId, siteCode));
     }
 
     @PatchMapping("/me")

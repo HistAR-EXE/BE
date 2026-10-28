@@ -40,20 +40,7 @@ public class CcuSessionService {
 
     @Transactional
     public void heartbeat(UUID userId) {
-        Profile profile = profileRepository.findById(userId).orElse(null);
-        if (profile == null || profile.getOrgId() == null) {
-            return;
-        }
-        UUID orgId = profile.getOrgId();
-        Instant now = Instant.now();
-        orgActiveSessionRepository.deleteStale(now.minus(SESSION_TTL_MINUTES, ChronoUnit.MINUTES));
-
-        OrgActiveSessionId id = new OrgActiveSessionId(orgId, userId);
-        OrgActiveSession session = orgActiveSessionRepository
-                .findById(id)
-                .orElse(OrgActiveSession.builder().orgId(orgId).userId(userId).build());
-        session.setLastSeenAt(now);
-        orgActiveSessionRepository.save(session);
+        assertCcuAvailable(userId);
     }
 
     @Transactional(readOnly = true)
@@ -77,12 +64,17 @@ public class CcuSessionService {
                 : OrgPlanLimits.forPlan(OrgSubscription.fromPlanType(
                                 org.getPlanType() != null ? org.getPlanType() : org.getPlan()))
                         .maxCcu();
-        int current = getCurrentCcu(orgId);
+        Instant now = Instant.now();
+        Instant since = now.minus(SESSION_TTL_MINUTES, ChronoUnit.MINUTES);
+        // A current stale session may already be managed by this transaction. Reactivate
+        // it in place; bulk-deleting it before save would leave Hibernate with a missing row.
+        // Cleanup stays inside this organization's lock and cannot delete another org's session.
+        orgActiveSessionRepository.deleteStaleOtherSessions(orgId, userId, since);
+        int current = orgActiveSessionRepository.countActiveByOrgId(orgId, since);
         OrgActiveSessionId id = new OrgActiveSessionId(orgId, userId);
-        Instant since = Instant.now().minus(SESSION_TTL_MINUTES, ChronoUnit.MINUTES);
-        boolean alreadyActive = orgActiveSessionRepository
-                .findById(id)
-                .map(s -> s.getLastSeenAt() != null && s.getLastSeenAt().isAfter(since))
+        var existingSession = orgActiveSessionRepository.findById(id);
+        boolean alreadyActive = existingSession
+                .map(s -> s.getLastSeenAt() != null && !s.getLastSeenAt().isBefore(since))
                 .orElse(false);
         if (!alreadyActive && current >= maxCcu) {
             throw new CcuLimitException(
@@ -90,6 +82,9 @@ public class CcuSessionService {
                     maxCcu,
                     current);
         }
-        heartbeat(userId);
+        OrgActiveSession session = existingSession.orElseGet(() ->
+                OrgActiveSession.builder().orgId(orgId).userId(userId).build());
+        session.setLastSeenAt(now);
+        orgActiveSessionRepository.save(session);
     }
 }

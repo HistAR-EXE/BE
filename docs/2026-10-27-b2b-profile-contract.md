@@ -1,3 +1,5 @@
+> Update: Journey Wrapped, standalone Study Groups and My Squad are retired. See [retirement scope](2026-10-27-retired-account-features.md). Teacher-managed field-trip groups remain supported.
+
 # B2B and profile contract (2026-10-27)
 
 Organization Premium is derived from an accepted membership, verified email and an active organization plan. Personal purchased Premium is independent and is not overwritten by organization membership. Micro has basic member/progress management; Standard/Premium add assignments, Live Board, report snapshots and group access. Account/CCU/monthly AI limits remain pooled per plan (100/15/5000, 400/40/30000, 1000/80/unlimited).

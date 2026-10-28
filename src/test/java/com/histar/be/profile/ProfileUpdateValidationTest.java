@@ -50,7 +50,7 @@ class ProfileUpdateValidationTest {
         when(profiles.findById(id)).thenReturn(profile);
         when(profiles.save(profile)).thenReturn(profile);
         var controller = new ProfileController(profiles, mock(ProfileMeService.class), mock(BillingService.class),
-                mock(JourneySummaryService.class), actor);
+                actor);
         controller.updateProfile(new UpdateProfileRequest(null, "", ""));
         assertThat(profile.getCity()).isNull();
         assertThat(profile.getAvatarUrl()).isNull();
