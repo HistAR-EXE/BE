@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.web.util.HtmlUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -62,6 +63,11 @@ public class B2b2cInquiryService {
                 : null;
         HeritageDigitizationInquiry saved = repository.save(HeritageDigitizationInquiry.builder()
                 .siteName(request.siteName().trim())
+                .organizationName(clean(request.organizationName()))
+                .contactRole(clean(request.contactRole()))
+                .siteLocation(clean(request.siteLocation()))
+                .availableMaterials(clean(request.availableMaterials()))
+                .targetStart(clean(request.targetStart()))
                 .interestSiteCode(interest)
                 .contactName(request.contactName().trim())
                 .contactEmail(email)
@@ -159,6 +165,7 @@ public class B2b2cInquiryService {
                 String needle = "%" + q.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("siteName")), needle),
+                        cb.like(cb.lower(root.get("organizationName")), needle),
                         cb.like(cb.lower(root.get("contactName")), needle),
                         cb.like(cb.lower(root.get("contactEmail")), needle),
                         cb.like(cb.lower(root.get("contactPhone")), needle)));
@@ -217,6 +224,10 @@ public class B2b2cInquiryService {
         return value != null && !value.isBlank();
     }
 
+    private static String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private void enforceSubmitRateLimit(String email) {
         Instant hourAgo = Instant.now().minus(1, ChronoUnit.HOURS);
         List<Instant> recent = submitAttemptsByEmail.compute(email, (key, attempts) -> {
@@ -245,12 +256,12 @@ public class B2b2cInquiryService {
                 <p>Đội ngũ sales sẽ liên hệ qua email hoặc số điện thoại bạn đã cung cấp trong thời gian sớm nhất.</p>
                 """
                         .formatted(
-                                inquiry.getContactName(),
-                                inquiry.getSiteName(),
-                                inquiry.getPackageType());
+                                html(inquiry.getContactName()),
+                                html(inquiry.getSiteName()),
+                                html(inquiry.getPackageType()));
         try {
             histarEmailService.sendHtml(
-                    inquiry.getContactEmail(), "TimeLens — Đã nhận yêu cầu tư vấn B2B2C", customerHtml);
+                    inquiry.getContactEmail(), "TimeLens — Đã nhận yêu cầu tư vấn số hóa di sản", customerHtml);
         } catch (RuntimeException ex) {
             log.warn("B2B2C inquiry confirmation email failed for {}: {}", inquiry.getContactEmail(), ex.getMessage());
         }
@@ -266,25 +277,41 @@ public class B2b2cInquiryService {
                 """
                 <p>Yêu cầu B2B2C mới:</p>
                 <ul>
+                <li>Đơn vị: %s</li>
                 <li>Site: %s</li>
+                <li>Địa điểm: %s</li>
                 <li>Liên hệ: %s (%s)</li>
+                <li>Chức vụ: %s</li>
                 <li>Phone: %s</li>
                 <li>Gói: %s</li>
+                <li>Thời điểm dự kiến: %s</li>
+                <li>Tư liệu sẵn có: %s</li>
+                <li>Nhu cầu: %s</li>
                 <li>ID: %s</li>
                 </ul>
                 """
                         .formatted(
-                                inquiry.getSiteName(),
-                                inquiry.getContactName(),
-                                inquiry.getContactEmail(),
-                                inquiry.getContactPhone() != null ? inquiry.getContactPhone() : "—",
-                                inquiry.getPackageType(),
+                                html(inquiry.getOrganizationName()),
+                                html(inquiry.getSiteName()),
+                                html(inquiry.getSiteLocation()),
+                                html(inquiry.getContactName()),
+                                html(inquiry.getContactEmail()),
+                                html(inquiry.getContactRole()),
+                                html(inquiry.getContactPhone()),
+                                html(inquiry.getPackageType()),
+                                html(inquiry.getTargetStart()),
+                                html(inquiry.getAvailableMaterials()),
+                                html(inquiry.getMessage()),
                                 inquiry.getId());
         try {
-            histarEmailService.sendHtml(salesInbox.trim(), "TimeLens — B2B2C inquiry mới", salesHtml);
+            histarEmailService.sendHtml(salesInbox.trim(), "TimeLens — Yêu cầu tư vấn số hóa di sản mới", salesHtml);
         } catch (RuntimeException ex) {
             log.warn("B2B2C sales notify email failed for inquiry {}: {}", inquiry.getId(), ex.getMessage());
         }
+    }
+
+    private static String html(String value) {
+        return value == null || value.isBlank() ? "—" : HtmlUtils.htmlEscape(value);
     }
 
     private B2b2cInquiryItem toItem(HeritageDigitizationInquiry inquiry) {
@@ -301,6 +328,11 @@ public class B2b2cInquiryService {
                 inquiry.getContactedAt(),
                 inquiry.getCreatedAt(),
                 inquiry.getInterestSiteCode(),
-                inquiry.getOrganizationId());
+                inquiry.getOrganizationId(),
+                inquiry.getOrganizationName(),
+                inquiry.getContactRole(),
+                inquiry.getSiteLocation(),
+                inquiry.getAvailableMaterials(),
+                inquiry.getTargetStart());
     }
 }

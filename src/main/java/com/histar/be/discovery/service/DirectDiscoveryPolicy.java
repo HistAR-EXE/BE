@@ -24,6 +24,10 @@ public class DirectDiscoveryPolicy {
         if (key == null || key.isBlank()) {
             return false;
         }
+        // The Sa bàn step is awarded only after the server checks the quiz answer.
+        if ("tour:sa-ban".equals(key)) {
+            return false;
+        }
         for (String prefix : VIEW_PREFIXES) {
             if (key.startsWith(prefix)) {
                 return true;

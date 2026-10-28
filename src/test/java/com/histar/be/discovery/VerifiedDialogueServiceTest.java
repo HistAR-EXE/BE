@@ -23,9 +23,12 @@ import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.stream.Stream;
 
 @ExtendWith(MockitoExtension.class)
 class VerifiedDialogueServiceTest {
@@ -67,5 +70,37 @@ class VerifiedDialogueServiceTest {
             assertEquals(10, service.complete(user, request).xpEarned());
             verify(rewards).record(user, location, "dialogue:test", "verified_dialogue");
         }
+    }
+
+    static Stream<Arguments> unverifiedExchanges() {
+        return Stream.of(
+                Arguments.of("An unrelated question", "Answer", true),
+                Arguments.of("An unrelated question. Canonical prompt", "Answer", true),
+                Arguments.of("Canonical prompt", "", true),
+                Arguments.of("Canonical prompt", "Answer", false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unverifiedExchanges")
+    void rejectsUnrelatedOrUnansweredConversation(String question, String answer, boolean serverGenerated) {
+        UUID user = UUID.randomUUID(), location = UUID.randomUUID(), conversationId = UUID.randomUUID();
+        UUID characterId = UUID.randomUUID();
+        var quest = Quest.builder().id(UUID.randomUUID()).locationId(location).build();
+        var step = QuestStep.builder().quest(quest).unlockKey("dialogue:test")
+                .chatPrompt("Canonical prompt").build();
+        when(conversations.findById(conversationId)).thenReturn(Optional.of(Conversation.builder()
+                .id(conversationId).userId(user).characterId(characterId).build()));
+        var character = mock(com.histar.be.character.entity.CharacterEntity.class);
+        when(character.getLocationId()).thenReturn(location);
+        when(characters.findById(characterId)).thenReturn(Optional.of(character));
+        when(steps.findByUnlockKey("dialogue:test")).thenReturn(List.of(step));
+        when(messages.findByConversationIdOrderByCreatedAt(conversationId)).thenReturn(List.of(
+                Message.builder().role("user").content(question).build(),
+                Message.builder().role("assistant").content(answer).serverGenerated(serverGenerated).build()));
+        when(visibility.visible(quest)).thenReturn(true);
+
+        assertThrows(BusinessRuleException.class, () -> service.complete(user,
+                new VerifiedDialogueService.Request(location, conversationId, "dialogue:test")));
+        verifyNoInteractions(rewards);
     }
 }

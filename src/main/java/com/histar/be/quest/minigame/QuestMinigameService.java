@@ -60,9 +60,6 @@ public class QuestMinigameService {
         JsonNode level = findLevel(config.path("levels"), attempt.levelId());
         QuestMinigameGrader.Grade grade = QuestMinigameGrader.grade(game.getEngine(), config, level, attempt);
         productionMetrics.recordMinigameAttempt(grade.passed(), !grade.resolved());
-        int previous = resultRepository.findByUserIdAndGameId(userId, gameId)
-                .map(UserGameResult::getBestStars)
-                .orElse(0);
         if (!grade.resolved()) {
             return new MinigameAttemptResponse(0, false, "", "", false, 0, 0, true, grade.hint());
         }
@@ -71,9 +68,17 @@ public class QuestMinigameService {
 
         int discoveryXp = 0;
         boolean recorded = false;
-        if (previous < 1 && grade.stars() >= 1) {
+        if (grade.stars() >= 1) {
             List<QuestStep> steps = questStepRepository.findByMinigameId(gameId);
             for (QuestStep step : steps) {
+                if (step.getQuest() == null || !questVisibility.visible(step.getQuest())) continue;
+                try {
+                    questUnlockGate.assertUnlocked(userId, step.getQuest());
+                } catch (BusinessRuleException locked) {
+                    // A shared game may be free through another quest. Do not
+                    // record its Premium step until this quest is unlocked.
+                    continue;
+                }
                 UUID locationId = step.getQuest().getLocationId();
                 if (discoveryService.record(userId, step.getUnlockKey(), locationId)) {
                     recorded = true;

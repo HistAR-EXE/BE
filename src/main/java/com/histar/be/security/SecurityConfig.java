@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/billing/org/plans", "/api/billing/public-pricing")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/billing/b2b2c-inquiry")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pilot-sites", "/api/pilot-sites/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/panoramas/**")

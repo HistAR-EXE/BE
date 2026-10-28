@@ -30,6 +30,21 @@ public class HeritageDigitizationInquiry {
     @Column(name = "site_name", nullable = false)
     private String siteName;
 
+    @Column(name = "organization_name", length = 255)
+    private String organizationName;
+
+    @Column(name = "contact_role", length = 160)
+    private String contactRole;
+
+    @Column(name = "site_location", length = 255)
+    private String siteLocation;
+
+    @Column(name = "available_materials", columnDefinition = "TEXT")
+    private String availableMaterials;
+
+    @Column(name = "target_start", length = 80)
+    private String targetStart;
+
     /** Pilot interest: cu-chi | hoang-thanh-thang-long | dai-noi-hue */
     @Column(name = "interest_site_code", length = 64)
     private String interestSiteCode;

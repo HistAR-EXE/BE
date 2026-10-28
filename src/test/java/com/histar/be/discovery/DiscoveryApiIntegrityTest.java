@@ -33,7 +33,7 @@ class DiscoveryApiIntegrityTest {
     @ParameterizedTest
     @ValueSource(strings = {"depth_quiz:surface", "cipher:hoang-cam", "dossier:architecture",
             "clue:ev-01", "investigation:cu-chi-conclusion", "minigame:xep-tang", "feature:ai_chat",
-            "dialogue:anh-ba", "bonus:tour:sa-ban", "artifact:cuoc-chim"})
+            "dialogue:anh-ba", "tour:sa-ban", "bonus:tour:sa-ban", "artifact:cuoc-chim"})
     void rawCompletionKeyCannotEarnRewards(String key) {
         when(users.getUserId()).thenReturn(Optional.of(UUID.randomUUID()));
         assertThrows(BusinessRuleException.class, () -> controller.record(

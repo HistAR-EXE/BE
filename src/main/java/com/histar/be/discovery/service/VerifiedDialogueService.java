@@ -53,10 +53,12 @@ public class VerifiedDialogueService {
                     for (int i = 0; i < history.size(); i++) {
                         var message = history.get(i);
                         if (!"user".equals(message.getRole()) || message.getContent() == null
-                                || !normalize(message.getContent()).contains(normalize(s.getChatPrompt()))) continue;
+                                || !normalize(message.getContent()).equals(normalize(s.getChatPrompt()))) continue;
                         for (int j = i + 1; j < history.size(); j++) {
                             if ("user".equals(history.get(j).getRole())) break;
-                            if ("assistant".equals(history.get(j).getRole()) && history.get(j).isServerGenerated()) return true;
+                            if ("assistant".equals(history.get(j).getRole()) && history.get(j).isServerGenerated()
+                                    && history.get(j).getContent() != null
+                                    && !history.get(j).getContent().isBlank()) return true;
                         }
                     }
                     return false;

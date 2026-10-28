@@ -3,6 +3,7 @@ package com.histar.be.quest.service;
 import com.histar.be.common.exception.BusinessRuleException;
 import com.histar.be.discovery.entity.UserDiscovery;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
+import com.histar.be.discovery.service.DiscoveryRewardService;
 import com.histar.be.profile.service.ProfilePointsService;
 import com.histar.be.quest.dto.ChapterBonusResponse;
 import com.histar.be.quest.entity.Quest;
@@ -24,6 +25,8 @@ public class QuestChapterBonusService {
 
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final QuestRepository questRepository;
+    private final QuestUnlockGate questUnlockGate;
+    private final DiscoveryRewardService discoveryRewardService;
     private final ProfilePointsService profilePointsService;
 
     @Transactional
@@ -32,9 +35,13 @@ public class QuestChapterBonusService {
         if (!SA_BAN_STEP.equals(unlockKey)) {
             throw new BusinessRuleException("Chương này không có thưởng đố.");
         }
-        if (!userDiscoveryRepository.existsByUserIdAndLocationIdAndDiscoveryKey(userId, locationId, SA_BAN_STEP)) {
-            throw new BusinessRuleException("Chưa nộp mã mảnh sa bàn.");
-        }
+        Quest quest = questRepository.findById(UUID.fromString("33333333-3333-3333-3333-333333333334"))
+                .filter(q -> locationId.equals(q.getLocationId()) && q.getDeletedAt() == null)
+                .orElseThrow(() -> new BusinessRuleException("Không tìm thấy nhiệm vụ Sa bàn tại địa điểm này."));
+        questUnlockGate.assertUnlocked(userId, quest);
+        // The controller has verified the answer. Record the quest step here,
+        // not when a visitor opens the unobservable third-party 360 iframe.
+        discoveryRewardService.record(userId, locationId, SA_BAN_STEP, "sa_ban_quiz");
         if (userDiscoveryRepository.existsByUserIdAndLocationIdAndDiscoveryKey(userId, locationId, SA_BAN_BONUS)) {
             return new ChapterBonusResponse(0, true);
         }
