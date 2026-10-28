@@ -16,4 +16,5 @@ public record OrgPaymentStatusResponse(
         Integer amountVnd,
         String transferContent,
         Integer receivedAmountVnd,
-        Integer remainingAmountVnd) {}
+        Integer remainingAmountVnd,
+        String activationMessage) {}

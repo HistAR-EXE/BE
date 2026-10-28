@@ -10,6 +10,7 @@ import com.histar.be.gamification.dto.CheckinResultDto;
 import com.histar.be.gamification.service.GamificationService;
 import com.histar.be.location.entity.Location;
 import com.histar.be.location.repository.LocationRepository;
+import com.histar.be.profile.service.TierAccessService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class PresenceCheckinService {
     private final StationQrService stationQrService;
     private final GamificationService gamificationService;
     private final LocationRepository locationRepository;
+    private final TierAccessService tierAccessService;
 
     public CheckinResultDto checkin(UUID userId, CheckinRequest request) {
         boolean hasQrPayload = request.qrPayload() != null && !request.qrPayload().isBlank();
@@ -63,6 +65,14 @@ public class PresenceCheckinService {
 
         if (locationId == null) {
             throw new BusinessRuleException("Thiếu locationId — quét QR trạm có siteCode hoặc chọn địa điểm");
+        }
+        String effectiveSite = siteCode != null ? siteCode : locationRepository.findById(locationId)
+                .map(Location::getSiteCode).orElse(null);
+        if ("cu-chi".equalsIgnoreCase(effectiveSite)
+                && stationCode != null
+                && stationCode.matches("(?i)ST0[3-6]")
+                && !tierAccessService.hasStoryAccess(userId, effectiveSite)) {
+            throw new BusinessRuleException("Trạm này cần Premium hoặc Journey Pass để quét QR");
         }
 
         return gamificationService.processCheckin(

@@ -47,6 +47,7 @@ public class SepayOrgPaymentService {
     private final BillingSettingsService billingSettingsService;
     private final EmailVerifiedGuard emailVerifiedGuard;
     private final OrgBillingSubscriptionRepository orgBillingSubscriptionRepository;
+    private final com.histar.be.organization.repository.OrganizationMemberRepository organizationMemberRepository;
 
     @Transactional
     public OrgPaymentIntentResponse createPayment(UUID userId, OrgCreatePaymentRequest request) {
@@ -180,7 +181,7 @@ public class SepayOrgPaymentService {
         return toIntentResponse(tx);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public OrgPaymentStatusResponse getPaymentStatus(UUID userId, String orderCode) {
         OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCode(orderCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
@@ -188,6 +189,7 @@ public class SepayOrgPaymentService {
             throw new BusinessRuleException("Không có quyền xem giao dịch này");
         }
         String status = resolveStatus(tx);
+        if ("PAID".equals(status) && tx.getSubscriptionId() == null) finalizePaidOrg(tx);
         int received = STATUS_UNDERPAID.equals(status)
                 ? SepayB2cPaymentService.receivedAmountFromPayload(tx.getProviderPayload())
                 : 0;
@@ -199,14 +201,15 @@ public class SepayOrgPaymentService {
                 tx.getExpiresAt(),
                 tx.getPaidAt(),
                 tx.getReturnToPath(),
-                "PAID".equals(status),
+                "PAID".equals(status) && tx.getSubscriptionId() != null,
                 tx.getOrganizationId(),
                 tx.getPlanType(),
                 tx.getOrgName(),
                 amount,
                 tx.getTransferContent(),
                 STATUS_UNDERPAID.equals(status) ? received : null,
-                STATUS_UNDERPAID.equals(status) ? remaining : null);
+                STATUS_UNDERPAID.equals(status) ? remaining : null,
+                "PAID".equals(status) && tx.getSubscriptionId() == null ? capacityMessage(tx) : null);
     }
 
     @Transactional
@@ -295,6 +298,7 @@ public class SepayOrgPaymentService {
         if (tx.getSubscriptionId() != null) {
             return;
         }
+        if (capacityMessage(tx) != null) return;
         var orgStatus = billingService.subscribeOrg(
                 tx.getRequesterUserId(),
                 new OrgSubscribeRequest(tx.getOrgName(), tx.getPlanType(), tx.getContactEmail(), tx.getOrganizationId()),
@@ -313,6 +317,20 @@ public class SepayOrgPaymentService {
         orgBillingSubscriptionRepository.save(subscription);
         tx.setSubscriptionId(subscription.getId());
         orgPaymentTransactionRepository.save(tx);
+    }
+
+    private String capacityMessage(OrgPaymentTransaction tx) {
+        if (tx.getOrganizationId() == null) return null;
+        organizationRepository.findByIdForUpdate(tx.getOrganizationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        try {
+            com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(
+                    organizationMemberRepository.countByOrganizationId(tx.getOrganizationId()),
+                    OrgSubscription.fromPlanType(tx.getPlanType()));
+            return null;
+        } catch (com.histar.be.billing.policy.OrgSeatCapacityPolicy.CapacityExceeded ex) {
+            return ex.getMessage();
+        }
     }
 
     private void ensureEnabled() {

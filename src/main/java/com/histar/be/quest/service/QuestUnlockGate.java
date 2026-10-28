@@ -8,6 +8,8 @@ import com.histar.be.quest.entity.Quest;
 import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.rules.QuestRules;
+import com.histar.be.profile.service.PremiumContentPolicy;
+import com.histar.be.profile.service.TierAccessService;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,8 +24,12 @@ public class QuestUnlockGate {
     private final UserDiscoveryRepository userDiscoveryRepository;
     private final UserQuestProgressRepository userQuestProgressRepository;
     private final QuestRepository questRepository;
+    private final TierAccessService tierAccess;
 
     public void assertUnlocked(UUID userId, Quest quest) {
+        if (PremiumContentPolicy.premiumQuest(quest) && !tierAccess.hasPremiumAccess(userId)) {
+            throw new BusinessRuleException("Nhiệm vụ Online này cần Premium.");
+        }
         UUID afterQuestId = quest.getUnlockAfterQuestId();
         if (afterQuestId != null && !isCompleted(userId, afterQuestId)) {
             String title = questRepository.findById(afterQuestId).map(Quest::getTitle).orElse("nhiệm vụ trước");

@@ -29,7 +29,7 @@ public class BillingSettingsService {
     private static final int DEFAULT_JOURNEY_PASS_PRICE_VND = 29000;
     public static final String ORG_VOLUME_DISCOUNT_PERCENT_KEY = "org_volume_discount_percent";
     public static final String ORG_VOLUME_DISCOUNT_MIN_LICENSES_KEY = "org_volume_discount_min_licenses";
-    private static final int DEFAULT_CHAT_FREE_DAILY_LIMIT = 10;
+    private static final int DEFAULT_CHAT_FREE_DAILY_LIMIT = 3;
     private static final int DEFAULT_VOLUME_DISCOUNT_PERCENT = 35;
     private static final int DEFAULT_VOLUME_DISCOUNT_MIN_LICENSES = 3;
     /** Align with Admin Billing Stitch slider (3 thắt chặt → 50 rộng rãi). */

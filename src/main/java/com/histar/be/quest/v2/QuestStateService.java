@@ -30,6 +30,7 @@ import com.histar.be.quest.v2.dto.QuestV2Progress;
 import com.histar.be.quest.v2.dto.QuestV2QuestRef;
 import com.histar.be.quest.v2.dto.QuestV2StartResponse;
 import com.histar.be.quest.v2.dto.QuestV2Step;
+import com.histar.be.profile.service.PremiumContentPolicy;
 import com.histar.be.stations.entity.Station;
 import com.histar.be.stations.repository.StationRepository;
 import java.util.Collection;
@@ -60,6 +61,7 @@ public class QuestStateService {
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String LOCK_AFTER_QUEST = "AFTER_QUEST";
     public static final String LOCK_DISCOVERY_KEYS = "DISCOVERY_KEYS";
+    public static final String LOCK_PREMIUM = "PREMIUM";
 
     private final QuestRepository questRepository;
     private final QuestStepRepository questStepRepository;
@@ -120,8 +122,10 @@ public class QuestStateService {
         String stored = progress == null ? null : progress.getStatus();
         boolean completed = QuestStatus.COMPLETED.equals(stored);
         boolean inProgress = QuestStatus.IN_PROGRESS.equals(stored);
-        QuestV2Lock lock = completed || inProgress ? null : lockFor(quest, ctx);
-        String status = completed
+        QuestV2Lock premiumLock = PremiumContentPolicy.premiumQuest(quest) && !ctx.facts().premium()
+                ? new QuestV2Lock(LOCK_PREMIUM, "Nâng cấp Premium để mở nhiệm vụ này", null, List.of()) : null;
+        QuestV2Lock lock = premiumLock != null ? premiumLock : completed || inProgress ? null : lockFor(quest, ctx);
+        String status = premiumLock != null ? STATUS_LOCKED : completed
                 ? STATUS_COMPLETED
                 : inProgress ? STATUS_IN_PROGRESS : lock != null ? STATUS_LOCKED : STATUS_AVAILABLE;
         return new QuestV2Card(
@@ -146,6 +150,9 @@ public class QuestStateService {
 
     private QuestV2Detail detail(Quest quest, Context ctx) {
         QuestV2Card card = card(quest, ctx);
+        if (card.lock() != null && LOCK_PREMIUM.equals(card.lock().reason())) {
+            return new QuestV2Detail(card, List.of(), QuestRewardSummary.from(quest));
+        }
         List<QuestStep> rows = ctx.steps().getOrDefault(quest.getId(), List.of());
         Map<UUID, QuestStep> rowById = rows.stream()
                 .filter(r -> r.getId() != null)
@@ -180,6 +187,9 @@ public class QuestStateService {
     }
 
     private QuestV2Lock lockFor(Quest quest, Context ctx) {
+        if (PremiumContentPolicy.premiumQuest(quest) && !ctx.facts().premium()) {
+            return new QuestV2Lock(LOCK_PREMIUM, "Nâng cấp Premium để mở nhiệm vụ này", null, List.of());
+        }
         UUID afterId = quest.getUnlockAfterQuestId();
         if (afterId != null) {
             UserQuestProgress after = ctx.progress().get(afterId);

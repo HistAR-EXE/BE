@@ -20,7 +20,6 @@ import com.histar.be.billing.dto.OrgPaymentIntentResponse;
 import com.histar.be.billing.dto.OrgPaymentStatusResponse;
 import com.histar.be.billing.dto.OrgSubscriptionHistoryItem;
 import com.histar.be.billing.dto.OrgSubscribeRequest;
-import com.histar.be.billing.dto.OrgTrialRequest;
 import com.histar.be.billing.service.B2b2cInquiryService;
 import com.histar.be.billing.service.BillingService;
 import com.histar.be.billing.service.BillingSettingsService;
@@ -111,12 +110,6 @@ public class BillingController {
     public ApiResponse<OrgBillingStatus> subscribeOrg(@RequestBody @Valid OrgSubscribeRequest request) {
         UUID userId = requireUserId();
         return ApiResponse.ok(billingService.subscribeOrg(userId, request));
-    }
-
-    @PostMapping("/org/trial")
-    public ApiResponse<OrgBillingStatus> createOrgTrial(@RequestBody(required = false) OrgTrialRequest request) {
-        UUID userId = requireUserId();
-        return ApiResponse.ok(billingService.createOrgTrial(userId, request));
     }
 
     @GetMapping("/status")

@@ -12,6 +12,8 @@ import com.histar.be.organization.service.TrialEntitlementGuard;
 import com.histar.be.profile.dto.ProfileMeResponse;
 import com.histar.be.profile.service.ProfileMeService;
 import com.histar.be.profile.service.ProfilePointsService;
+import com.histar.be.profile.service.PremiumContentPolicy;
+import com.histar.be.profile.service.TierAccessService;
 import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import jakarta.validation.constraints.*;
@@ -34,6 +36,7 @@ public class ExploreService {
     private final BadgeAwardService badgeAwards;
     private final UserBadgeRepository badges;
     private final TrialEntitlementGuard trial;
+    private final TierAccessService tierAccess;
 
     public record AttemptRequest(@NotNull UUID locationId, @NotBlank @Size(max = 128) String key,
             @Min(0) @Max(3) Integer answer) {}
@@ -97,6 +100,9 @@ public class ExploreService {
         if (!ExploreChallengeCatalog.QUIZZES.containsKey(key) && !ExploreChallengeCatalog.CLUES.contains(key)
                 && !ExploreChallengeCatalog.CONCLUSION.equals(key)) {
             throw new BusinessRuleException("Thử thách không hợp lệ.");
+        }
+        if (PremiumContentPolicy.premiumDiscovery(key) && !tierAccess.hasPremiumAccess(userId)) {
+            throw new BusinessRuleException("Thử thách này cần Premium.");
         }
         if (userDiscoveries.existsByUserIdAndLocationIdAndDiscoveryKey(userId, request.locationId(), key)) {
             return new AttemptResponse(true, true, 0, snapshot(userId));

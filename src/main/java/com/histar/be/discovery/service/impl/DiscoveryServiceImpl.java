@@ -13,6 +13,7 @@ import com.histar.be.discovery.repository.DiscoveryPointRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.discovery.service.DiscoveryService;
 import com.histar.be.profile.service.ProfileAccessPolicy;
+import com.histar.be.profile.service.PremiumContentPolicy;
 import com.histar.be.gamification.rules.entity.UnlockRule;
 import com.histar.be.gamification.rules.repository.UnlockRuleRepository;
 import java.time.Instant;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class DiscoveryServiceImpl implements DiscoveryService {
 
     private static final List<String> LEGACY_CHECKIN_KEYS = List.of("era:2026", "photo:cua-ham", "photo:gieng");
-    private static final Set<String> PREMIUM_ERA_KEYS = Set.of("era:1948", "era:1968");
 
     private final DiscoveryPointRepository discoveryPointRepository;
     private final UserDiscoveryRepository userDiscoveryRepository;
@@ -97,8 +97,8 @@ public class DiscoveryServiceImpl implements DiscoveryService {
                 userId, resolvedLocationId, unlockKey)) {
             return false;
         }
-        if (PREMIUM_ERA_KEYS.contains(unlockKey) && !usageQuotaService.hasPremiumEntitlement(userId)) {
-            throw new BusinessRuleException("Cổng 1948 và 1968 cần Premium.");
+        if (PremiumContentPolicy.premiumDiscovery(unlockKey) && !usageQuotaService.hasPremiumEntitlement(userId)) {
+            throw new BusinessRuleException("Nội dung này cần Premium.");
         }
         userDiscoveryRepository.save(UserDiscovery.builder()
                 .userId(userId)

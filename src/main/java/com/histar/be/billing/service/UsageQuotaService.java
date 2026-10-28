@@ -34,7 +34,7 @@ public class UsageQuotaService {
     private final TierAccessService tierAccessService;
     private final OrganizationEntitlementService organizationEntitlements;
 
-    @Value("${gemini.daily-message-limit:10}")
+    @Value("${gemini.daily-message-limit:3}")
     private int legacyDailyLimit;
 
     @Transactional(readOnly = true)
@@ -82,7 +82,7 @@ public class UsageQuotaService {
 
     @Transactional
     public void recordChatSuccess(UUID userId) {
-        Profile profile = profileRepository.findById(userId).orElse(null);
+        Profile profile = profileRepository.findByIdForUpdate(userId).orElse(null);
         if (profile == null) {
             return;
         }
@@ -96,6 +96,13 @@ public class UsageQuotaService {
             assertOrgMonthlyQuota(profile.getOrgId());
             incrementOrgMonthly(profile.getOrgId(), vnDay);
             return;
+        }
+
+        int limit = resolveFreeDailyLimit();
+        if (getUserDailyUsage(userId) >= limit) {
+            throw new QuotaExceededException(
+                    "Đã đạt giới hạn " + limit + " tin nhắn/ngày. Nâng cấp Premium để chat không giới hạn.",
+                    UPGRADE_URL, "B2C_DAILY", null);
         }
 
         incrementUserDaily(userId, vnDay);

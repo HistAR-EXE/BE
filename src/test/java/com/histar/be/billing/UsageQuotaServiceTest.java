@@ -66,6 +66,7 @@ class UsageQuotaServiceTest {
     }
 
     @Test
+
     void validPersonalPremiumSurvivesExpiredOrganizationForChat() {
         UUID id=UUID.randomUUID();
         var profile=Profile.builder().id(id).orgId(UUID.randomUUID()).tier("PREMIUM").build();
@@ -75,6 +76,38 @@ class UsageQuotaServiceTest {
         assertThat(usageQuotaService.getUserDailyLimit(profile)).isEqualTo(-1);
         usageQuotaService.recordChatSuccess(id);
         verify(usageQuotaRepository,never()).save(any());
+    }
+
+    @Test
+
+    void fourthSuccessfulFreeAnswerIsRejectedUnderDefaultPolicy() {
+        UUID userId = UUID.randomUUID();
+        Profile free = Profile.builder().id(userId).tier(UserTier.FREE.name()).role("USER").build();
+        when(profileRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(free));
+        when(billingSettingsService.getChatFreeDailyLimit()).thenReturn(3);
+        when(usageQuotaRepository.findByUserIdAndYearAndMonthAndDay(any(), anyInt(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(UsageQuota.builder().usedAiQueries(3).build()));
+
+        assertThatThrownBy(() -> usageQuotaService.recordChatSuccess(userId))
+                .isInstanceOf(QuotaExceededException.class);
+        verify(usageQuotaRepository, never()).save(any());
+    }
+
+    @Test
+    void thirdSuccessfulFreeAnswerIsRecorded() {
+        UUID userId = UUID.randomUUID();
+        Profile free = Profile.builder().id(userId).tier(UserTier.FREE.name()).role("USER").build();
+        UsageQuota quota = UsageQuota.builder().usedAiQueries(2).build();
+        when(profileRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(free));
+        when(billingSettingsService.getChatFreeDailyLimit()).thenReturn(3);
+        when(usageQuotaRepository.findByUserIdAndYearAndMonthAndDay(any(), anyInt(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(quota));
+
+        usageQuotaService.recordChatSuccess(userId);
+
+        assertThat(quota.getUsedAiQueries()).isEqualTo(3);
+        verify(usageQuotaRepository).save(quota);
+
     }
 
     @Test
