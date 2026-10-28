@@ -17,6 +17,11 @@ import com.histar.be.profile.entity.Profile;
 import com.histar.be.profile.repository.ProfileRepository;
 import com.histar.be.discovery.repository.UserDiscoveryRepository;
 import com.histar.be.quest.entity.Quest;
+import com.histar.be.quest.evaluator.QuestCompletionEvaluator;
+import com.histar.be.quest.rules.QuestFactsLoader;
+import com.histar.be.common.exception.BusinessRuleException;
+import com.histar.be.profile.service.PremiumContentPolicy;
+import com.histar.be.profile.service.TierAccessService;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.support.QuestDiscoveryProgress;
@@ -49,6 +54,9 @@ public class QuestProgressCompleter {
     private final HeritageOnsiteBonusService heritageOnsiteBonusService;
     private final com.histar.be.lms.service.LmsAssignmentService lmsAssignmentService;
     private final com.histar.be.profile.service.ProfilePointsService points;
+    private final TierAccessService tierAccess;
+    private final QuestCompletionEvaluator completionEvaluator;
+    private final QuestFactsLoader questFactsLoader;
 
     @Transactional
     public Optional<QuestCompletedDto> completeIfInProgress(UUID userId, UUID questId) {
@@ -60,6 +68,13 @@ public class QuestProgressCompleter {
             UUID userId, UUID questId, CompletionTrigger trigger) {
         points.lockAccount(userId);
         Quest quest = questRepository.findById(questId).orElseThrow();
+        if (PremiumContentPolicy.premiumQuest(quest) && !tierAccess.hasPremiumAccess(userId)) {
+            throw new BusinessRuleException("Nhiệm vụ Online này cần Premium.");
+        }
+        if (PremiumContentPolicy.FREE_MINIGAME_QUEST.equals(questId)
+                && !completionEvaluator.isSatisfied(quest, questFactsLoader.load(userId, quest.getLocationId(), false))) {
+            throw new BusinessRuleException("Hoàn thành cả bốn mini game để nhận 100 XP.");
+        }
         Instant now = Instant.now();
         int updated = userQuestProgressRepository.markCompletedIfInProgress(
                 userId, questId, QuestStatus.COMPLETED, QuestStatus.IN_PROGRESS, now);

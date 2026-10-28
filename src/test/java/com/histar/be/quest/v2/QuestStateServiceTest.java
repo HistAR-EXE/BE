@@ -79,7 +79,7 @@ class QuestStateServiceTest {
                 .locationId(locationId)
                 .title("Hành trình")
                 .pointsReward(100)
-                .track("ONLINE")
+                .track("ONSITE")
                 .sortOrder(10)
                 .completionTrigger("discovery")
                 .stepDiscoveryKeys(String.join(",", SCENE_A, SCENE_B, XUA_NAY))
@@ -95,7 +95,7 @@ class QuestStateServiceTest {
                 .locationId(locationId)
                 .title("Sau hành trình")
                 .pointsReward(50)
-                .track("ONLINE")
+                .track("ONSITE")
                 .sortOrder(20)
                 .completionTrigger("discovery")
                 .unlockAfterQuestId(journeyId)
@@ -109,7 +109,7 @@ class QuestStateServiceTest {
                 .locationId(locationId)
                 .title("Mở bằng khóa")
                 .pointsReward(50)
-                .track("ONLINE")
+                .track("ONSITE")
                 .sortOrder(30)
                 .completionTrigger("discovery")
                 .unlockDiscoveryKeys(SCENE_A + "," + SCENE_B)
@@ -149,14 +149,14 @@ class QuestStateServiceTest {
 
     @Test
     void anonymousSeesLockReasonsAndSortedList() {
-        List<QuestV2Card> cards = questStateService.list(locationId, "ONLINE", null);
+        List<QuestV2Card> cards = questStateService.list(locationId, "ONSITE", null);
         assertEquals(List.of(journeyId, afterId, keysId), cards.stream().map(QuestV2Card::id).toList());
         assertEquals(QuestStateService.STATUS_AVAILABLE, card(cards, journeyId).status());
         assertEquals(QuestStateService.LOCK_AFTER_QUEST, card(cards, afterId).lock().reason());
         assertEquals(QuestStateService.LOCK_DISCOVERY_KEYS, card(cards, keysId).lock().reason());
         assertEquals(3, card(cards, journeyId).progress().requiredTotal());
         assertEquals(1, card(cards, journeyId).progress().optionalTotal());
-        assertTrue(questStateService.list(locationId, "ONSITE", null).isEmpty());
+        assertTrue(questStateService.list(locationId, "ONLINE", null).isEmpty());
     }
 
     @Test
@@ -202,5 +202,16 @@ class QuestStateServiceTest {
     @Test
     void rejectsUnknownTrack() {
         assertThrows(BusinessRuleException.class, () -> questStateService.list(locationId, "MOON", null));
+    }
+
+    @Test
+    void freeUserSeesPremiumLockForOnlineQuestAndCannotStart() {
+        Quest premium = questRepository.save(Quest.builder()
+                .locationId(locationId).title("Nhiệm vụ Premium")
+                .track("ONLINE").pointsReward(100).completionTrigger("discovery").build());
+        var cards = questStateService.list(locationId, "ONLINE", userId);
+        assertEquals(QuestStateService.LOCK_PREMIUM, card(cards, premium.getId()).lock().reason());
+        assertTrue(questStateService.detail(premium.getId(), userId).steps().isEmpty());
+        assertThrows(BusinessRuleException.class, () -> questStateService.start(premium.getId(), userId));
     }
 }

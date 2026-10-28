@@ -34,7 +34,7 @@ public class HistarOrgProperties {
     @Getter
     @Setter
     public static class Tier {
-        private int freeChatDailyLimit = 10;
+        private int freeChatDailyLimit = 3;
         private String freePhotoFrameIds = "classic,heritage";
     }
 }

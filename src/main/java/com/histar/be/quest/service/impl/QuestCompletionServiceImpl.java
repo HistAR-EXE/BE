@@ -8,6 +8,7 @@ import com.histar.be.quest.progress.repository.UserQuestProgressRepository;
 import com.histar.be.quest.repository.QuestRepository;
 import com.histar.be.quest.rules.QuestFactsLoader;
 import com.histar.be.quest.rules.QuestRules;
+import com.histar.be.profile.service.PremiumContentPolicy;
 import com.histar.be.quest.service.CompletionTrigger;
 import com.histar.be.quest.service.QuestCompletionService;
 import com.histar.be.quest.service.QuestProgressCompleter;
@@ -48,6 +49,7 @@ public class QuestCompletionServiceImpl implements QuestCompletionService {
             if (facts == null) {
                 facts = questFactsLoader.load(userId, locationId, false);
             }
+            if (PremiumContentPolicy.premiumQuest(quest) && !facts.premium()) continue;
             if (!questCompletionEvaluator.isSatisfied(quest, facts)) {
                 continue;
             }

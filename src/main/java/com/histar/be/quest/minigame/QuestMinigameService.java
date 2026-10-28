@@ -103,11 +103,17 @@ public class QuestMinigameService {
         if (!questVisibility.gameVisible(steps)) {
             throw new ResourceNotFoundException("Minigame not found");
         }
+        BusinessRuleException locked = null;
         for (QuestStep step : steps) {
-            if (step.getQuest() != null && questVisibility.visible(step.getQuest())) {
+            if (step.getQuest() == null || !questVisibility.visible(step.getQuest())) continue;
+            try {
                 questUnlockGate.assertUnlocked(userId, step.getQuest());
+                return; // Shared mini games are playable when any linked quest is accessible.
+            } catch (BusinessRuleException ex) {
+                locked = ex;
             }
         }
+        if (locked != null) throw locked;
     }
 
     private QuestMinigame require(UUID gameId) {
