@@ -86,8 +86,8 @@ class BillingServiceTest {
         UUID userId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
         when(demoProperties.isEnabled()).thenReturn(true);
-        when(profileRepository.findById(userId)).thenReturn(Optional.of(Profile.builder().id(userId).orgId(orgId).role("TEACHER").build()));
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").build()));
+        when(profileRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(Profile.builder().id(userId).orgId(orgId).role("TEACHER").build()));
+        when(organizationRepository.findByIdForUpdate(orgId)).thenReturn(Optional.of(Organization.builder().id(orgId).status("ACTIVE").build()));
         when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, userId)).thenReturn(Optional.of(
                 com.histar.be.organization.entity.OrganizationMember.builder().organizationId(orgId).userId(userId)
                         .orgRole("teacher").acceptedAt(Instant.now()).build()));

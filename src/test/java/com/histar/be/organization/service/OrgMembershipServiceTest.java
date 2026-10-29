@@ -164,6 +164,7 @@ class OrgMembershipServiceTest {
         when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId, userId)).thenReturn(Optional.empty());
         when(organizationMemberRepository.save(any(OrganizationMember.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        when(pendingSeats.pendingLimit(orgId)).thenReturn(null);
         orgMembershipService.enrollUserInOrganization(userId, orgId);
 
         var ordered = inOrder(profileRepository, entityManager, organizationRepository);

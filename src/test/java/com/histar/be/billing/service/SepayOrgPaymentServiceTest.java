@@ -233,17 +233,17 @@ class SepayOrgPaymentServiceTest {
         OrgPaymentTransaction pending = OrgPaymentTransaction.builder()
                 .requesterUserId(userId).orgName("THPT Test").contactEmail("teacher@school.vn")
                 .planType("STANDARD").provider("SEPAY").orderCode("OLD").transferContent("OLD")
-                .amountVnd(15_000_000L).licenseCount(1).grossAmountVnd(15_000_000L).discountAmountVnd(0L)
+                .amountVnd(14_000_000L).licenseCount(1).grossAmountVnd(14_000_000L).discountAmountVnd(0L)
                 .status("PENDING").expiresAt(Instant.now().plusSeconds(600)).build();
         when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "UNDERPAID"))
                 .thenReturn(Optional.empty());
         when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING"))
                 .thenReturn(Optional.of(pending));
-        when(billingSettingsService.calculateOrgVolumePricing(15_000_000L, 2))
-                .thenReturn(new BillingSettingsService.OrgVolumePricing(15_000_000L, 0, 0L, 30_000_000L, 2));
+        when(billingSettingsService.calculateOrgVolumePricing(15_000_000L, 1))
+                .thenReturn(new BillingSettingsService.OrgVolumePricing(15_000_000L, 0, 0L, 15_000_000L, 1));
 
         assertThatThrownBy(() -> sepayOrgPaymentService.createPayment(userId,
-                new OrgCreatePaymentRequest("THPT Test", "STANDARD", "teacher@school.vn", null, "/teacher", 2)))
+                new OrgCreatePaymentRequest("THPT Test", "STANDARD", "teacher@school.vn", null, "/teacher", 1)))
                 .isInstanceOf(com.histar.be.common.exception.BusinessRuleException.class)
                 .hasMessageContaining("không khớp");
     }

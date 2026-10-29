@@ -113,6 +113,8 @@ class GamificationFlowTest {
                 .totalPoints(0)
                 .createdAt(Instant.now())
                 .build());
+        profile.setTier("PREMIUM");
+        profileRepository.save(profile);
         userId = profile.getId();
     }
 

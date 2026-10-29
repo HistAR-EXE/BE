@@ -184,6 +184,9 @@ class GoldenPathSmokeTest {
                 .listByLocation(location.getId(), PageRequest.of(0, 20))
                 .isEmpty());
 
+        var entitledProfile = profileRepository.findById(register.userId()).orElseThrow();
+        entitledProfile.setTier("PREMIUM");
+        profileRepository.save(entitledProfile);
         questProgressService.startQuest(register.userId(), quest.getId());
         var checkin = gamificationService.processCheckin(
                 register.userId(), location.getId(), 11.143, 106.461, "timelens:location:" + location.getId());

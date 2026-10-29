@@ -33,6 +33,7 @@ class OrgEmailInvitationServiceTest {
     OrgEmailInvitation invite;
 
     @BeforeEach void setup() {
+        lenient().when(pendingSeats.pendingLimit(any())).thenReturn(null);
         service = new OrgEmailInvitationService(invitations, organizations, memberships, profiles, members, entityManager, pendingSeats);
         profile = Profile.builder().id(UUID.randomUUID()).email("student@example.test")
                 .emailVerified(true).tier("FREE").build();

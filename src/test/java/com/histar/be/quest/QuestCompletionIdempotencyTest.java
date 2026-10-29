@@ -72,6 +72,7 @@ class QuestCompletionIdempotencyTest {
 
         userId = profileRepository
                 .save(Profile.builder()
+                        .tier("PREMIUM")
                         .email("idempotent-" + UUID.randomUUID() + "@test.local")
                         .displayName("Tester")
                         .role("USER")

@@ -47,7 +47,7 @@ public class QuestCompletionServiceImpl implements QuestCompletionService {
                 continue;
             }
             if (facts == null) {
-                facts = questFactsLoader.load(userId, locationId, false);
+                facts = questFactsLoader.load(userId, locationId, true);
             }
             if (PremiumContentPolicy.premiumQuest(quest) && !facts.premium()) continue;
             if (!questCompletionEvaluator.isSatisfied(quest, facts)) {

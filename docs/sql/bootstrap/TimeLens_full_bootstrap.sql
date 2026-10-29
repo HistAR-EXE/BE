@@ -1,5 +1,5 @@
 -- HistAR full local bootstrap SQL
--- Generated from schema, seed manifest, and Flyway migrations through V97.
+-- Generated from schema, seed manifest, and Flyway migrations through V104.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
 \set ON_ERROR_STOP on
@@ -10570,6 +10570,151 @@ CREATE INDEX idx_org_report_snapshots_recent
 
 -- END migration: V97__org_report_snapshots.sql
 COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V98__free_premium_content_policy.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V98__free_premium_content_policy.sql
+-- ============================================================================
+-- Keep historical progress and point ledger intact; change only future access metadata.
+UPDATE billing_settings SET setting_value = '3', updated_at = NOW()
+WHERE setting_key = 'chat_free_daily_limit' AND setting_value = '10';
+
+UPDATE quests SET unlock_after_quest_id = NULL
+WHERE id = '33333333-3333-3333-3333-333333333334'::uuid;
+
+UPDATE quests SET
+    title = 'Mật lệnh Mini Game',
+    description = 'Hoàn thành bốn mini game để giải mật lệnh Củ Chi.',
+    story = 'Khám phá từng dấu vết, vượt qua bốn thử thách và ghép lại mật lệnh.',
+    points_reward = 100,
+    sort_order = 55,
+    track = 'ONLINE'
+WHERE id = '33333333-3333-3333-3333-333333333336'::uuid;
+
+-- END migration: V98__free_premium_content_policy.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V99__repair_quest_step_media_paths.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V99__repair_quest_step_media_paths.sql
+-- ============================================================================
+-- V84 seeded five preview images with .webp paths, while R2 holds .jpeg files.
+-- Update only those exact obsolete paths; preserve all quest progress and media.
+UPDATE quest_steps
+SET preview_image = replace(preview_image, '/cover.webp', '/cover.jpeg')
+WHERE preview_image IN (
+    '/media/heritage/hoang-thanh-thang-long/cover.webp',
+    '/media/heritage/pho-co-hoi-an/cover.webp',
+    '/media/heritage/thanh-nha-ho/cover.webp',
+    '/media/heritage/van-mieu-quoc-tu-giam/cover.webp',
+    '/media/heritage/dai-noi-hue/cover.webp'
+);
+
+-- END migration: V99__repair_quest_step_media_paths.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V100__widen_user_creations_era_to_integer.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V100__widen_user_creations_era_to_integer.sql
+-- ============================================================================
+-- V95 created era as SMALLINT, while UserCreation.era is a Java Integer.
+-- Widening the column preserves all existing year values and satisfies
+-- Hibernate schema validation without changing the already-applied V95.
+ALTER TABLE user_creations
+    ALTER COLUMN era TYPE integer USING era::integer;
+
+-- END migration: V100__widen_user_creations_era_to_integer.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V101__ai_quota_reservations.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V101__ai_quota_reservations.sql
+-- ============================================================================
+CREATE TABLE ai_quota_reservations (
+ id uuid PRIMARY KEY,
+ user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+ organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE,
+ quota_date date NOT NULL,
+ status varchar(12) NOT NULL CHECK (status IN ('ACTIVE','COMPLETED','RELEASED','EXPIRED')),
+ expires_at timestamptz NOT NULL
+);
+CREATE INDEX idx_ai_quota_reservation_user ON ai_quota_reservations(user_id,quota_date,status,expires_at);
+CREATE INDEX idx_ai_quota_reservation_org ON ai_quota_reservations(organization_id,quota_date,status,expires_at);
+
+-- END migration: V101__ai_quota_reservations.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V102__profile_personal_details.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V102__profile_personal_details.sql
+-- ============================================================================
+ALTER TABLE profiles
+    ADD COLUMN full_name varchar(255),
+    ADD COLUMN date_of_birth date,
+    ADD COLUMN gender varchar(255),
+    ADD COLUMN phone varchar(255),
+    ADD COLUMN bio varchar(1000),
+    ADD COLUMN school varchar(255),
+    ADD COLUMN class_name varchar(255),
+    ADD COLUMN specialty varchar(255);
+
+-- END migration: V102__profile_personal_details.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V103__cu_chi_video_exploration.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V103__cu_chi_video_exploration.sql
+-- ============================================================================
+CREATE TABLE explore_video_progress (
+    id uuid PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    video_id varchar(64) NOT NULL,
+    watched_seconds double precision NOT NULL DEFAULT 0,
+    session_id uuid,
+    heartbeat_at timestamptz,
+    updated_at timestamptz NOT NULL,
+    UNIQUE(user_id, video_id),
+    CONSTRAINT explore_video_watched_nonnegative CHECK (watched_seconds >= 0)
+);
+
+INSERT INTO discovery_points(id, location_id, name, map_x_pct, map_y_pct, unlock_key, sort_order) VALUES
+('d0000001-0000-4000-8000-000000000301','11111111-1111-1111-1111-111111111111','Video: Địa đạo Củ Chi đã được đào như thế nào',30,30,'video:tunnel-digging',301),
+('d0000001-0000-4000-8000-000000000302','11111111-1111-1111-1111-111111111111','Video: Cổng làng vùng giải phóng',30,30,'video:liberation-gate',302),
+('d0000001-0000-4000-8000-000000000303','11111111-1111-1111-1111-111111111111','Video: Trạm thông tin',30,30,'video:communication-station',303),
+('d0000001-0000-4000-8000-000000000304','11111111-1111-1111-1111-111111111111','Video: Nhà du kích',30,30,'video:guerrilla-house',304),
+('d0000001-0000-4000-8000-000000000305','11111111-1111-1111-1111-111111111111','Video: Nhà phụ nữ',30,30,'video:women-house',305),
+('d0000001-0000-4000-8000-000000000306','11111111-1111-1111-1111-111111111111','Video: Nhà trưng bày hiện vật chiến tranh',30,30,'video:war-artifacts',306),
+('d0000001-0000-4000-8000-000000000307','11111111-1111-1111-1111-111111111111','Video: Không gian văn hóa và tượng đài Chủ tịch Hồ Chí Minh',30,30,'video:ho-chi-minh-space',307)
+ON CONFLICT (id) DO NOTHING;
+
+-- Earned user_badges are deliberately retained. Updated rules apply to future awards.
+UPDATE badges SET description = 'Hoàn thành sáu hồ sơ và bảy video Củ Chi (xem tối thiểu 90% và trả lời đúng thử thách).'
+WHERE id = 'b0000001-0000-4000-8000-000000000207';
+UPDATE badges SET description = '1.340 XP toàn tài khoản, hoàn thành bảy video Củ Chi, trải nghiệm 360°, sa bàn, AI và mở khóa cổ vật.'
+WHERE id = 'b0000001-0000-4000-8000-000000000209';
+
+-- END migration: V103__cu_chi_video_exploration.sql
+COMMIT;
+BEGIN;
+
+-- ============================================================================
+-- BEGIN migration: V104__video_session_wall_clock.sql
+-- Source: D:\STUDY\8-FALL_2026\EXE201\HistAR_Workspace\BE\src\main\resources\db\migration\V104__video_session_wall_clock.sql
+-- ============================================================================
+-- Keep V99 immutable for databases which already applied the original video schema.
+-- New sessions populate the clock anchor; old sessions must reconnect before crediting progress.
+ALTER TABLE explore_video_progress
+    ADD COLUMN IF NOT EXISTS session_started_at timestamptz,
+    ADD COLUMN IF NOT EXISTS session_started_seconds double precision NOT NULL DEFAULT 0;
+
+-- END migration: V104__video_session_wall_clock.sql
+COMMIT;
 
 -- ============================================================================
 -- BEGIN seed: 2026-10-15_admin_dashboard_revenue_demo.sql
@@ -10741,7 +10886,7 @@ COMMIT;
 -- END seed: 2026-10-15_admin_dashboard_revenue_demo.sql
 
 -- ============================================================================
--- Flyway baseline after full bootstrap: V97
+-- Flyway baseline after full bootstrap: V104
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS flyway_schema_history (
     installed_rank INTEGER NOT NULL,
@@ -10768,7 +10913,7 @@ INSERT INTO flyway_schema_history (
     installed_rank, version, description, type, script,
     checksum, installed_by, installed_on, execution_time, success
 ) VALUES (
-    1, '97', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
+    1, '104', '<< Flyway Baseline >>', 'BASELINE', '<< Flyway Baseline >>',
     NULL, 'histar-full-bootstrap', NOW(), 0, TRUE
 );
 

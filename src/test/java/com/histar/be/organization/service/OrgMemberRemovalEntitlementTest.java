@@ -42,7 +42,8 @@ class OrgMemberRemovalEntitlementTest {
   var student=Profile.builder().id(studentId).orgId(orgId).role("ORG_MEMBER").tier("PREMIUM").build();
   var member=OrganizationMember.builder().organizationId(orgId).userId(studentId).orgRole("student").build();
   when(profiles.findByIdForUpdate(studentId)).thenReturn(Optional.of(student));
-  when(organizations.findByIdForUpdate(orgId)).thenReturn(organizations.findById(orgId));
+  var organization = organizations.findById(orgId);
+  when(organizations.findByIdForUpdate(orgId)).thenReturn(organization);
   when(members.findByOrganizationIdAndUserId(orgId,studentId)).thenReturn(Optional.of(member));
   service.removeMember(managerId,studentId);
   verify(members).delete(member);assertThat(student.getOrgId()).isNull();assertThat(student.getTier()).isEqualTo("PREMIUM");
