@@ -163,12 +163,18 @@ public class B2b2cInquiryService {
             if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
             if (q != null && !q.isBlank()) {
                 String needle = "%" + q.trim().toLowerCase() + "%";
-                predicates.add(cb.or(
+                List<Predicate> matches = new ArrayList<>(List.of(
                         cb.like(cb.lower(root.get("siteName")), needle),
                         cb.like(cb.lower(root.get("organizationName")), needle),
                         cb.like(cb.lower(root.get("contactName")), needle),
                         cb.like(cb.lower(root.get("contactEmail")), needle),
                         cb.like(cb.lower(root.get("contactPhone")), needle)));
+                try {
+                    matches.add(cb.equal(root.get("id"), UUID.fromString(q.trim())));
+                } catch (IllegalArgumentException ignored) {
+                    // Free-text search is still valid when the query is not a UUID.
+                }
+                predicates.add(cb.or(matches.toArray(Predicate[]::new)));
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
