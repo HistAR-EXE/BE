@@ -36,7 +36,7 @@ class QuestCompletionPremiumTest {
         when(quests.findByLocationId(locationId)).thenReturn(List.of(quest));
         when(progress.findByUserIdAndQuestId(userId, questId)).thenReturn(Optional.of(
                 UserQuestProgress.builder().status(QuestStatus.IN_PROGRESS).build()));
-        when(factsLoader.load(userId, locationId)).thenReturn(premiumFacts);
+        when(factsLoader.load(userId, locationId, true)).thenReturn(premiumFacts);
         when(evaluator.isSatisfied(quest, premiumFacts)).thenReturn(true);
         when(completer.completeIfInProgress(userId, questId, CompletionTrigger.DISCOVERY))
                 .thenReturn(Optional.of(new QuestCompletedDto(questId, 100, List.of())));
