@@ -146,6 +146,26 @@ class RagAiChatClientTest {
         assertThat(json.path("player_context").path("remainingQuests").asInt()).isEqualTo(2);
     }
 
+    @Test void sendsRequestedFeatureEvenWhenChatPageHasADifferentFeature() throws Exception {
+        var route = new ChatKnowledgeRoute(ChatKnowledgeIntent.PRODUCT_HELP,
+                Set.of(ChatKnowledgeRoute.KnowledgeScope.PLATFORM), "BADGES",
+                new ChatPageContext("CHAT_AI", "/chat", "cu-chi", null), false, null);
+        client.generateWithSources("Có bao nhiêu huy hiệu?", "chrono", Map.of(), "", "", null,
+                List.of(), 1, 0, 0, Map.of(), null, route);
+        var json = JsonMapper.builder().build().readTree(requestBody.get());
+        assertThat(json.path("page_context").path("featureKey").asText()).isEqualTo("CHAT_AI");
+        assertThat(json.path("page_context").path("requestedFeatureKey").asText()).isEqualTo("BADGES");
+    }
+
+    @Test void sendsRequestedFeatureWithoutAnyPageContext() throws Exception {
+        var route = new ChatKnowledgeRoute(ChatKnowledgeIntent.PRODUCT_HELP,
+                Set.of(ChatKnowledgeRoute.KnowledgeScope.PLATFORM), "BADGES", null, false, null);
+        client.generateWithSources("Có bao nhiêu huy hiệu?", "chrono", Map.of(), "", "", null,
+                List.of(), 1, 0, 0, Map.of(), null, route);
+        var json = JsonMapper.builder().build().readTree(requestBody.get());
+        assertThat(json.path("page_context").path("requestedFeatureKey").asText()).isEqualTo("BADGES");
+    }
+
     @Test void parsesOptionalSourceScopeAndKeepsLegacySourcesCompatible() {
         body = """
                 {"reply":"answer","sources":[

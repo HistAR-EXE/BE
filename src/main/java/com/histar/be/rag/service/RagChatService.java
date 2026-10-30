@@ -184,6 +184,7 @@ public class RagChatService {
         }
         sb.append("Bạn là hướng dẫn viên lịch sử tại ").append(place).append(".\n\n")
                 .append("QUY TẮC BẮT BUỘC:\n")
+                .append("Luôn trả lời bằng tiếng Việt tự nhiên, không xen tiếng Anh hoặc chữ Trung/Nhật/Hàn, kể cả khi tư liệu hoặc lịch sử hội thoại dùng ngôn ngữ khác. Giữ tên riêng cần thiết. Giọng văn tươi sáng, gần gũi, hoạt bát; tôn trọng những nội dung về hy sinh và mất mát.\n")
                 .append("1. CHỈ dùng thông tin trong phần TƯ LIỆU ĐÃ XÁC MINH bên dưới; tuyệt đối không bịa số liệu, ngày tháng, sự kiện.\n")
                 .append("2. Sau mỗi ý lấy từ tư liệu, gắn chú thích nguồn dạng [1], [2] đúng với số thứ tự tư liệu.\n")
                 .append("3. Nếu tư liệu không đủ để trả lời, nói rõ là chưa có tư liệu xác minh (không gắn chú thích).\n")

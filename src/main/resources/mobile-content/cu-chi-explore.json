@@ -1,0 +1,535 @@
+{
+  "version": 1,
+  "locationId": "11111111-1111-1111-1111-111111111111",
+  "depthLayers": [
+    {
+      "id": "surface",
+      "discoveryKey": "depth:surface",
+      "quizKey": "depth_quiz:surface",
+      "depthLabel": "0m · Mặt Đất",
+      "title": "Tầng Ngụy Trang & Vành Đai Bẫy Chiến Thuật",
+      "subtitle": "Rừng chồi, ụ mối thông hơi và trận địa chông mìn thiên la địa võng",
+      "temp": "32°C – 36°C",
+      "oxygen": "100%",
+      "oxygenSub": "Tự nhiên",
+      "bombResistance": "Chịu càn quét bộ binh & xe tăng",
+      "structures": [
+        "Nắp hầm bí mật ngụy trang lá mục & cỏ dại",
+        "Ụ mối nhân tạo chứa ống thông hơi tre vát nghiêng",
+        "Trận địa 8 loại hầm chông & mìn gạt chống tăng",
+        "Lỗ châu mai chiến đấu ẩn sát gốc cây"
+      ],
+      "secretFact": "Du kích Củ Chi rải tiêu bột và ớt cay quanh các ụ mối thông hơi để làm mất khứu giác của đội chó nghiệp vụ Berger của quân đội Mỹ.",
+      "colorAccent": "from-emerald-600 to-teal-700",
+      "xp": 15,
+      "image": "/depth/layer-0.png",
+      "aiPrompt": "Làm sao du kích Củ Chi có thể đánh lừa khứu giác của chó nghiệp vụ Berger Mỹ bằng tiêu và ớt bột?",
+      "quiz": {
+        "question": "Du kích Củ Chi đã xử lý thế nào để đội chó Berger của Mỹ không thể đánh hơi thấy mùi người từ các lỗ thông hơi ngầm?",
+        "options": [
+          "Trồng rất nhiều hoa rừng có mùi hương nồng quanh miệng hầm",
+          "Rắc tiêu bột và ớt cay quanh các ụ mối thông hơi để làm tê liệt khứu giác chó săn",
+          "Dùng quạt gió cơ học thổi ngược mùi hơi người xuống đáy giếng sâu",
+          "Đốt lá khuynh diệp khô suốt ngày đêm bên dưới miệng ống thông khí"
+        ],
+        "failMessage": "Rất tiếc! Du kích đã dùng hạt tiêu và ớt bột rải quanh lỗ thông hơi khiến chó nghiệp vụ Berger bị sặc và mất khả năng đánh mùi."
+      }
+    },
+    {
+      "id": "layer1",
+      "discoveryKey": "depth:layer1",
+      "quizKey": "depth_quiz:layer1",
+      "depthLabel": "-3m đến -4m · Tầng 1",
+      "title": "Tầng Chiến Đấu Cơ Động & Sinh Hoạt Dã Chiến",
+      "subtitle": "Tuyến xương sống kết nối các ấp chiến đấu và bếp ăn không khói",
+      "temp": "28°C – 30°C",
+      "oxygen": "85%",
+      "oxygenSub": "Thông qua ống tre",
+      "bombResistance": "Chống đạn pháo 105mm & sức ép xe tăng M41",
+      "structures": [
+        "Bếp Hoàng Cầm với rãnh tản khói ngầm 3 ngăn",
+        "Hầm hội họp, hầm chiếu phim và văn nghệ",
+        "Xưởng cưa bom, chế tạo vũ khí tự tạo",
+        "Các nút chặn chữ Z triệt tiêu sóng xung kích lựu đạn"
+      ],
+      "secretFact": "Đường hầm được đào lắt léo theo hình chữ Z để khi đối phương ném lựu đạn hoặc bắn thẳng xuống, mảnh đạn và khí độc bị chặn lại ở góc cua đầu tiên.",
+      "colorAccent": "from-[#0275FB] to-[#015CC8]",
+      "xp": 15,
+      "image": "/depth/layer-1.png",
+      "aiPrompt": "Chrono hãy giải thích chi tiết cấu tạo \"nút chặn chữ Z\" giúp địa đạo chống lại sức ép của lựu đạn ném xuống hầm?",
+      "quiz": {
+        "question": "Tại sao các nhánh đường hầm ở Tầng 1 lại được thiết kế gập khúc theo hình chữ Z thay vì đào thẳng tắp?",
+        "options": [
+          "Để tiết kiệm công sức đào xuyên qua các mạch đá ngầm",
+          "Ngăn cản sóng xung kích, mảnh văng lựu đạn và đường đạn bắn thẳng truyền sâu vào hầm",
+          "Để chứa được nhiều lương thực và vũ khí hơn dọc hai bên vách hầm",
+          "Để tạo độ dốc cho nước mưa tự chảy ngược lên mặt đất"
+        ],
+        "failMessage": "Rất tiếc! Cấu trúc chữ Z giúp triệt tiêu sóng xung kích và chặn đứng mảnh văng lựu đạn ngay tại góc cua đầu tiên."
+      }
+    },
+    {
+      "id": "layer2",
+      "discoveryKey": "depth:layer2",
+      "quizKey": "depth_quiz:layer2",
+      "depthLabel": "-6m đến -8m · Tầng 2",
+      "title": "Tầng Trú Ẩn, Y Tế & Chỉ Huy Chiến Dịch",
+      "subtitle": "Không gian sinh tồn qua những đợt rải thảm bom B-52 khốc liệt",
+      "temp": "26°C – 28°C",
+      "oxygen": "65%",
+      "oxygenSub": "Hạn chế thắp đèn dầu",
+      "bombResistance": "Chịu được bom tấn & bom khoan cỡ vừa",
+      "structures": [
+        "Hầm giải phẫu dã chiến thắp sáng bằng dynamo xe đạp",
+        "Kho dự trữ lương thực (khoai mì, gạo sấy, muối mè)",
+        "Hầm nghỉ ngơi của thương binh, phụ nữ và trẻ em",
+        "Nắp hầm ngầm bẫy nước chống khí độc CS"
+      ],
+      "secretFact": "Khi quân Mỹ bơm khí độc vào đường hầm, du kích sử dụng các \"nút chặn bẫy nước\" (giống nguyên lý ống siphon) và chăn thấm nước vôi để lọc độc ngay giữa tầng 1 và tầng 2.",
+      "colorAccent": "from-amber-500 to-orange-600",
+      "xp": 15,
+      "image": "/depth/layer-2.png",
+      "aiPrompt": "Cơ chế hoạt động của bẫy nước (water-trap) dưới địa đạo Củ Chi giúp chống lại khí độc CS của Mỹ như thế nào?",
+      "quiz": {
+        "question": "Biện pháp sáng tạo nào đã được sử dụng tại Tầng 2 để cô lập khí độc CS khi đối phương bơm vào hầm ngầm?",
+        "options": [
+          "Thiết kế nút chặn \"bẫy nước\" (nguyên lý siphon) kết hợp chăn thấm nước vôi lọc độc",
+          "Trang bị mặt nạ phòng độc công nghiệp cho toàn bộ thương binh và dân thường",
+          "Khoét nhiều lỗ thông hơi lớn thẳng lên mặt đất để gió tự thổi bay khí độc",
+          "Đốt củi khô tại các ngã ba hầm để đẩy luồng khí độc ngược ra ngoài"
+        ],
+        "failMessage": "Rất tiếc! Du kích đã thiết kế các đoạn hầm trũng chứa nước (\"nắp bẫy nước\" giống ống siphon) và chăn thấm nước vôi để chặn đứng khí độc CS."
+      }
+    },
+    {
+      "id": "layer3",
+      "discoveryKey": "depth:layer3",
+      "quizKey": "depth_quiz:layer3",
+      "depthLabel": "-10m đến -12m · Tầng 3",
+      "title": "Tầng Đáy Sinh Tồn & Lối Thoát Ra Sông Sài Gòn",
+      "subtitle": "Thành trì cuối cùng nằm sâu trong lòng đất sét pha đá ong cứng như thép",
+      "temp": "24°C – 26°C",
+      "tempSub": "Độ ẩm >90%",
+      "oxygen": "45% – 50%",
+      "oxygenSub": "Rất loãng",
+      "bombResistance": "An toàn trước bom rải thảm B-52",
+      "structures": [
+        "Giếng nước ngầm cung cấp nước uống cho toàn khu",
+        "Hầm trú ẩn tối mật của Bộ Tư Lệnh và Khu Ủy",
+        "Ngách thoát hiểm bí mật thông thẳng ra bờ sông Sài Gòn"
+      ],
+      "secretFact": "Ở độ sâu hơn 10m, đất sét đá ong Củ Chi kết dính bền vững đến mức không cần bất kỳ trụ bê tông hay gỗ chống đỡ nào mà vẫn không sập suốt hàng chục năm.",
+      "colorAccent": "from-indigo-700 to-slate-900",
+      "xp": 15,
+      "image": "/depth/layer-3.png",
+      "aiPrompt": "Tại sao đất sét pha đá ong ở Củ Chi lại có khả năng tự chịu lực kỳ diệu mà không cần đổ bê tông gia cố?",
+      "quiz": {
+        "question": "Yếu tố địa chất nào ở độ sâu 10m–12m giúp vách địa đạo Củ Chi đứng vững hàng chục năm mà không cần trụ bê tông?",
+        "options": [
+          "Bên dưới lòng đất Củ Chi là một phiến đá hoa cương nguyên khối",
+          "Sử dụng hỗn hợp nhựa cây rừng trộn với cát sông Sài Gòn để trát vách",
+          "Đặc tính đất sét pha đá ong kết dính cực cao, khi tiếp xúc không khí trong hầm thì cứng như gạch nung",
+          "Hệ thống cọc sắt được đóng dày đặc dọc theo toàn bộ 250km đường hầm"
+        ],
+        "failMessage": "Rất tiếc! Chính kết cấu tự nhiên của đất sét pha đá ong (laterite) kết hợp trần hầm vát hình vòm đã tạo nên độ bền tự chịu lực kỳ diệu."
+      }
+    }
+  ],
+  "secretCiphers": [
+    {
+      "id": "cipher_hoang_cam",
+      "discoveryKey": "cipher:hoang-cam",
+      "codeName": "MẬT LỆNH SỐ 19-HC",
+      "date": "14/02/1967",
+      "location": "Phân khu Bến Dược — Tầng 1",
+      "difficulty": "Dễ",
+      "xpReward": 50,
+      "encryptedPreview": "Tuyệt đối không để máy bay trinh sát L-19 phát hiện vị trí đóng quân. Khi nấu cơm ban ngày, phải dẫn khói qua [████████████] phủ lá tươi và đất ẩm để khói tan thành hơi sương...",
+      "riddleQuestion": "Để máy bay trinh sát không phát hiện khói bếp bốc lên giữa rừng, hệ thống Bếp Hoàng Cầm đã xử lý khói bằng nguyên lý nào?",
+      "hint": "Khói nóng bốc cao, nhưng khi đi qua hệ thống rãnh dài phủ đất ẩm và lá tươi thì nhiệt độ khói giảm xuống.",
+      "options": [
+        "Dùng quạt gió thổi khói ngược xuống đáy giếng sâu 12m",
+        "Dẫn khói qua các rãnh ngầm phủ cành lá tươi và đất ẩm làm nguội khói thành làn sương mỏng là là mặt đất",
+        "Đốt than đá công nghiệp nhập khẩu hoàn toàn không sinh khói"
+      ],
+      "decryptedContent": "TOÀN VĂN MẬT LỆNH: \"Các tiểu đội hậu cần khi nổi lửa nấu ăn ban ngày bắt buộc sử dụng bếp 3 rãnh tản khói Hoàng Cầm. Rãnh dẫn khói phải dài tối thiểu 5m, lót cành cây tươi và phủ một lớp đất mỏng tưới ẩm. Khói đi qua đất ẩm sẽ nguội dần, nặng hơn không khí và chỉ tỏa ra như sương mù nhẹ sát mặt đất, máy bay trinh sát bay ngay trên ngọn cây cũng không thể phát hiện.\"",
+      "historicalNote": "Bếp mang tên anh nuôi Hoàng Cầm (ra đời từ chiến dịch Hòa Bình 1951–1952) và được quân dân Củ Chi cải tiến kết hợp ống dẫn khói ngầm cực kỳ tinh vi."
+    },
+    {
+      "id": "cipher_two_wells",
+      "discoveryKey": "cipher:two-wells",
+      "codeName": "MẬT THƯ KỸ THUẬT 68-ĐH",
+      "date": "05/08/1966",
+      "location": "Căn cứ Khu Ủy Sài Gòn - Gia Định",
+      "difficulty": "Trung bình",
+      "xpReward": 75,
+      "encryptedPreview": "Để đẩy nhanh tốc độ đào đường hầm trục chính mà không cần la bàn hiện đại dưới lòng đất tối đen, hai tổ đào hầm từ hai giếng cách nhau 10m sẽ định hướng gặp nhau bằng [████████████]...",
+      "riddleQuestion": "Trong lòng đất tối đen và không có thiết bị trắc địa, làm sao hai tổ du kích đào từ hai giếng khác nhau có thể đục thông nhau chính xác?",
+      "hint": "Họ sử dụng sự truyền âm thanh trong lòng đất sét cứng kết hợp với cọc tiêu trên mặt đất.",
+      "options": [
+        "Định hướng bằng tiếng gõ cuốc thuổng vang qua vách đất kết hợp đo dây dọi và cọc ngắm từ miệng giếng",
+        "Sử dụng máy bộ đàm sóng ngắn đo khoảng cách điện từ",
+        "Đào theo mạch nước ngầm tự nhiên chảy giữa hai giếng"
+      ],
+      "decryptedContent": "TOÀN VĂN MẬT THƯ: \"Mỗi tổ 3 người đào một giếng thẳng đứng xuống độ sâu quy định, sau đó dùng cọc tiêu trên mặt đất và dây dọi để lấy hướng ban đầu. Khi hai mũi đào tiến lại gần nhau khoảng vài mét, hai bên dùng cán cuốc gõ nhịp vào vách đất cứng và áp tai nghe độ vang để điều chỉnh hướng đục thông chính xác tuyệt đối.\"",
+      "historicalNote": "Với phương pháp đào \"nhiều giếng cùng lúc\" và dùng đất đổ xuống các hố bom B-52 để phi tang dấu vết, hơn 250km địa đạo đã được kiến tạo chỉ bằng cuốc lưỡi cùn và ki xúc đất đan bằng tre."
+    },
+    {
+      "id": "cipher_sandals",
+      "discoveryKey": "cipher:sandals",
+      "codeName": "MẬT LỆNH TRINH SÁT 07-DR",
+      "date": "22/11/1968",
+      "location": "Vành đai Trảng Lớn — Củ Chi",
+      "difficulty": "Khó",
+      "xpReward": 100,
+      "encryptedPreview": "Khi giao liên và trinh sát vượt qua bãi đất trống gần đồn bốt địch, bắt buộc phải mang [████████████] để đánh lừa hướng truy kích của toán thám báo...",
+      "riddleQuestion": "Bí mật của đôi \"Dép râu Củ Chi\" chuyên dùng cho trinh sát khi đi qua vùng đất cát hoặc bùn lầy gần đồn địch là gì?",
+      "hint": "Hãy chú ý đến vị trí của phần mũi dép và gót dép so với quai dép.",
+      "options": [
+        "Đế dép được gắn lò xo giúp nhảy xa 3 mét không để lại dấu chân",
+        "Đế dép được thiết kế phần gót ở phía trước và phần mũi ở phía sau để tạo dấu chân ngược hướng di chuyển thực tế",
+        "Đế dép làm bằng vỏ cây thông tự xóa dấu vết sau 5 phút"
+      ],
+      "decryptedContent": "TOÀN VĂN MẬT LỆNH: \"Các tổ giao liên mật khi băng qua đường mòn đất cát phải sử dụng loại dép cao su đóng quai ngược (gót dép nằm ở mũi bàn chân). Khi ta đi vào căn cứ, dấu chân in trên đất sẽ chỉ hướng đi ra ngoài, khiến toán thám báo địch phán đoán sai hoàn toàn hướng rút quân của đơn vị.\"",
+      "historicalNote": "Đôi dép cao su (dép râu) cắt từ lốp xe quân sự hỏng không chỉ bền bỉ mà còn trở thành công cụ nghi binh tâm lý chiến độc đáo tại Củ Chi."
+    }
+  ],
+  "investigationClues": [
+    {
+      "code": "EV-01",
+      "discoveryKey": "clue:ev-01",
+      "title": "Vết cắt vát chữ V trên miệng nắp hầm gỗ sao",
+      "sourceCitation": "Hồ sơ hiện vật Bảo tàng Địa đạo Củ Chi · Mã HV-1967-04",
+      "typeLabel": "Quan sát hiện trường",
+      "icon": "visibility",
+      "summary": "Tại sao nắp hầm Củ Chi không đóng vuông góc 90 độ mà luôn vát nghiêng hình nêm?",
+      "detailFinding": "Miệng nắp hầm được vát nghiêng 45 độ như nút chai. Sức nặng của xe tăng hoặc bước chân đi phía trên càng đè xuống thì nắp gỗ càng khít chặt vào khung đất đá ong, không bao giờ bị sập lọt xuống dưới.",
+      "xp": 30
+    },
+    {
+      "code": "EV-02",
+      "discoveryKey": "clue:ev-02",
+      "title": "Ống thông hơi tre đục thông qua ụ mối tự nhiên",
+      "sourceCitation": "Tài liệu Kỹ thuật Công binh Khu Sài Gòn - Gia Định (1966)",
+      "typeLabel": "Đối chiếu cấu trúc",
+      "icon": "compare",
+      "summary": "Làm sao hàng trăm chiến sĩ thở dưới độ sâu 8m mà đối phương đi càn phía trên không phát hiện lỗ thông khí?",
+      "detailFinding": "Ống thông hơi được khoét xuyên qua các ụ mối đất tự nhiên và hướng miệng ống về phía đón gió. Phía dưới miệng ống có bẫy ngăn lựu đạn: nếu địch thả lựu đạn xuống lỗ thông hơi, viên đạn sẽ lăn sang hố phụ chứ không rơi vào hầm chính.",
+      "xp": 30
+    },
+    {
+      "code": "EV-03",
+      "discoveryKey": "clue:ev-03",
+      "title": "Bản đồ hành quân Chiến dịch Crimp của Sư đoàn 25 Mỹ",
+      "sourceCitation": "Báo cáo Giải mật Lầu Năm Góc · Tháng 01/1966",
+      "typeLabel": "So sánh sử liệu đối phương",
+      "icon": "fact_check",
+      "summary": "Đối chiếu nhật ký tác chiến của Sư đoàn 25 Mỹ với sơ đồ hầm ngầm của xã Nhuận Đức.",
+      "detailFinding": "Báo cáo của Mỹ ghi nhận các đợt pháo kích và khói mù hóa học bị chặn đứng sau 15 mét đường hầm đầu tiên. Nguyên nhân chính là hệ thống nút chặn chữ Z và nắp bẫy nước (water-trap) do du kích thiết lập giữa các phân khu.",
+      "xp": 30
+    },
+    {
+      "code": "EV-04",
+      "discoveryKey": "clue:ev-04",
+      "title": "Bố cục \"Liên hoàn ấp\" nối thông ra sông Sài Gòn",
+      "sourceCitation": "Bản vẽ Mặt cắt Địa đạo Bến Dược – Bến Đình (1968)",
+      "typeLabel": "Ghép bản đồ · Timeline",
+      "icon": "timeline",
+      "summary": "Giải mã lý do vì sao bao vây một ấp tại Củ Chi không bao giờ cô lập được lực lượng bên dưới.",
+      "detailFinding": "Hệ thống địa đạo không phải là các hầm rời rạc mà có một \"đường trục xương sống\" chạy xuyên qua nhiều ấp và thông thẳng ra bờ sông Sài Gòn ở tầng 3, cho phép rút quân bằng đường thủy trong đêm tối.",
+      "xp": 40
+    }
+  ],
+  "storyDossiers": [
+    {
+      "id": "dossier_architecture",
+      "discoveryKey": "dossier:architecture",
+      "code": "HS-01 · KIẾN TRÚC NGẦM",
+      "title": "Giải Mã Kỳ Quan 250km \"Thành Phố Ngầm\" Không Cần Xi Măng",
+      "category": "architecture",
+      "categoryLabel": "Kiến trúc Ngầm",
+      "readTime": "4 phút đọc",
+      "xp": 100,
+      "image": "/media/cu-chi/hotspots/sa-ban-3d.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80",
+      "summary": "Làm thế nào một mạng lưới đường hầm dài hơn 250km, chằng chịt như mạng nhện với 3 tầng sâu lại có thể đứng vững trước hàng vạn tấn bom rải thảm mà không có một thanh sắt hay bao xi măng nào?",
+      "contextStory": "Bắt đầu từ những năm 1948 trong kháng chiến chống Pháp với những đoạn hầm ngắn ẩn nấp, đến giai đoạn 1961–1968, quân và dân Củ Chi đã phát triển hệ thống địa đạo thành một \"thành phố ngầm\" liên hoàn nối liền các xã từ Tân Phú Trung đến Bến Dược. Điểm kỳ diệu nhất nằm ở địa chất vùng đất Củ Chi: lớp đất sét pha đá ong (laterite) nằm ở độ sâu từ 3m trở xuống có đặc tính mềm khi ẩm nhưng khi tiếp xúc với không khí trong lòng hầm lại kết tảng cứng như gạch nung.",
+      "technicalAnatomy": [
+        "Kích thước lòng hầm cực hẹp: Rộng chỉ từ 0.5m – 0.8m, cao 0.8m – 1.2m, vừa vặn cho vóc dáng nhỏ nhắn của người Việt nhưng là cơn ác mộng với lính Mỹ cao lớn.",
+        "Cấu trúc vòm cuốn tự chịu lực: Trần hầm được vát cong hình vòm giúp phân tán áp lực sóng xung kích từ bom nổ phía trên sang hai bên vách đất.",
+        "Hệ thống nút chặn đa tầng: Giữa các tầng đều có nắp gỗ lim hoặc bẫy sập kín khít, có thể cô lập ngay lập tức một đoạn hầm nếu bị địch phát hiện hoặc bơm khí độc."
+      ],
+      "witnessQuote": {
+        "quote": "Chỉ với chiếc cuốc cùn cán ngắn bằng gang tay và chiếc ki đan bằng tre, mỗi người dân từ cụ già đến em nhỏ đều nhận chỉ tiêu đào từ 1 đến 2 mét hầm mỗi ngày.",
+        "author": "Tư liệu Bảo tàng Địa đạo Củ Chi",
+        "role": "Hồ sơ Lịch sử Kháng chiến"
+      },
+      "quickQuiz": {
+        "question": "Yếu tố tự nhiên nào giúp vách hầm Củ Chi đứng vững hàng chục năm mà không cần bê tông cốt thép?",
+        "options": [
+          "Lớp đá hoa cương nguyên khối dưới lòng đất",
+          "Kết cấu đất sét pha đá ong tự kết dính cứng như gạch kết hợp thiết kế trần hầm hình vòm",
+          "Hệ thống rễ cây cổ thụ đan kín tới độ sâu 12m"
+        ],
+        "explanation": "Đất sét pha đá ong ở Củ Chi có độ kết dính cực cao, cộng với thiết kế trần vòm giúp phân tán lực chấn động của bom pháo."
+      }
+    },
+    {
+      "id": "dossier_trap_warfare",
+      "discoveryKey": "dossier:trap-warfare",
+      "code": "HS-02 · SÁNG CHẾ QUÂN SỰ",
+      "title": "Nghệ Thuật Biến Bom Đạn Thành Trận Địa Chông Mìn Tự Tạo",
+      "category": "tactics",
+      "categoryLabel": "Sáng chế Quân sự",
+      "readTime": "5 phút đọc",
+      "xp": 120,
+      "image": "/media/cu-chi/hotspots/khi-tai.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80",
+      "summary": "Từ những quả bom câm chưa nổ và mảnh vỏ máy bay, những \"công binh chân đất\" tại Củ Chi đã cưa bom lấy thuốc nổ, chế tạo ra hàng chục loại mìn gạt và bẫy chông biến thiên khôn lường.",
+      "contextStory": "Trong các cuộc hành quân càn quét lớn như Crimp (1966) và Cedar Falls (1967), quân đội Mỹ đã trút xuống Củ Chi hàng trăm ngàn tấn bom đạn. Khoảng 5% đến 10% số bom đạn đó không phát nổ. Thay vì khiếp sợ, các chiến sĩ công xưởng Củ Chi đã thu gom bom câm, dùng cưa tay vừa cưa vừa nhỏ nước làm mát để lấy thuốc nổ TNT, kết hợp với sắt thép phế liệu để đúc thành mìn gạt chống tăng — thứ vũ khí đã làm tê liệt chiếc xe tăng M41 ngay tại Bến Dược.",
+      "technicalAnatomy": [
+        "Hầm chông xoay & Chông kẹp nách: Khi giẫm lên nắp ván ngụy trang, trục xoay lật úp làm hai hàng chông sắt khép chặt lại theo nguyên lý đòn bẩy một chiều.",
+        "Mìn gạt chống tăng Tô Hoài Đức: Tận dụng thuốc nổ từ bom câm nhồi vào vỏ bình dưỡng khí máy bay, điểm nổ bằng kíp điện hoặc dây gạt ngụy trang bằng nhánh cây rừng.",
+        "Tổ hợp bẫy liên hoàn: Nắp hầm giả thường được gài mìn; nếu đối phương phá nắp hầm bằng thuốc nổ, sức ép sẽ kích hoạt bẫy thứ hai ngay bên cạnh."
+      ],
+      "witnessQuote": {
+        "quote": "Mỗi gốc cây, mỗi ụ mối, mỗi bước chân trên mặt đất Củ Chi đều có thể là một mắt thần hoặc một cái bẫy được tính toán đến từng centimet.",
+        "author": "Anh hùng LLVT Tô Hoài Đức",
+        "role": "Kiến trúc sư trưởng các loại mìn tự tạo Củ Chi"
+      },
+      "quickQuiz": {
+        "question": "Nguồn nguyên liệu thuốc nổ chính để công xưởng Củ Chi chế tạo mìn chống tăng lấy từ đâu?",
+        "options": [
+          "Cưa thủ công những quả bom, đạn pháo của đối phương ném xuống nhưng chưa phát nổ",
+          "Khai thác lưu huỳnh tự nhiên dưới tầng đáy địa đạo",
+          "Vận chuyển bằng tàu ngầm từ biển Đông vào sông Sài Gòn"
+        ],
+        "explanation": "Du kích và công nhân quân giới Củ Chi đã dũng cảm thu gom hàng ngàn quả bom câm chưa nổ để cưa lấy thuốc nổ TNT và vỏ thép."
+      }
+    },
+    {
+      "id": "dossier_underground_life",
+      "discoveryKey": "dossier:underground-life",
+      "code": "HS-03 · ĐỜI SỐNG DƯỚI HẦM",
+      "title": "Chiếu Phim, Ca Hát & Phẫu Thuật Dưới Lòng Đất Sâu 6 Mét",
+      "category": "daily_life",
+      "categoryLabel": "Đời sống Dưới hầm",
+      "readTime": "4 phút đọc",
+      "xp": 90,
+      "image": "/media/cu-chi/hotspots/bep-hoang-cam.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=800&q=80",
+      "summary": "Dưới làn mưa bom bão đạn trên mặt đất, bên dưới lòng hầm tối đặc và thiếu dưỡng khí vẫn diễn ra những ca phẫu thuật cứu người, những lớp học xóa mù chữ và cả những buổi chiếu phim nhựa sôi nổi.",
+      "contextStory": "Sống dưới địa đạo không chỉ là ẩn nấp chờ thời cơ chiến đấu, mà là duy trì một xã hội thu nhỏ đầy sức sống. Ban ngày, mọi hoạt động rút sâu xuống lòng đất. Trong những căn hầm rộng chỉ vài mét vuông, các y bác sĩ thực hiện hàng trăm ca mổ dưới ánh đèn pin nối với dynamo xe đạp do một chiến sĩ đạp liên tục bên góc hầm. Khi đêm xuống hoặc giữa các đợt nghỉ bom, đoàn văn công Giải phóng lại tổ chức biểu diễn ca múa nhạc và chiếu phim ngay trong hầm hội họp.",
+      "technicalAnatomy": [
+        "Nguồn điện \"Dynamo xe đạp\": Một chiếc xe đạp kê cao bánh sau, nối với bộ phát điện nhỏ để cấp sáng cho bàn mổ hoặc máy chiếu phim nhựa 16mm.",
+        "Thực đơn chiến khu: Khoai mì (sắn) luộc chấm muối mè là lương thực chủ đạo vì cây khoai mì dễ trồng, củ nằm dưới đất nên không bị cháy rụi khi rừng bị rải chất độc hóa học hay bom napalm.",
+        "Kỷ luật âm thanh & ánh sáng: Khi có động trên mặt đất, toàn bộ hầm phải tắt đèn dầu để tiết kiệm oxy và giữ im lặng tuyệt đối."
+      ],
+      "witnessQuote": {
+        "quote": "Lúc bước ra khỏi hầm sau nhiều tuần liền dưới đất, mắt ai cũng chói lòa trước ánh nắng mặt trời, da xanh xao nhưng nụ cười thì luôn rạng rỡ.",
+        "author": "Hồi ký Cựu chiến binh Quân khu Sài Gòn - Gia Định",
+        "role": "Nhân chứng lịch sử"
+      },
+      "quickQuiz": {
+        "question": "Vì sao củ khoai mì (sắn) trở thành nguồn lương thực sinh tồn quan trọng nhất của quân dân Củ Chi?",
+        "options": [
+          "Vì khoai mì có thể tự phát sáng trong đêm tối",
+          "Vì củ nằm sâu dưới đất nên vẫn sống sót và thu hoạch được ngay cả khi mặt đất bị bom cháy và rải chất độc hóa học",
+          "Vì khoai mì không cần nấu chín vẫn bảo quản được 10 năm"
+        ],
+        "explanation": "Phần củ khoai mì nằm dưới lòng đất nên được bảo vệ khỏi lửa bom napalm và hóa chất rải thảm trên bề mặt."
+      }
+    },
+    {
+      "id": "dossier_command_center",
+      "discoveryKey": "dossier:command-center",
+      "code": "HS-04 · ĐẦU NÃO CHỈ HUY",
+      "title": "Bí Mật Sở Chỉ Huy Ngầm Điều Hành Chiến Dịch Mậu Thân 1968",
+      "category": "architecture",
+      "categoryLabel": "Kiến trúc Ngầm",
+      "readTime": "4 phút đọc",
+      "xp": 95,
+      "image": "/media/cu-chi/hotspots/bo-tu-lenh.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+      "summary": "Chỉ cách trung tâm Sài Gòn chưa đầy 40km đường chim bay, Căn cứ Khu ủy và Bộ Tư lệnh Quân khu Sài Gòn - Gia Định tại Củ Chi là nơi phát đi những mệnh lệnh lịch sử làm rung chuyển chiến trường.",
+      "contextStory": "Nằm ẩn mình dưới những tán rừng giáng hương cổ thụ dọc bờ sông Sài Gòn, khu căn cứ Bộ Tư lệnh và Khu Ủy được thiết kế với quy mô kiên cố bậc nhất. Các hầm làm việc của các đồng chí lãnh đạo được gia cố bằng những thân cây gỗ lớn ghép sát nhau, phía trên đắp đất đá ong dày hàng mét theo kiểu \"hầm chữ A\" kết hợp địa đạo sâu 8m. Từ các căn hầm thông tin cơ yếu này, mạng lưới giao liên mật và điện đài đã kết nối thông suốt với các cánh quân biệt động nội thành Sài Gòn.",
+      "technicalAnatomy": [
+        "Cấu trúc Hầm Chữ A chịu lực: Khung gỗ rừng chịu lực xếp hình tam giác giúp triệt tiêu lực nén thẳng đứng của bom pháo.",
+        "Hệ thống giao thông hào có nắp: Kết nối từ hầm làm việc xuống thẳng hệ thống địa đạo ngầm 3 tầng chỉ trong vòng 10 giây khi có báo động B-52.",
+        "Mạng lưới thông tin kép: Kết hợp máy thu phát vô tuyến điện công suất nhỏ (chỉ phát sóng trong vài phút để tránh bị định vị) và đội ngũ giao liên chạy bộ xuyên địa đạo."
+      ],
+      "witnessQuote": {
+        "quote": "Đứng ngay trên nóc hầm chỉ huy của ta mà đối phương không hề hay biết bên dưới là cả một bộ máy tham mưu đang hoạt động ngày đêm.",
+        "author": "Hồ sơ Di tích Quốc gia Đặc biệt Địa đạo Củ Chi",
+        "role": "Tư liệu Lưu trữ"
+      },
+      "quickQuiz": {
+        "question": "Thiết kế khung gỗ chịu lực trong các căn hầm chỉ huy tại Củ Chi thường được ghép theo hình chữ gì để chống sập?",
+        "options": [
+          "Hình chữ A (tam giác cân chịu lực)",
+          "Hình chữ O tròn xoay",
+          "Hình chữ U ngược không đáy"
+        ],
+        "explanation": "Hầm chữ A sử dụng kết cấu tam giác giúp phân tán lực nén cực tốt trước sức ép của bom đạn nổ gần."
+      }
+    },
+    {
+      "id": "dossier_tunnel_rats",
+      "discoveryKey": "dossier:tunnel-rats",
+      "code": "HS-05 · TƯ LIỆU ĐỐI CHỨNG",
+      "title": "Hồ Sơ Giải Mật: Đội Quân \"Tunnel Rats\" (Chuột Cống) Của Mỹ Nói Gì Về Củ Chi?",
+      "category": "perspective",
+      "categoryLabel": "Tư liệu Đối chứng",
+      "readTime": "6 phút đọc",
+      "xp": 110,
+      "image": "/media/cu-chi/hotspots/khu-uy.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80",
+      "summary": "Đầu năm 1966, Sư đoàn Bộ binh 25 của Mỹ đóng căn cứ tại Đồng Dù với quyết tâm xóa sổ địa đạo, nhưng trớ trêu thay, doanh trại của họ lại được dựng ngay bên trên nóc mạng lưới hầm ngầm của du kích!",
+      "contextStory": "Trong chiến dịch Crimp (tháng 1/1966), binh lính Mỹ kinh ngạc khi thấy đối phương nổ súng rồi biến mất không dấu vết ngay giữa vòng vây. Khi phát hiện các miệng hầm nhỏ xíu, những vũ khí tối tân nhất như xe tăng, máy bay, chất hóa học đều bất lực. Quân đội Mỹ buộc phải tuyển chọn những binh sĩ có vóc dáng nhỏ bé nhất để lập ra đội \"Tunnel Rats\" (Lính Chuột Cống), chỉ mang theo một khẩu súng ngắn ổ quay, một đèn pin và con dao găm chui xuống hầm. Tuy nhiên, cấu trúc mê cung 3 tầng và các nút chặn của Củ Chi đã khiến lực lượng này luôn rơi vào thế bị động.",
+      "technicalAnatomy": [
+        "Nghịch lý Căn cứ Đồng Dù: Sư đoàn 25 (\"Tia Chớp Nhiệt Đới\") lập căn cứ ngay trên đất Củ Chi mà không biết các ngách địa đạo chạy xuyên qua ngay dưới chân hàng rào kẽm gai của mình.",
+        "Thất bại của Chiến dịch Cedar Falls (1967): Dù huy động 30.000 quân, xe ủi đất Rome Plow và bom tấn để san phẳng vùng \"Tam giác sắt\", hệ thống địa đạo ngầm vẫn tồn tại nguyên vẹn.",
+        "Sự thừa nhận trong sử liệu phương Tây: Các học giả quân sự quốc tế xếp Địa đạo Củ Chi vào danh sách những công trình ngầm quân sự kỳ vĩ nhất thế kỷ 20."
+      ],
+      "witnessQuote": {
+        "quote": "Khi chui xuống lòng đất Củ Chi, mọi ưu thế về hỏa lực và công nghệ của chúng tôi đều bằng không. Đó là thế giới do họ làm chủ hoàn toàn.",
+        "author": "Trích hồi ký cựu binh đội Tunnel Rats (Sư đoàn 25 Mỹ)",
+        "role": "Tư liệu Đối chứng Quốc tế"
+      },
+      "quickQuiz": {
+        "question": "Sự kiện trớ trêu nào đã xảy ra khi Sư đoàn 25 của Mỹ xây dựng căn cứ lớn tại Đồng Dù (Củ Chi) năm 1966?",
+        "options": [
+          "Căn cứ được xây dựng ngay phía trên mạng lưới địa đạo đang hoạt động của quân dân Củ Chi",
+          "Căn cứ bị ngập nước hoàn toàn do triều cường biển Đông",
+          "Họ xây nhầm căn cứ sang địa phận tỉnh Tây Ninh"
+        ],
+        "explanation": "Căn cứ Đồng Dù nằm ngay trên hệ thống địa đạo sẵn có, giúp du kích có thể xuất hiện bất ngờ ngay trong lòng căn cứ đối phương."
+      }
+    },
+    {
+      "id": "dossier_ben_duoc",
+      "discoveryKey": "dossier:ben-duoc",
+      "code": "HS-06 · KÝ ỨC & TRI ÂN",
+      "title": "Đền Tưởng Niệm Bến Dược — Bản Anh Hùng Ca Khắc Trên Đá Hoa Cương",
+      "category": "daily_life",
+      "categoryLabel": "Đời sống Dưới hầm",
+      "readTime": "3 phút đọc",
+      "xp": 100,
+      "image": "/media/cu-chi/hotspots/ben-duoc.jpg",
+      "fallbackImage": "https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=800&q=80",
+      "summary": "Nơi lưu danh 45.639 người con ưu tú đã ngã xuống trên vùng đất Sài Gòn – Chợ Lớn – Gia Định, cùng bức tranh ghép gốm Bát Tràng khổng lồ tái hiện trọn vẹn lịch sử khai hoang và giữ đất.",
+      "contextStory": "Khánh thành giai đoạn đầu vào ngày 19/12/1995 trên diện tích 7ha tại chính vùng đất từng bị bom đạn cày xới ác liệt nhất, Đền Tưởng niệm Liệt sĩ Bến Dược mang kiến trúc truyền thống Việt Nam thanh thoát mà trang nghiêm. Dưới tầng hầm của ngôi đền là không gian trưng bày điêu khắc tái hiện lại cảnh \"Đất thép thành đồng\", nơi mỗi thước đất ngầm Củ Chi đều thấm đẫm mồ hôi và máu xương của hàng vạn đồng bào, chiến sĩ và những Bà mẹ Việt Nam Anh hùng.",
+      "technicalAnatomy": [
+        "Bia đá hoa cương mạ vàng: Khắc tên tuổi của 45.639 liệt sĩ (bao gồm các Mẹ Việt Nam Anh hùng và các chiến sĩ vô danh) hy sinh tại chiến trường Sài Gòn – Chợ Lớn – Gia Định.",
+        "Tháp 9 tầng cao 39m: Tượng trưng cho 9 tầng cao vợi của lòng biết ơn và khát vọng hòa bình vĩnh cửu.",
+        "Bộ tranh ghép gốm Bát Tràng lớn nhất miền Nam: Gồm 3 phần nối tiếp nhau kể câu chuyện từ thuở cha ông đi mở cõi, kháng chiến giữ đất đến ngày đất nước thống nhất."
+      ],
+      "witnessQuote": {
+        "quote": "Dân tộc Việt Nam đời đời ghi nhớ công ơn các anh hùng liệt sĩ đã ngã xuống để đất thép nở hoa độc lập.",
+        "author": "Văn bia tại Đền Tưởng niệm Bến Dược",
+        "role": "Di tích Lịch sử Văn hóa"
+      },
+      "quickQuiz": {
+        "question": "Ngọn tháp biểu tượng tại Đền Tưởng niệm Liệt sĩ Bến Dược có chiều cao và số tầng là bao nhiêu?",
+        "options": [
+          "Tháp 9 tầng, cao 39 mét",
+          "Tháp 3 tầng, cao 12 mét",
+          "Tháp 15 tầng, cao 68 mét"
+        ],
+        "explanation": "Ngọn tháp tại Đền Bến Dược có 9 tầng với chiều cao 39m, trên vách tháp có những phù điêu hoa văn tái hiện cuộc sống và chiến đấu của nhân dân Củ Chi."
+      }
+    }
+  ],
+  "badges": [
+    {
+      "id": "badge_compass_pioneer",
+      "name": "La Bàn Khởi Nguyên",
+      "rankLabel": "Khởi Hành · 50 XP",
+      "image": "/badges/badge-2.png",
+      "badgeNumber": 2,
+      "description": "Chiếc la bàn vàng kim xoay giữa tinh vân lịch sử, vinh danh bước chân đầu tiên của nhà thám hiểm tiến vào lòng đất Củ Chi.",
+      "requirementText": "Đạt tối thiểu 50 XP toàn tài khoản hoặc hoàn thành 1 thử thách tầng ngầm",
+      "xpRequired": 50
+    },
+    {
+      "id": "badge_steel_footprint",
+      "name": "Dấu Chân Đất Thép",
+      "rankLabel": "Địa Chất · 4 Tầng Hầm",
+      "image": "/badges/badge-5.png",
+      "badgeNumber": 5,
+      "description": "Dấu chân rực sáng khắc họa tiết cổ đại in trên tấm bản đồ di sản, chứng nhận bạn đã thấu hiểu toàn bộ kết cấu 3 tầng sâu địa đạo.",
+      "requirementText": "Hoàn thành trọn vẹn 4/4 thử thách Tầng Độ Sâu",
+      "xpRequired": 60
+    },
+    {
+      "id": "badge_cipher_master",
+      "name": "Bậc Thầy Cơ Yếu",
+      "rankLabel": "Mật Mã · 3 Mật Thư",
+      "image": "/badges/badge-8.png",
+      "badgeNumber": 8,
+      "description": "Cuộn mật thư đá khắc ký tự phát quang cùng ổ khóa vàng mở tung, trao tặng cho chuyên gia phá giải trọn bộ mật lệnh kháng chiến.",
+      "requirementText": "Phá giải thành công cả 3/3 Mật Thư Chiến Khu",
+      "xpRequired": 225
+    },
+    {
+      "id": "badge_relic_detective",
+      "name": "Thám Tử Sử Liệu",
+      "rankLabel": "Điều Tra · 4 Chứng Cứ",
+      "image": "/badges/badge-6.png",
+      "badgeNumber": 6,
+      "description": "Chiếc kính lúp vàng soi rọi từng vết cắt vát chữ V và họa tiết lịch sử, minh chứng cho tư duy giám định chứng cứ sắc bén.",
+      "requirementText": "Thu thập đủ 4/4 Mảnh Chứng Cứ & Công bố Kết luận điều tra",
+      "xpRequired": 230
+    },
+    {
+      "id": "badge_ancestor_soulmate",
+      "name": "Tri Kỷ Tiền Nhân",
+      "rankLabel": "Đối Thoại AI · 300 XP",
+      "image": "/badges/badge-1.png",
+      "badgeNumber": 1,
+      "description": "Khoảnh khắc người lữ hành trẻ đối thoại cùng bậc tiền nhân và Trợ lý AI Chrono giữa những trang sử vàng.",
+      "requirementText": "Trò chuyện cùng Trợ lý AI Chrono, đạt 300 XP & lĩnh hội 2 Hồ sơ lịch sử",
+      "xpRequired": 300
+    },
+    {
+      "id": "badge_treasure_keeper",
+      "name": "Người Giữ Kho Báu",
+      "rankLabel": "Cổ Vật 3D · 500 XP",
+      "image": "/badges/badge-7.png",
+      "badgeNumber": 7,
+      "description": "Rương báu xanh viền vàng mở tung ánh hào quang của Trống đồng và hiện vật 3D, dành cho người khám phá Kho Cổ Vật & Điện mật 1968.",
+      "requirementText": "Mở khóa cổ vật, giải đủ 3 Mật thư & đạt 500 XP toàn tài khoản",
+      "xpRequired": 500
+    },
+    {
+      "id": "badge_scholar_mind",
+      "name": "Tinh Hoa Bác Học",
+      "rankLabel": "Khảo Cứu · Hồ Sơ & Video",
+      "image": "/badges/badge-3.png",
+      "badgeNumber": 3,
+      "description": "Trí tuệ tỏa sáng giữa những thẻ bài thành cổ và cổ vật, tôn vinh nhà nghiên cứu đã vượt qua toàn bộ thử thách kiến thức tại Củ Chi.",
+      "requirementText": "Hoàn thành 6/6 Hồ sơ Đất Thép và 7/7 thử thách video (xem ≥90% và trả lời đúng)",
+      "xpRequired": 825
+    },
+    {
+      "id": "badge_time_envoy",
+      "name": "Sứ Giả Thời Không",
+      "rankLabel": "Tour 360° & Sa Bàn",
+      "image": "/badges/badge-4.png",
+      "badgeNumber": 4,
+      "description": "Ngôi sao la bàn lồng trong vòng nguyệt quế vàng trước Cổng Thời Gian, biểu tượng của lữ khách đã bước qua Tour 360° và Sa bàn Lịch sử.",
+      "requirementText": "Trải nghiệm Tham quan 360°, Sa bàn Lịch sử Cedar Falls & đạt 600 XP",
+      "xpRequired": 600
+    },
+    {
+      "id": "badge_all_seeing_eye",
+      "name": "Nhãn Quan Xuyên Thấu",
+      "rankLabel": "Huyền Thoại · Toàn Diện",
+      "image": "/badges/badge-10.png",
+      "badgeNumber": 10,
+      "description": "Mắt thần công nghệ phóng chiếu luồng sáng xuyên qua lớp đất đá, mở ra cánh cổng di sản rực rỡ — danh hiệu tối thượng của TimeLens.",
+      "requirementText": "Đạt 1.340 XP, hoàn thành 7/7 thử thách video và các trải nghiệm 360°, Sa bàn, AI, Cổ vật",
+      "xpRequired": 1340
+    }
+  ]
+}

@@ -35,6 +35,13 @@ $migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
 if ($migrations.Count -eq 0) {
     throw "No Flyway migrations found in $migrationDir"
 }
+$duplicateVersions = @($migrations |
+    Group-Object { Get-FlywayMigrationVersionText $_.Name } |
+    Where-Object Count -gt 1)
+if ($duplicateVersions.Count -gt 0) {
+    $duplicates = ($duplicateVersions | ForEach-Object { "V$($_.Name): $($_.Group.Name -join ', ')" }) -join '; '
+    throw "Duplicate Flyway migration versions found: $duplicates"
+}
 
 $lastMigration = $migrations[-1]
 $lastVersion = Get-FlywayMigrationVersionText $lastMigration.Name

@@ -12,6 +12,8 @@ public final class ChatKnowledgeRouteResolver {
     private static final Set<String> KNOWN_FEATURES = Set.of(
             "OVERVIEW",
             "NAVIGATION",
+            "BADGES",
+            "LEADERBOARD",
             "EXPLORE",
             "STATION_MEDIA",
             "STATION_CHECKIN",
@@ -96,14 +98,35 @@ public final class ChatKnowledgeRouteResolver {
     }
 
     private static String productFeature(String text) {
+        if (containsAny(text, "huy hieu", "huy nghiep", "badge", "la ban khoi nguyen", "dau chan dat thep",
+                "bac thay co yeu", "tham tu su lieu", "tri ky tien nhan", "nguoi giu kho bau",
+                "tinh hoa bac hoc", "su gia thoi khong", "nhan quan xuyen thau")) {
+            return "BADGES";
+        }
+        if (containsAny(text, "bang xep hang", "bang vang", "vinh danh", "leaderboard", "top 10", "thu hang")) {
+            return "LEADERBOARD";
+        }
+        if (containsAny(text, "cong thoi gian", "time portal", "xua va nay", "xua & nay", "xua nay", "lat cat 3d")) {
+            return "TIME_PORTAL";
+        }
+        if (containsAny(text, "hoa than", "nhap vai", "anh va chia se", "anh & chia se", "anh goc",
+                "anh ky niem", "photo memory", "khung anh", "luu anh", "chia se anh")) {
+            return "PHOTO_MEMORY";
+        }
+        if (containsAny(text, "mat thu", "ho so dat thep", "manh chung cu", "tang do sau", "thu vien video")) {
+            return "EXPLORE";
+        }
+        if (containsAny(text, "bao tang", "co vat", "hien vat", "bo suu tap")) {
+            return "ARTIFACTS";
+        }
+        if (containsAny(text, "tro ly ai", "tro ly lich su ai", "chrono", "chat ai")) {
+            return "CHAT_AI";
+        }
         if (containsAny(text, "video 3d", "phim 3d", "tai hien lich su")) {
             return "HISTORICAL_REENACTMENT";
         }
         if (containsAny(text, "tour 360", "tham quan 360", "360 do")) {
             return "TOUR_360";
-        }
-        if (containsAny(text, "co vat", "hien vat", "bo suu tap")) {
-            return "ARTIFACTS";
         }
         if (containsAny(text, "nhiem vu", "quest", "thu thach")) {
             return "QUESTS";
@@ -132,21 +155,32 @@ public final class ChatKnowledgeRouteResolver {
         if (containsAny(text, "tram ", "cac tram", "st01", "st1", "phong hop")) {
             return "STATION_MEDIA";
         }
+        if (containsAny(text, "timelens", "time lens", "histar", "he sinh thai", "cac tab", "10 tab", "cac tinh nang")) {
+            return "OVERVIEW";
+        }
         return null;
     }
 
     private static boolean isUserProgress(String text) {
-        boolean personal = containsAny(text, "toi ", "cua toi", "minh ", " cua minh");
+        boolean personal = containsAny(text, "cua toi", "cua minh")
+                || Pattern.compile("(^|\\s)(toi|minh)\\s+(da|dang|con|chua|co|duoc|can|dat|nhan|mo khoa|xep)\\b")
+                        .matcher(text).find();
         boolean stateQuestion = containsAny(text,
                 "con ", "da ", "chua", "bao nhieu", "tien do", "mo khoa", "hoan thanh");
         boolean stateSubject = containsAny(text,
                 "nhiem vu", "quest", "co vat", "hien vat", "bo suu tap",
-                "check-in", "check in", "checkin", "tram", "mo khoa");
+                "check-in", "check in", "checkin", "tram", "mo khoa", "huy hieu", "huy nghiep", "thu hang", "xp");
         return personal && stateQuestion && stateSubject;
     }
 
     private static boolean isHeritageQuestion(String text, String featureKey) {
         String evidenceText = text;
+        if ("TIME_PORTAL".equals(featureKey) && containsAny(text, "co may", "bao nhieu", "gom", "co gi")) {
+            evidenceText = evidenceText.replace("thoi ky", "").replace("giai doan", "");
+        }
+        if ("CHAT_AI".equals(featureKey)) {
+            evidenceText = evidenceText.replace("tro ly lich su ai", "");
+        }
         if ("HISTORICAL_REENACTMENT".equals(featureKey)) {
             evidenceText = evidenceText
                     .replace("tai hien lich su", "")

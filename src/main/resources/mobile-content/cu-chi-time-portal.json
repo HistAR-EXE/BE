@@ -1,0 +1,759 @@
+{
+  "version": 1,
+  "locationId": "11111111-1111-1111-1111-111111111111",
+  "stories": {
+    "1948": {
+      "era": 1948,
+      "chapter": "Chương 1 · Khởi dựng",
+      "tagline": "Những nhát cuốc đầu tiên trong lòng đất đỏ",
+      "accent": "#f87171",
+      "photoFilter": "sepia(0.35) contrast(1.08) brightness(0.92)",
+      "particles": "fireflies",
+      "networkNote": "Vài đoạn hầm ngắn, rời rạc — chưa liên thông",
+      "moments": [
+        {
+          "id": "48-1",
+          "date": "Khoảng năm 1948",
+          "icon": "construction",
+          "title": "Những nhát cuốc đầu tiên",
+          "body": "Trong kháng chiến chống Pháp, những đoạn địa đạo đầu tiên xuất hiện ở hai xã Tân Phú Trung và Phước Vĩnh An, huyện Củ Chi — cách trung tâm Sài Gòn khoảng 70 km về phía tây bắc.",
+          "dyk": "Công cuộc đào địa đạo kéo dài khoảng 20 năm, từ 1948 đến 1968.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1948-main.png",
+            "focus": [
+              40,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: dân quân đào hầm"
+          }
+        },
+        {
+          "id": "48-2",
+          "date": "Sức người",
+          "icon": "groups",
+          "title": "Cả làng cùng đào",
+          "body": "Không máy móc, không thuốc nổ: đàn ông, phụ nữ và cả trẻ em thay nhau đào đất bằng cuốc và đôi tay, từng đoạn một.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1975-mid.png",
+            "focus": [
+              50,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: người dân cùng đào đắp"
+          }
+        },
+        {
+          "id": "48-3",
+          "date": "1948",
+          "icon": "holiday_village",
+          "title": "Mỗi làng một căn hầm",
+          "body": "Các đoạn hầm lúc này ngắn, đơn giản và rời rạc. Mỗi làng tự đào hầm căn cứ riêng, chưa nối với làng bên.",
+          "visual": {
+            "kind": "art",
+            "art": "villages",
+            "caption": "Minh hoạ: hầm riêng của hai xã, chưa nối với nhau"
+          }
+        },
+        {
+          "id": "48-4",
+          "date": "Vùng địch hậu",
+          "icon": "inventory_2",
+          "title": "Nơi trú ẩn giữa vòng vây",
+          "body": "Hầm dùng để che giấu cán bộ, cất giấu tài liệu và vũ khí thô sơ, giúp lực lượng kháng chiến bám trụ ngay trong vùng địch kiểm soát.",
+          "dyk": "Thời kỳ này hầm chỉ để ẩn nấp tạm thời — chưa có phòng họp, trạm quân y hay bếp như sau này.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1948-mid.png",
+            "focus": [
+              42,
+              42
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: người trong hầm bí mật"
+          }
+        },
+        {
+          "id": "48-5",
+          "xuaNay": "mieng-ham",
+          "date": "Thiết kế hầm",
+          "icon": "door_open",
+          "title": "Lối vào chỉ vừa một người",
+          "body": "Miệng hầm nhỏ hẹp, nhiều đoạn phải bò mới qua được. Chính thiết kế ấy về sau khiến những người lính to lớn rất khó lọt vào.",
+          "dyk": "Cửa hầm được che bằng nắp gỗ phủ đất và lá khô. Ngày nay du khách có thể thử chui qua một nắp hầm như thế tại khu di tích.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-hatch.jpg",
+            "focus": [
+              55,
+              55
+            ],
+            "zoom": 1,
+            "caption": "Nắp hầm bí mật phủ lá khô — chụp tại khu di tích ngày nay",
+            "credit": "Saigon Review"
+          }
+        }
+      ],
+      "stats": [
+        {
+          "value": 1948,
+          "plain": true,
+          "label": "năm những đoạn hầm đầu tiên ra đời"
+        },
+        {
+          "value": 2,
+          "label": "xã khởi đầu: Tân Phú Trung, Phước Vĩnh An"
+        },
+        {
+          "value": 70,
+          "suffix": " km",
+          "label": "cách trung tâm Sài Gòn"
+        },
+        {
+          "text": "Thủ công",
+          "label": "đào bằng cuốc và sức người"
+        }
+      ],
+      "quiz": {
+        "question": "Những đoạn địa đạo đầu tiên ở Củ Chi xuất hiện ở đâu?",
+        "options": [
+          "Bến Dược và Bến Đình",
+          "Tân Phú Trung và Phước Vĩnh An",
+          "Trung tâm Sài Gòn"
+        ],
+        "explain": "Khoảng năm 1948, hai xã Tân Phú Trung và Phước Vĩnh An có những đoạn hầm đầu tiên. Bến Dược và Bến Đình là hai khu di tích tham quan ngày nay."
+      },
+      "sources": [
+        {
+          "label": "Cục Di sản văn hoá",
+          "url": "https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490"
+        },
+        {
+          "label": "VnExpress",
+          "url": "https://vnexpress.net/mang-nhen-duoi-long-dat-thep-cu-chi-2161369.html"
+        },
+        {
+          "label": "Báo Pháp Luật VN",
+          "url": "https://baophapluat.vn/ky-tich-cu-chi-post329504.html"
+        }
+      ]
+    },
+    "1968": {
+      "era": 1968,
+      "chapter": "Chương 2 · Làng ngầm",
+      "tagline": "Một thành phố trong lòng đất, giữa mưa bom",
+      "accent": "#fbbf24",
+      "photoFilter": "sepia(0.18) contrast(1.1) brightness(0.92)",
+      "particles": "ash",
+      "networkNote": "Khoảng 250 km hầm liên hoàn, 3 tầng",
+      "moments": [
+        {
+          "id": "68-1",
+          "date": "1961 – 1965",
+          "icon": "flag",
+          "title": "Củ Chi thành căn cứ",
+          "body": "Năm 1961, Khu ủy và Quân khu Sài Gòn – Gia Định chọn Củ Chi làm địa bàn hoạt động. Chiến tranh du kích ở đây phát triển mạnh, góp phần đánh bại chiến lược \"Chiến tranh đặc biệt\" (1961–1965).",
+          "dyk": "Cùng thời gian đó, các xã phía bắc huyện lần lượt hoàn chỉnh đường địa đạo \"xương sống\" nối các đoạn hầm.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/guerrilla-battle.jpg",
+            "focus": [
+              50,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: du kích chiến đấu"
+          }
+        },
+        {
+          "id": "68-2",
+          "date": "1966",
+          "icon": "radar",
+          "title": "Căn cứ Mỹ trên nóc địa đạo",
+          "body": "Từ tháng 1/1966, Sư đoàn bộ binh 25 Mỹ đóng quân ở căn cứ Đồng Dù, Củ Chi — có chỗ nằm ngay trên mạng địa đạo — cho đến tháng 2/1970. Cũng tháng 1/1966, khoảng 8.000 quân Mỹ và Úc mở cuộc hành quân Crimp, có B-52 yểm trợ, nhưng không đạt mục tiêu.",
+          "dyk": "Trong trận Crimp, công binh Úc lục soát hầm suốt 4 ngày, tìm thấy đạn dược, điện đài, thuốc men và lương thực.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1968-aerial.png",
+            "focus": [
+              45,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Ảnh minh hoạ: một căn cứ quân sự Mỹ giữa vùng rừng bị phát quang"
+          }
+        },
+        {
+          "id": "68-3",
+          "xuaNay": "thong-hoi",
+          "date": "Tháng 1/1967",
+          "icon": "layers",
+          "title": "Thành phố ba tầng",
+          "body": "Địa đạo dài hơn 250 km, kết hợp khoảng 500 km giao thông hào. Tầng 1 sâu khoảng 3 m cho chiến đấu; tầng 2 khoảng 6 m cho thương binh, người già, trẻ em; tầng 3 sâu nhất, 8–10 m.",
+          "dyk": "Lỗ thông hơi được ngụy trang thành ụ mối để địch không phát hiện.",
+          "visual": {
+            "kind": "art",
+            "art": "layers",
+            "caption": "Minh hoạ lát cắt 3 tầng hầm"
+          }
+        },
+        {
+          "id": "68-4",
+          "xuaNay": "den-ham",
+          "date": "Đời sống dưới hầm",
+          "icon": "local_hospital",
+          "title": "Cứu thương dưới lòng đất",
+          "body": "Thương binh được mổ, băng bó ngay trong trạm phẫu thuật dưới hầm, bên cạnh phòng họp, kho lương và bếp. Hầm ẩm thấp, thiếu dưỡng khí, ánh sáng chỉ từ nến hay đèn pin; người ngất xỉu được đưa ra cửa hầm hô hấp nhân tạo.",
+          "dyk": "Sốt rét là nguyên nhân tử vong lớn thứ hai sau thương tích chiến đấu; có lúc một nửa quân số của một đơn vị mắc bệnh.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1968-surgery.jpg",
+            "focus": [
+              45,
+              45
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: cứu chữa thương binh"
+          }
+        },
+        {
+          "id": "68-5",
+          "date": "8/1/1967",
+          "icon": "warning",
+          "title": "Trận càn Cedar Falls",
+          "body": "Khoảng 30.000 quân mở cuộc hành quân Cedar Falls vào \"Tam giác sắt\" — trận càn lớn nhất năm đó — nhưng phải kết thúc sau 19 ngày. Ngày 18/1, lính Mỹ phát hiện một sở chỉ huy dưới hầm với khoảng nửa triệu tài liệu.",
+          "dyk": "Theo tư liệu Việt Nam, trong trận càn này đối phương tổn thất hàng nghìn quân, 130 xe tăng và xe bọc thép, 28 máy bay.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/sweep-reenactment.jpg",
+            "focus": [
+              40,
+              55
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tái hiện: bộ binh và xe bọc thép M113 càn qua rừng cháy"
+          }
+        },
+        {
+          "id": "68-6",
+          "date": "1966 – 1967",
+          "icon": "flashlight_on",
+          "title": "Cuộc chiến trong lòng hầm",
+          "body": "Dưới hầm, du kích phục sẵn trong bóng tối. Không phá được địa đạo từ mặt đất, quân Mỹ phải lập đội \"chuột cống\" (tunnel rats) chui xuống chỉ với súng ngắn, dao, đèn pin và một cuộn dây. Hầm hẹp, tối và gài bẫy — một hạ sĩ công binh Úc đã thiệt mạng khi mắc kẹt trong một nhánh hầm cụt.",
+          "dyk": "Quân Mỹ còn bơm nước vào hầm, thả khoảng 3.000 chó săn, gieo loại cỏ mọc cao 2–3 m trong một tháng để phá địa đạo — đều thất bại.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1968-crawl.jpg",
+            "focus": [
+              50,
+              40
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: du kích phục trong địa đạo"
+          }
+        },
+        {
+          "id": "68-7",
+          "date": "17/9/1967",
+          "icon": "military_tech",
+          "title": "\"Đất thép thành đồng\"",
+          "body": "Ủy ban Trung ương Mặt trận Dân tộc Giải phóng miền Nam Việt Nam tặng Củ Chi danh hiệu \"Đất thép thành đồng\" — giữa lúc chiến tranh ác liệt nhất, khi cả những người phụ nữ cũng cầm súng giữ đất.",
+          "dyk": "Trung đội nữ du kích Củ Chi thành lập ngày 10/11/1965; năm 2018 được tuyên dương Anh hùng Lực lượng vũ trang nhân dân.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1968-main.png",
+            "focus": [
+              44,
+              48
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: nữ du kích Củ Chi"
+          }
+        },
+        {
+          "id": "68-8",
+          "xuaNay": "phong-hop",
+          "date": "Xuân 1968",
+          "icon": "campaign",
+          "title": "Bàn đạp Tết Mậu Thân",
+          "body": "Địa đạo Củ Chi là căn cứ xuất phát cho cuộc Tổng tiến công và nổi dậy Tết Mậu Thân 1968. Những phòng họp dưới lòng đất — nơi bàn kế hoạch tác chiến — nay đã được phục dựng.",
+          "dyk": "Bến Đình là căn cứ của Huyện ủy Củ Chi suốt giai đoạn 1968–1975.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1968-meeting.jpg",
+            "focus": [
+              45,
+              58
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: họp trong địa đạo"
+          }
+        }
+      ],
+      "stats": [
+        {
+          "value": 250,
+          "suffix": "+ km",
+          "label": "đường hầm (tháng 1/1967)"
+        },
+        {
+          "value": 500,
+          "suffix": " km",
+          "label": "giao thông hào, công sự"
+        },
+        {
+          "value": 3,
+          "suffix": " tầng",
+          "label": "sâu khoảng 3 · 6 · 8–10 m"
+        },
+        {
+          "value": 30000,
+          "label": "quân trong trận Cedar Falls"
+        }
+      ],
+      "quiz": {
+        "question": "Tầng sâu nhất của địa đạo Củ Chi cách mặt đất khoảng bao nhiêu?",
+        "options": [
+          "Khoảng 3 m",
+          "Khoảng 6 m",
+          "Khoảng 8–10 m"
+        ],
+        "explain": "Tầng 1 sâu khoảng 3 m, tầng 2 khoảng 6 m, tầng 3 sâu nhất khoảng 8–10 m dưới mặt đất."
+      },
+      "sources": [
+        {
+          "label": "Báo Nhân Dân",
+          "url": "https://special.nhandan.vn/dia-dao-Cu-Chi-ky-tich-anh-hung/index.html"
+        },
+        {
+          "label": "VnExpress",
+          "url": "https://vnexpress.net/mang-nhen-duoi-long-dat-thep-cu-chi-2161369.html"
+        },
+        {
+          "label": "Báo Pháp Luật VN",
+          "url": "https://baophapluat.vn/ky-tich-cu-chi-post329504.html"
+        },
+        {
+          "label": "Wikipedia — Củ Chi tunnels",
+          "url": "https://en.wikipedia.org/wiki/C%E1%BB%A7_Chi_tunnels"
+        },
+        {
+          "label": "Wikipedia — Củ Chi Base Camp",
+          "url": "https://en.wikipedia.org/wiki/C%E1%BB%A7_Chi_Base_Camp"
+        },
+        {
+          "label": "Báo Sài Gòn Giải Phóng",
+          "url": "https://www.sggp.org.vn/hop-mat-ky-niem-60-nam-thanh-lap-trung-doi-nu-du-kich-cu-chi-post822774.html"
+        }
+      ]
+    },
+    "1975": {
+      "era": 1975,
+      "chapter": "Chương 3 · Toàn thắng",
+      "tagline": "Hậu cứ \"Đất thép thành đồng\" đi tới ngày thống nhất",
+      "accent": "#fcd34d",
+      "photoFilter": "sepia(0.12) contrast(1.06) brightness(0.95)",
+      "particles": "embers",
+      "networkNote": "Hậu cứ vững chắc, bàn đạp tiến về Sài Gòn",
+      "moments": [
+        {
+          "id": "75-1",
+          "date": "Từ năm 1969",
+          "icon": "local_fire_department",
+          "title": "Mưa bom B-52",
+          "body": "Từ năm 1969, máy bay B-52 rải thảm Củ Chi. Tính chung 1954–1975, khoảng 500.000 tấn bom đạn trút xuống vùng đất này — trung bình mỗi người dân hứng chịu khoảng 1,5 tấn bom.",
+          "dyk": "Khoảng 480 tấn chất độc hoá học đã bị rải xuống Củ Chi.",
+          "visual": {
+            "kind": "art",
+            "art": "bombing",
+            "caption": "Minh hoạ: B-52 rải thảm"
+          }
+        },
+        {
+          "id": "75-2",
+          "date": "Giai đoạn nước rút",
+          "icon": "shield",
+          "title": "Hành lang bảo vệ lực lượng",
+          "body": "Hệ thống địa đạo tiếp tục được đào đắp, củng cố toàn diện — trở thành hậu cứ vững chắc và hành lang bảo vệ lực lượng cách mạng trong những năm cuối cuộc chiến.",
+          "dyk": "Ngày 29/4/1975 — một ngày trước toàn thắng — Sư đoàn 25 của quân đội Sài Gòn ở căn cứ Đồng Dù, ngay sát địa đạo, tan rã.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-1975-main.png",
+            "focus": [
+              50,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Ảnh tư liệu: đào đắp, củng cố công sự"
+          }
+        },
+        {
+          "id": "75-3",
+          "date": "30/4/1975",
+          "icon": "celebration",
+          "title": "Ngày toàn thắng",
+          "body": "Chiến dịch Hồ Chí Minh toàn thắng, miền Nam hoàn toàn giải phóng. Sau gần 30 năm, địa đạo Củ Chi hoàn thành sứ mệnh lịch sử trong cuộc chiến tranh giải phóng dân tộc.",
+          "dyk": "Củ Chi hai lần được tuyên dương danh hiệu Anh hùng Lực lượng vũ trang nhân dân.",
+          "visual": {
+            "kind": "art",
+            "art": "victory",
+            "caption": "Minh hoạ: ngày toàn thắng"
+          }
+        },
+        {
+          "id": "75-4",
+          "date": "Cái giá của độc lập",
+          "icon": "local_florist",
+          "title": "Không thể nào quên",
+          "body": "Chiến tranh đã cướp đi sinh mạng của 10.101 thường dân và hơn 10.000 chiến sĩ, thanh niên Củ Chi; 28.421 ngôi nhà bị đốt phá, khoảng 20.000 ha ruộng vườn bị huỷ hoại.",
+          "dyk": "Củ Chi có 13.598 gia đình thương binh, liệt sĩ.",
+          "visual": {
+            "kind": "art",
+            "art": "memorial",
+            "caption": "Minh hoạ: tưởng niệm"
+          }
+        },
+        {
+          "id": "75-5",
+          "xuaNay": "phong-hop",
+          "date": "Những người trong lòng đất",
+          "icon": "groups",
+          "title": "Họ từng sống dưới hầm",
+          "body": "Nhiều cán bộ như Nguyễn Văn Linh, Võ Văn Kiệt, Trần Bạch Đằng, Mai Chí Thọ từng sống và làm việc trong địa đạo, về sau giữ những trọng trách của đất nước.",
+          "dyk": "Nhạc sĩ, liệt sĩ Nguyễn Vĩnh Bảo hy sinh tại Củ Chi tháng 6/1967 khi mới 31 tuổi; tên ông được khắc tại Đền tưởng niệm Bến Dược.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-meeting-room.jpg",
+            "focus": [
+              50,
+              45
+            ],
+            "zoom": 1,
+            "caption": "Phòng họp phục dựng trong địa đạo",
+            "credit": "Saigon Review"
+          }
+        }
+      ],
+      "stats": [
+        {
+          "value": 500000,
+          "suffix": " tấn",
+          "label": "bom đạn trút xuống (1954–1975)"
+        },
+        {
+          "value": 1.5,
+          "decimals": 1,
+          "suffix": " tấn",
+          "label": "bom cho mỗi người dân"
+        },
+        {
+          "value": 5000,
+          "suffix": "+",
+          "label": "cuộc càn quét của địch"
+        },
+        {
+          "value": 2135,
+          "label": "Bà mẹ Việt Nam Anh hùng"
+        }
+      ],
+      "quiz": {
+        "question": "Củ Chi được tặng danh hiệu \"Đất thép thành đồng\" vào năm nào?",
+        "options": [
+          "1954",
+          "1967",
+          "1975"
+        ],
+        "explain": "Ngày 17/9/1967, Ủy ban Trung ương Mặt trận Dân tộc Giải phóng miền Nam Việt Nam tặng Củ Chi danh hiệu này — giữa lúc chiến tranh ác liệt nhất."
+      },
+      "sources": [
+        {
+          "label": "Báo Nhân Dân",
+          "url": "https://special.nhandan.vn/dia-dao-Cu-Chi-ky-tich-anh-hung/index.html"
+        },
+        {
+          "label": "Wikipedia — Củ Chi tunnels",
+          "url": "https://en.wikipedia.org/wiki/C%E1%BB%A7_Chi_tunnels"
+        },
+        {
+          "label": "Wikipedia — Củ Chi Base Camp",
+          "url": "https://en.wikipedia.org/wiki/C%E1%BB%A7_Chi_Base_Camp"
+        },
+        {
+          "label": "Vietnam+",
+          "url": "https://www.vietnamplus.vn/dia-dao-cu-chi-phat-huy-gia-tri-van-hoa-lich-su-noi-dat-thep-thanh-dong-post1032046.vnp"
+        }
+      ]
+    },
+    "2026": {
+      "era": 2026,
+      "chapter": "Chương 4 · Di sản sống",
+      "tagline": "Từ chiến trường thành nơi kể chuyện cho thế hệ trẻ",
+      "accent": "#2dd4bf",
+      "photoFilter": "saturate(1.05) contrast(1.03)",
+      "particles": "dust",
+      "networkNote": "Hơn 120 km được bảo tồn · 2 khu tham quan",
+      "moments": [
+        {
+          "id": "26-1",
+          "date": "29/4/1979",
+          "icon": "account_balance",
+          "title": "Gìn giữ từ những ngày đầu",
+          "body": "Địa đạo Bến Dược được công nhận di tích lịch sử quốc gia (Quyết định số 54). Ngày 15/12/2004, địa đạo Bến Đình cũng được công nhận (Quyết định số 101).",
+          "dyk": "Bến Dược là căn cứ Khu ủy và Quân khu Sài Gòn – Gia Định; Bến Đình là căn cứ của Huyện ủy Củ Chi.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-forest-huts.jpg",
+            "focus": [
+              50,
+              55
+            ],
+            "zoom": 1,
+            "caption": "Khu di tích giữa rừng tre ngày nay"
+          }
+        },
+        {
+          "id": "26-2",
+          "date": "19/12/1995",
+          "icon": "temple_buddhist",
+          "title": "Đền tưởng niệm Bến Dược",
+          "body": "Giai đoạn I Đền tưởng niệm liệt sĩ Bến Dược được khánh thành — nơi tưởng niệm hơn 45.000 liệt sĩ. Ngày này trở thành Ngày truyền thống của khu di tích.",
+          "dyk": "Bức tranh gốm tại đền được xác lập kỷ lục \"bức tranh gốm lớn nhất Việt Nam\" năm 2005.",
+          "visual": {
+            "kind": "art",
+            "art": "temple",
+            "caption": "Minh hoạ: Đền tưởng niệm Bến Dược"
+          }
+        },
+        {
+          "id": "26-3",
+          "date": "23/12/2015",
+          "icon": "workspace_premium",
+          "title": "Di tích quốc gia đặc biệt",
+          "body": "Thủ tướng Chính phủ xếp hạng Địa đạo Củ Chi là di tích quốc gia đặc biệt (Quyết định 2367/QĐ-TTg). Hơn 120 km đường hầm được bảo tồn.",
+          "dyk": "TP.HCM đang lập hồ sơ đề nghị UNESCO công nhận địa đạo là Di sản thế giới.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/era-2026-main.png",
+            "focus": [
+              50,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Đoạn hầm trong khu di tích ngày nay"
+          }
+        },
+        {
+          "id": "26-4",
+          "xuaNay": "den-ham",
+          "date": "Trải nghiệm",
+          "icon": "hiking",
+          "title": "Bước vào lòng đất",
+          "body": "Du khách lần lượt xuống những đoạn hầm đã được nới rộng, gia cố để tự mình trải nghiệm cảm giác di chuyển dưới lòng đất như thế hệ đi trước.",
+          "dyk": "Bến Dược giữ nhiều đoạn hầm nguyên bản, còn Bến Đình có các đoạn được phục dựng, nới rộng dành cho khách.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-tourists.jpg",
+            "focus": [
+              50,
+              55
+            ],
+            "zoom": 1,
+            "caption": "Du khách lần lượt xuống hầm",
+            "credit": "Saigon Review"
+          }
+        },
+        {
+          "id": "26-5",
+          "xuaNay": "bep-hoang-cam",
+          "date": "Phục dựng",
+          "icon": "soup_kitchen",
+          "title": "Bếp Hoàng Cầm",
+          "body": "Khu di tích phục dựng gian bếp Hoàng Cầm — loại bếp chia nhỏ khói rồi cho tan dần sát mặt đất, để máy bay địch không phát hiện được nơi nấu ăn.",
+          "dyk": "Bếp mang tên anh nuôi Hoàng Cầm (Đại đoàn 308), người sáng chế ra nó trong chiến dịch Hoà Bình 1951–1952.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-kitchen.jpg",
+            "focus": [
+              55,
+              55
+            ],
+            "zoom": 1,
+            "caption": "Gian bếp dưới hầm phục dựng tại khu di tích"
+          }
+        },
+        {
+          "id": "26-6",
+          "date": "Từ tháng 8/2023",
+          "icon": "dark_mode",
+          "title": "Tour đêm \"Trăng chiến khu\"",
+          "body": "Vào ngày rằm âm lịch hằng tháng, du khách trải nghiệm tour đêm hơn hai tiếng: xem sa bàn và phim 3D tái hiện trận càn Cedar Falls ngay tại khu di tích.",
+          "dyk": "Tháng 4/2025, tour đêm đón gần 200 khách mỗi đêm.",
+          "visual": {
+            "kind": "photo",
+            "src": "/images/time-portal/site-diorama.jpg",
+            "focus": [
+              50,
+              50
+            ],
+            "zoom": 1,
+            "caption": "Sa bàn mô phỏng lát cắt địa đạo"
+          }
+        },
+        {
+          "id": "26-7",
+          "date": "Tháng 4/2025",
+          "icon": "movie",
+          "title": "Địa đạo lên màn ảnh",
+          "body": "Phim \"Địa đạo: Mặt trời trong bóng tối\" của đạo diễn Bùi Thạc Chuyên ra mắt ngày 4/4/2025, kéo lượng khách tháng 4 đến khu di tích tăng 20–30% so với cùng kỳ.",
+          "dyk": "Khu di tích dùng thuyết minh tự động và mạng xã hội để kể chuyện lịch sử cho người trẻ.",
+          "visual": {
+            "kind": "art",
+            "art": "cinema",
+            "caption": "Minh hoạ: địa đạo lên màn ảnh rộng"
+          }
+        }
+      ],
+      "stats": [
+        {
+          "value": 120,
+          "suffix": "+ km",
+          "label": "đường hầm được bảo tồn"
+        },
+        {
+          "value": 45000,
+          "suffix": "+",
+          "label": "liệt sĩ được tưởng niệm tại Bến Dược"
+        },
+        {
+          "value": 2015,
+          "plain": true,
+          "label": "năm thành di tích quốc gia đặc biệt"
+        },
+        {
+          "value": 2,
+          "label": "khu tham quan: Bến Dược, Bến Đình"
+        }
+      ],
+      "quiz": {
+        "question": "Địa đạo Củ Chi được xếp hạng di tích quốc gia đặc biệt năm nào?",
+        "options": [
+          "1979",
+          "2004",
+          "2015"
+        ],
+        "explain": "Ngày 23/12/2015 (Quyết định 2367/QĐ-TTg). Trước đó, Bến Dược được công nhận di tích quốc gia năm 1979 và Bến Đình năm 2004."
+      },
+      "sources": [
+        {
+          "label": "Cục Di sản văn hoá",
+          "url": "https://dsvh.gov.vn/di-tich-lich-su-dia-dao-cu-chi-1490"
+        },
+        {
+          "label": "Báo Pháp Luật VN",
+          "url": "https://baophapluat.vn/ky-tich-cu-chi-post329504.html"
+        },
+        {
+          "label": "Wikipedia — Củ Chi tunnels",
+          "url": "https://en.wikipedia.org/wiki/C%E1%BB%A7_Chi_tunnels"
+        },
+        {
+          "label": "Báo Hoà Bình",
+          "url": "https://www.baohoabinh.com.vn/en/1/9402/Smokeless-Hoang-Cam-stove--legendary-initiative-in-Hoa-Binh-campaign.htm"
+        },
+        {
+          "label": "Báo Quân khu 7",
+          "url": "https://baoquankhu7.vn/ky-quan-dat-thep-cu-chi--1679101539-0020764s36310gs"
+        },
+        {
+          "label": "Tổng cục Du lịch",
+          "url": "https://vietnamtourism.vn/en/index.php/news/items/16024"
+        },
+        {
+          "label": "Việt Nam News",
+          "url": "https://ovietnam.vietnamnews.vn/war-movie-draws-visitors-to-cu-chi-tunnels-historic-site-post373377.html"
+        },
+        {
+          "label": "Vietnam+",
+          "url": "https://www.vietnamplus.vn/dia-dao-cu-chi-phat-huy-gia-tri-van-hoa-lich-su-noi-dat-thep-thanh-dong-post1032046.vnp"
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "mieng-ham": {
+      "id": "mieng-ham",
+      "name": "Miệng hầm",
+      "short": "Miệng hầm",
+      "icon": "door_open",
+      "xua": {
+        "src": "/images/xua-nay/mieng-ham-1968.webp",
+        "text": "Lối xuống hầm nhỏ hẹp, được che bằng nắp gỗ phủ đất và lá khô để đối phương khó phát hiện."
+      },
+      "nay": {
+        "src": "/images/xua-nay/mieng-ham-nay.webp",
+        "text": "Miệng hầm để ngỏ cho du khách quan sát; ở khu di tích, du khách còn có thể thử chui qua một nắp hầm."
+      }
+    },
+    "bep-hoang-cam": {
+      "id": "bep-hoang-cam",
+      "name": "Bếp Hoàng Cầm",
+      "short": "Bếp Hoàng Cầm",
+      "icon": "local_fire_department",
+      "xua": {
+        "src": "/images/xua-nay/bep-hoang-cam-1968.webp",
+        "text": "Bếp đỏ lửa dưới lòng đất. Khói được chia nhỏ rồi tan dần sát mặt đất, nên máy bay địch không phát hiện được nơi nấu ăn."
+      },
+      "nay": {
+        "src": "/images/xua-nay/bep-hoang-cam-nay.webp",
+        "text": "Gian bếp được phục dựng để du khách tìm hiểu cách nấu ăn không để lộ khói của bộ đội."
+      }
+    },
+    "phong-hop": {
+      "id": "phong-hop",
+      "name": "Phòng họp dưới lòng đất",
+      "short": "Phòng họp",
+      "icon": "groups",
+      "xua": {
+        "src": "/images/xua-nay/phong-hop-1968.webp",
+        "text": "Nơi bàn kế hoạch tác chiến, trong đó có cuộc Tổng tiến công Tết Mậu Thân 1968. Dưới hầm, ánh sáng chỉ từ nến hay đèn pin."
+      },
+      "nay": {
+        "src": "/images/xua-nay/phong-hop-nay.webp",
+        "text": "Phòng họp đã được phục dựng với bàn ghế, mô hình người và đèn điện cho khách tham quan."
+      }
+    },
+    "thong-hoi": {
+      "id": "thong-hoi",
+      "name": "Lỗ thông hơi ụ mối",
+      "short": "Lỗ thông hơi",
+      "icon": "air",
+      "xua": {
+        "src": "/images/xua-nay/thong-hoi-1968.webp",
+        "text": "Lỗ thông hơi đưa không khí xuống hầm, được ngụy trang thành ụ mối giữa cây cỏ để địch không phát hiện."
+      },
+      "nay": {
+        "src": "/images/xua-nay/thong-hoi-nay.webp",
+        "text": "Ụ mối thông hơi nằm ngay bên lối đi tham quan, có biển chỉ dẫn và mã QR thuyết minh."
+      }
+    },
+    "den-ham": {
+      "id": "den-ham",
+      "name": "Ánh sáng trong hầm",
+      "short": "Ánh sáng",
+      "icon": "light",
+      "xua": {
+        "src": "/images/xua-nay/den-ham-1968.webp",
+        "text": "Hầm ẩm thấp, thiếu dưỡng khí; ánh sáng chỉ từ nến hay đèn pin."
+      },
+      "nay": {
+        "src": "/images/xua-nay/den-ham-nay.webp",
+        "text": "Các đoạn hầm dành cho khách được nới rộng, gia cố và lắp đèn điện."
+      }
+    }
+  },
+  "photoCredit": "Ảnh hiện trạng: nhóm TimeLens chụp tại khu di tích Địa đạo Củ Chi",
+  "artNote": "Tranh tái hiện minh hoạ, vẽ trên chính khung ảnh hiện trạng — không phải ảnh tư liệu năm 1968."
+}

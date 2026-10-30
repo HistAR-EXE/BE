@@ -28,7 +28,7 @@ $analyticsSeedScript = Join-Path $PSScriptRoot 'seed-admin-analytics.ps1'
 $auditIpMigration = Join-Path $migrationDir 'V73__admin_audit_client_ip_location_seed.sql'
 # Minimum Flyway version this bootstrap script knows how to verify end-to-end.
 # Keep this aligned with the latest migration-specific smoke checks below.
-$ExpectedMinFlywayVersion = 94
+$ExpectedMinFlywayVersion = 109
 
 $migrations = @(Get-ChildItem $migrationDir -Filter 'V*__*.sql' |
     Sort-Object { Get-FlywayMigrationSortKey $_.Name })

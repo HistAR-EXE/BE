@@ -175,8 +175,14 @@ public class RagAiChatClient {
                     .sorted(java.util.Comparator.comparingInt(Enum::ordinal))
                     .map(Enum::name)
                     .toList());
-            if (knowledgeRoute.pageContext() != null) {
-                body.put("page_context", pageContextPayload(knowledgeRoute.pageContext()));
+            if (knowledgeRoute.pageContext() != null || knowledgeRoute.featureKey() != null) {
+                Map<String, Object> page = knowledgeRoute.pageContext() == null
+                        ? new LinkedHashMap<>() : pageContextPayload(knowledgeRoute.pageContext());
+                // The feature being asked about can differ from the page currently open.
+                if (knowledgeRoute.featureKey() != null) {
+                    page.put("requestedFeatureKey", knowledgeRoute.featureKey());
+                }
+                body.put("page_context", page);
             }
         }
         String requestId = MDC.get("requestId");

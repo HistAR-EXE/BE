@@ -1,4 +1,4 @@
--- HistAR full local bootstrap SQL
+﻿-- HistAR full local bootstrap SQL
 -- Generated from schema, seed manifest, and Flyway migrations through V109.
 -- Run only on a new, empty local database with psql -v ON_ERROR_STOP=1 -f.
 -- Do not run against shared, staging, or production databases.
