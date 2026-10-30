@@ -267,7 +267,7 @@ public class B2b2cInquiryService {
                                 html(inquiry.getPackageType()));
         try {
             histarEmailService.sendHtml(
-                    inquiry.getContactEmail(), "TimeLens — Đã nhận yêu cầu tư vấn số hóa di sản", customerHtml);
+                    inquiry.getContactEmail(), "TimeLens — Đã nhận yêu cầu tư vấn B2G", customerHtml);
         } catch (RuntimeException ex) {
             log.warn("B2B2C inquiry confirmation email failed for {}: {}", inquiry.getContactEmail(), ex.getMessage());
         }
@@ -281,7 +281,7 @@ public class B2b2cInquiryService {
         }
         String salesHtml =
                 """
-                <p>Yêu cầu B2B2C mới:</p>
+                <p>Yêu cầu B2G mới:</p>
                 <ul>
                 <li>Đơn vị: %s</li>
                 <li>Site: %s</li>
@@ -310,7 +310,7 @@ public class B2b2cInquiryService {
                                 html(inquiry.getMessage()),
                                 inquiry.getId());
         try {
-            histarEmailService.sendHtml(salesInbox.trim(), "TimeLens — Yêu cầu tư vấn số hóa di sản mới", salesHtml);
+            histarEmailService.sendHtml(salesInbox.trim(), "TimeLens — Yêu cầu tư vấn B2G mới", salesHtml);
         } catch (RuntimeException ex) {
             log.warn("B2B2C sales notify email failed for inquiry {}: {}", inquiry.getId(), ex.getMessage());
         }

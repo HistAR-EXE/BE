@@ -55,10 +55,41 @@ class OrgPaymentSeatActivationIntegrationTest {
   var waiting=sepay.getPaymentStatus(owner,tx.getOrderCode());
   assertThat(waiting.activated()).isFalse();assertThat(waiting.activationMessage()).contains("100");
   var removable=members.findByOrganizationId(org).stream().filter(m->!owner.equals(m.getUserId())).findFirst().orElseThrow();members.delete(removable);
+  sepay.getPaymentStatus(owner,tx.getOrderCode()); // activation retries after this read commits
   var activated=sepay.getPaymentStatus(owner,tx.getOrderCode());
   assertThat(activated.activated()).isTrue();assertThat(organizations.findById(org).orElseThrow().getPlanType()).isEqualTo("MICRO");
   var link=payments.findById(tx.getId()).orElseThrow().getSubscriptionId();assertThat(link).isNotNull();
   sepay.handleVerifiedWebhook(receipt);sepay.getPaymentStatus(owner,tx.getOrderCode());
   assertThat(subscriptions.findAllByOrganizationIdOrderByCreatedAtDesc(org)).hasSize(1);
  }
+ @Test void simultaneousPaidStatusPollsActivateOnlyOneSubscription() throws Exception {
+  var tx=pending();tx.setStatus("PAID");tx.setPaidAt(Instant.now());payments.saveAndFlush(tx);
+  var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+  var gate=new java.util.concurrent.CountDownLatch(1);
+  try {
+   var first=pool.submit(()->{gate.await();return sepay.getPaymentStatus(owner,tx.getOrderCode());});
+   var second=pool.submit(()->{gate.await();return sepay.getPaymentStatus(owner,tx.getOrderCode());});
+   gate.countDown();
+   first.get(30,java.util.concurrent.TimeUnit.SECONDS);
+   second.get(30,java.util.concurrent.TimeUnit.SECONDS);
+  } finally {pool.shutdownNow();}
+  assertThat(subscriptions.findAllByOrganizationIdOrderByCreatedAtDesc(org)).hasSize(1);
+  assertThat(payments.findById(tx.getId()).orElseThrow().getSubscriptionId()).isNotNull();
+ }
+
+ @Test void receivedMoneySurvivesOwnerPermissionRevokedBeforePayment(){
+  var tx=pending();
+  var ownerMember=members.findByOrganizationIdAndUserId(org,owner).orElseThrow();
+  ownerMember.setOrgRole("student");members.saveAndFlush(ownerMember);
+  var receipt=new SepayWebhookPayload(987654322L,"fixture",null,null,null,tx.getOrderCode(),tx.getTransferContent(),"in",null,8000000L,null,"revoked-owner-receipt");
+  sepay.handleVerifiedWebhook(receipt);
+  var paid=payments.findById(tx.getId()).orElseThrow();
+  assertThat(paid.getStatus()).isEqualTo("PAID");
+  assertThat(paid.getProviderTransactionId()).isEqualTo(987654322L);
+  assertThat(paid.getSubscriptionId()).isNull();
+  assertThat(subscriptions.findAllByOrganizationIdOrderByCreatedAtDesc(org)).isEmpty();
+  var response=sepay.getPaymentStatus(owner,tx.getOrderCode());
+  assertThat(response.activated()).isFalse();assertThat(response.activationMessage()).contains("Không chuyển khoản thêm");
+ }
+
 }

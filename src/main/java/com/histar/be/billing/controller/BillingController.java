@@ -188,6 +188,8 @@ public class BillingController {
     public ApiResponse<OrgVolumePreviewResponse> orgVolumePreview(
             @RequestParam String planType, @RequestParam(defaultValue = "1") int licenseCount) {
         OrgSubscription plan = OrgSubscription.fromPlanType(planType);
+        if (plan == OrgSubscription.NONE) throw new com.histar.be.common.exception.BusinessRuleException("Gói tổ chức không hợp lệ");
+        com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireSingleLicense(licenseCount);
         long unitPrice = OrgPlanLimits.forPlan(plan).priceVnd();
         BillingSettingsService.OrgVolumePricing pricing =
                 billingSettingsService.calculateOrgVolumePricing(unitPrice, licenseCount);

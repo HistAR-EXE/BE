@@ -56,6 +56,12 @@ class SepayOrgPaymentServiceTest {
     @Mock
     private EmailVerifiedGuard emailVerifiedGuard;
 
+    @Mock
+    private com.histar.be.organization.repository.OrganizationMemberRepository organizationMemberRepository;
+
+    @Mock
+    private OrgPaidActivationService paidActivation;
+
     @InjectMocks
     private SepayOrgPaymentService sepayOrgPaymentService;
 
@@ -154,6 +160,9 @@ class SepayOrgPaymentServiceTest {
         String signature = "sha256=" + SepayB2cPaymentService.hmacSha256Hex("whsec-test-secret", timestamp + "." + rawBody);
 
         sepayOrgPaymentService.handleWebhook(timestamp, signature, rawBody);
+        verify(paidActivation).activate(tx.getId());
+        // Activation is invoked in its own transaction after receipt commit.
+        sepayOrgPaymentService.activatePaidOrgOnce(tx);
 
         assertThat(tx.getStatus()).isEqualTo("PAID");
         assertThat(tx.getProviderTransactionId()).isEqualTo(223344L);
@@ -208,6 +217,8 @@ class SepayOrgPaymentServiceTest {
                 223346L, "MBBank", null, null, null, "ORGLOCK001", "ORGLOCK001",
                 "in", null, 1_000_000L, null, "FT223346"));
 
+        verify(paidActivation).activate(tx.getId());
+        sepayOrgPaymentService.activatePaidOrgOnce(tx);
         assertThat(tx.getStatus()).isEqualTo("PAID");
         verify(orgPaymentTransactionRepository).findByOrderCodeForUpdate("ORGLOCK001");
         verify(billingService).subscribeOrg(any(), any(), any());
@@ -247,4 +258,72 @@ class SepayOrgPaymentServiceTest {
                 .isInstanceOf(com.histar.be.common.exception.BusinessRuleException.class)
                 .hasMessageContaining("không khớp");
     }
+    @Test
+    void unrelatedActorCannotReserveSeatsOnAnotherOrganization() {
+        UUID user = UUID.randomUUID(), orgId = UUID.randomUUID();
+        when(profileRepository.findById(user)).thenReturn(Optional.of(Profile.builder().id(user).email("outsider@test.local").build()));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(com.histar.be.organization.entity.Organization.builder().id(orgId).build()));
+        assertThatThrownBy(() -> sepayOrgPaymentService.createPayment(user,
+                new OrgCreatePaymentRequest("Target", "MICRO", "outsider@test.local", orgId, "/teacher", 1)))
+                .isInstanceOf(com.histar.be.common.exception.BusinessRuleException.class).hasMessageContaining("Chỉ chủ tổ chức");
+        verify(orgPaymentTransactionRepository, never()).save(any());
+        verify(organizationRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void acceptedStudentCannotCreateOrganizationPaymentIntent() {
+        UUID user = UUID.randomUUID(), orgId = UUID.randomUUID();
+        when(profileRepository.findById(user)).thenReturn(Optional.of(Profile.builder().id(user).orgId(orgId).email("student@test.local").build()));
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(com.histar.be.organization.entity.Organization.builder().id(orgId).build()));
+        when(organizationMemberRepository.findByOrganizationIdAndUserId(orgId,user)).thenReturn(Optional.of(
+                com.histar.be.organization.entity.OrganizationMember.builder().organizationId(orgId).userId(user).orgRole("student").acceptedAt(Instant.now()).build()));
+        assertThatThrownBy(() -> sepayOrgPaymentService.createPayment(user,
+                new OrgCreatePaymentRequest("Target", "MICRO", "student@test.local", orgId, "/teacher", 1)))
+                .isInstanceOf(com.histar.be.common.exception.BusinessRuleException.class).hasMessageContaining("Chỉ chủ tổ chức");
+        verify(orgPaymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void explicitMissingOrganizationCannotBecomeAChargeForNewOrganization() {
+        UUID user=UUID.randomUUID(), orgId=UUID.randomUUID();
+        when(profileRepository.findById(user)).thenReturn(Optional.of(Profile.builder().id(user).email("owner@test.local").build()));
+        assertThatThrownBy(() -> sepayOrgPaymentService.createPayment(user,
+                new OrgCreatePaymentRequest("Missing", "MICRO", "owner@test.local", orgId, "/teacher", 1)))
+                .isInstanceOf(com.histar.be.common.exception.ResourceNotFoundException.class);
+        verify(orgPaymentTransactionRepository,never()).save(any());
+    }
+
+    @Test
+    void statusPollUsesLockedFreshPaymentBeforeRetryingActivation() {
+        UUID user=UUID.randomUUID(), subscription=UUID.randomUUID();
+        var completed=OrgPaymentTransaction.builder().id(UUID.randomUUID()).requesterUserId(user)
+                .subscriptionId(subscription).status("PAID").orderCode("PAIDLOCK").amountVnd(8_000_000L).build();
+        when(orgPaymentTransactionRepository.findByOrderCodeForUpdate("PAIDLOCK")).thenReturn(Optional.of(completed));
+        var first=sepayOrgPaymentService.getPaymentStatus(user,"PAIDLOCK");
+        var second=sepayOrgPaymentService.getPaymentStatus(user,"PAIDLOCK");
+        assertThat(first.activated()).isTrue(); assertThat(second.activated()).isTrue();
+        verify(orgPaymentTransactionRepository,org.mockito.Mockito.times(2)).findByOrderCodeForUpdate("PAIDLOCK");
+        verify(orgPaymentTransactionRepository,never()).findByOrderCode(any());
+        verify(billingService,never()).subscribeOrg(any(),any(),any());
+    }
+
+    @Test
+    void pendingOrderForAnotherOrganizationCannotBeReused() {
+        UUID user=UUID.randomUUID(), requestedOrg=UUID.randomUUID(), oldOrg=UUID.randomUUID();
+        when(profileRepository.findById(user)).thenReturn(Optional.of(Profile.builder().id(user).email("admin@test.local").role("ADMIN").build()));
+        var requested=com.histar.be.organization.entity.Organization.builder().id(requestedOrg).name("Requested").build();
+        when(organizationRepository.findById(requestedOrg)).thenReturn(Optional.of(requested));
+        when(organizationRepository.findByIdForUpdate(requestedOrg)).thenReturn(Optional.of(requested));
+        var pending=OrgPaymentTransaction.builder().id(UUID.randomUUID()).requesterUserId(user).organizationId(oldOrg)
+                .orgName("Other").contactEmail("other@test.local").planType("MICRO").orderCode("OLDORG")
+                .amountVnd(8000000L).grossAmountVnd(8000000L).discountAmountVnd(0L).licenseCount(1)
+                .status("PENDING").expiresAt(Instant.now().plusSeconds(300)).build();
+        when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(user,"UNDERPAID")).thenReturn(Optional.empty());
+        when(orgPaymentTransactionRepository.findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(user,"PENDING")).thenReturn(Optional.of(pending));
+        when(billingSettingsService.calculateOrgVolumePricing(8000000L,1)).thenReturn(new BillingSettingsService.OrgVolumePricing(8000000L,0,0L,8000000L,1));
+        when(orgPaymentTransactionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        var result=sepayOrgPaymentService.createPayment(user,new OrgCreatePaymentRequest("Requested","MICRO","admin@test.local",requestedOrg,null,1));
+        assertThat(result.orderCode()).isNotEqualTo("OLDORG");assertThat(result.organizationId()).isEqualTo(requestedOrg);
+    }
+
 }

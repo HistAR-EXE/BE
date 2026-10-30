@@ -43,6 +43,7 @@ public class SepayOrgPaymentService {
     private final ProfileRepository profileRepository;
     private final OrganizationRepository organizationRepository;
     private final BillingService billingService;
+    private final OrgPaidActivationService paidActivation;
     private final SepayProperties sepayProperties;
     private final BillingSettingsService billingSettingsService;
     private final EmailVerifiedGuard emailVerifiedGuard;
@@ -62,11 +63,13 @@ public class SepayOrgPaymentService {
 
         Organization existingOrg = resolveOrganization(profile, request.organizationId());
         if (existingOrg != null) {
+            requireBillingOwner(profile, existingOrg.getId());
             organizationRepository.findByIdForUpdate(existingOrg.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
             com.histar.be.billing.policy.OrgSeatCapacityPolicy.requireFits(
                     organizationMemberRepository.countByOrganizationId(existingOrg.getId()), plan);
         }
+        UUID requestedOrgId = existingOrg == null ? null : existingOrg.getId();
         String orgName = resolveOrgName(request.orgName(), existingOrg);
         String contactEmail = resolveContactEmail(request.contactEmail(), profile.getEmail(), existingOrg);
         long unitPriceVnd = OrgPlanLimits.forPlan(plan).priceVnd();
@@ -85,6 +88,7 @@ public class SepayOrgPaymentService {
                         && !SepayB2cPaymentService.isPastGrace(
                                 tx.getExpiresAt(), sepayProperties.getExpiryGraceMinutes()))
                 .filter(tx -> tx.getPlanType().equals(plan.name()))
+                .filter(tx -> matchesRequestedOrganization(tx, requestedOrgId, orgName, contactEmail))
                 .orElse(null);
         if (underpaid != null) {
             return reuseIntent(underpaid, pricing);
@@ -93,7 +97,8 @@ public class SepayOrgPaymentService {
                 .findFirstByRequesterUserIdAndStatusOrderByCreatedAtDesc(userId, "PENDING")
                 .filter(tx -> tx.getExpiresAt() != null && tx.getExpiresAt().isAfter(now))
                 .orElse(null);
-        if (pending != null && pending.getPlanType().equals(plan.name())) {
+        if (pending != null && pending.getPlanType().equals(plan.name())
+                && matchesRequestedOrganization(pending, requestedOrgId, orgName, contactEmail)) {
             return reuseIntent(pending, pricing);
         }
 
@@ -195,7 +200,7 @@ public class SepayOrgPaymentService {
 
     @Transactional
     public OrgPaymentStatusResponse getPaymentStatus(UUID userId, String orderCode) {
-        OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCode(orderCode)
+        OrgPaymentTransaction tx = orgPaymentTransactionRepository.findByOrderCodeForUpdate(orderCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         if (!tx.getRequesterUserId().equals(userId)) {
             throw new BusinessRuleException("Không có quyền xem giao dịch này");
@@ -221,7 +226,7 @@ public class SepayOrgPaymentService {
                 tx.getTransferContent(),
                 STATUS_UNDERPAID.equals(status) ? received : null,
                 STATUS_UNDERPAID.equals(status) ? remaining : null,
-                "PAID".equals(status) && tx.getSubscriptionId() == null ? capacityMessage(tx) : null);
+                "PAID".equals(status) && tx.getSubscriptionId() == null ? activationMessage(tx) : null);
     }
 
     @Transactional
@@ -307,9 +312,30 @@ public class SepayOrgPaymentService {
      */
     @Transactional
     public void finalizePaidOrg(OrgPaymentTransaction tx) {
+        if (tx.getSubscriptionId() != null) return;
+        UUID id = tx.getId();
+        Runnable attempt = () -> {
+            try { paidActivation.activate(id); }
+            catch (RuntimeException failure) {
+                // The receipt transaction has committed. Activation rollback must never erase money.
+                log.warn("B2B payment {} awaits activation ({})", id, failure.getClass().getSimpleName());
+            }
+        };
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { attempt.run(); }
+                    });
+        } else attempt.run();
+    }
+
+    void activatePaidOrgOnce(OrgPaymentTransaction tx) {
         if (tx.getSubscriptionId() != null) {
             return;
         }
+        // Payment -> account -> organization matches all activation paths and avoids
+        // reversing enrollment's account -> organization lock order.
+        profileRepository.findByIdForUpdate(tx.getRequesterUserId());
         if (capacityMessage(tx) != null) return;
         var orgStatus = billingService.subscribeOrg(
                 tx.getRequesterUserId(),
@@ -329,6 +355,15 @@ public class SepayOrgPaymentService {
         orgBillingSubscriptionRepository.save(subscription);
         tx.setSubscriptionId(subscription.getId());
         orgPaymentTransactionRepository.save(tx);
+    }
+
+    private String activationMessage(OrgPaymentTransaction tx) {
+        String capacity = null;
+        try { capacity = capacityMessage(tx); }
+        catch (ResourceNotFoundException missingOrganization) {
+            // Preserve access to the received-payment status even if the organization was removed.
+        }
+        return capacity != null ? capacity : "Đã nhận thanh toán nhưng chưa hoàn tất điều kiện kích hoạt. Hãy kiểm tra quyền chủ tổ chức và email hoặc liên hệ hỗ trợ. Không chuyển khoản thêm.";
     }
 
     private String capacityMessage(OrgPaymentTransaction tx) {
@@ -361,7 +396,16 @@ public class SepayOrgPaymentService {
         if (orgId == null) {
             return null;
         }
-        return organizationRepository.findById(orgId).orElse(null);
+        return organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+    }
+
+    private void requireBillingOwner(Profile profile, UUID orgId) {
+        if (com.histar.be.profile.entity.UserRole.ADMIN == com.histar.be.profile.entity.UserRole.fromStored(profile.getRole())) return;
+        boolean owner = organizationMemberRepository.findByOrganizationIdAndUserId(orgId, profile.getId())
+                .filter(member -> member.getAcceptedAt() != null && "owner".equalsIgnoreCase(member.getOrgRole())).isPresent();
+        // An expired organization must still be renewable by its accepted owner.
+        if (!owner) throw new BusinessRuleException("Chỉ chủ tổ chức mới được thay đổi gói B2B");
     }
 
     private String resolveOrgName(String requestName, Organization existingOrg) {
@@ -382,6 +426,13 @@ public class SepayOrgPaymentService {
             throw new BusinessRuleException("Email liên hệ không được rỗng");
         }
         return value;
+    }
+
+    private static boolean matchesRequestedOrganization(OrgPaymentTransaction payment, UUID organizationId,
+            String name, String email) {
+        return java.util.Objects.equals(payment.getOrganizationId(), organizationId)
+                && java.util.Objects.equals(payment.getOrgName(), name)
+                && java.util.Objects.equals(payment.getContactEmail(), email);
     }
 
     private OrgPaymentIntentResponse reuseIntent(

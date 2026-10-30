@@ -49,12 +49,20 @@ public class MinioMediaStorageService implements MediaStorageService {
 
     @Override
     public byte[] downloadImage(String objectUrl) {
-        String prefix = minioProperties.getPublicUrl().replaceAll("/$", "") + "/" + minioProperties.getBucket() + "/";
-        if (objectUrl == null || !objectUrl.startsWith(prefix)) {
-            throw new BusinessRuleException("Đường dẫn ảnh không hợp lệ");
-        }
-        String objectKey = objectUrl.substring(prefix.length());
-        if (!objectKey.startsWith("creations/") || objectKey.contains("..") || objectKey.isBlank()) {
+        String objectKey;
+        try {
+            // Stored creation URLs may predate a public-host migration. Read the
+            // object from our configured MinIO bucket; never fetch the old URL.
+            var uri = java.net.URI.create(objectUrl);
+            if (!("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))
+                    || uri.getHost() == null || uri.getUserInfo() != null) throw new IllegalArgumentException();
+            String marker = "/" + minioProperties.getBucket() + "/";
+            String path = uri.getRawPath();
+            int index = path.indexOf(marker);
+            if (index < 0) throw new IllegalArgumentException();
+            objectKey = path.substring(index + marker.length());
+            if (!objectKey.matches("creations/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\\.(png|jpg|jpeg|webp)")) throw new IllegalArgumentException();
+        } catch (IllegalArgumentException | NullPointerException ex) {
             throw new BusinessRuleException("Đường dẫn ảnh không hợp lệ");
         }
         try (var stream = minioClient.getObject(GetObjectArgs.builder()
